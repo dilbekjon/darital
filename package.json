@@ -1,0 +1,28 @@
+{
+  "name": "darital-final",
+  "version": "1.0.0",
+  "description": "Darital Final - Monorepo with NestJS API, Next.js Admin, and Expo Mobile",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "rm -rf node_modules && rm -rf apps/*/node_modules && rm -rf apps/*/.expo && pnpm install",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down -v",
+    "infra:logs": "docker compose logs -f --tail=100",
+    "infra:ps": "docker compose ps"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.8"
+  },
+  "packageManager": "pnpm@10.19.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "workspaces": [
+    "apps/*"
+  ]
+}

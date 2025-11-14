@@ -1,0 +1,6 @@
+{
+  "approvals": {
+    "@nestjs/core": "postinstall"
+  }
+}
+

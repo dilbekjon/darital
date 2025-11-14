@@ -1,0 +1,167 @@
+'use client';
+
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
+import type { Message } from '../lib/chatApi';
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001';
+
+interface UseChatSocketOptions {
+  conversationId?: string;
+  onMessageReceived?: (message: Message) => void;
+  onMessagesRead?: (data: { conversationId: string; readBy: string }) => void;
+  onUserTyping?: (data: { userId: string; email: string }) => void;
+}
+
+export function useChatSocket(options: UseChatSocketOptions = {}) {
+  const { conversationId, onMessageReceived, onMessagesRead, onUserTyping } = options;
+  
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+
+  // Initialize socket connection
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    
+    if (!token) {
+      setError('No authentication token found');
+      return;
+    }
+
+    console.log('🔌 Connecting to chat socket...');
+
+    const socketInstance = io(`${SOCKET_URL}/chat`, {
+      auth: {
+        token,
+      },
+      transports: ['websocket', 'polling'],
+    });
+
+    socketInstance.on('connected', (data) => {
+      console.log('✅ Connected to chat:', data);
+      setConnected(true);
+      setError(null);
+    });
+
+    socketInstance.on('error', (err) => {
+      console.error('❌ Socket error:', err);
+      setError(err.message || 'Socket error');
+      setConnected(false);
+    });
+
+    socketInstance.on('disconnect', () => {
+      console.log('🔌 Disconnected from chat');
+      setConnected(false);
+    });
+
+    socketInstance.on('message_received', (message: Message) => {
+      console.log('📨 Message received:', message);
+      onMessageReceived?.(message);
+    });
+
+    socketInstance.on('messages_read', (data) => {
+      console.log('👁️ Messages read:', data);
+      onMessagesRead?.(data);
+    });
+
+    socketInstance.on('user_typing', (data) => {
+      onUserTyping?.(data);
+    });
+
+    socketRef.current = socketInstance;
+    setSocket(socketInstance);
+
+    return () => {
+      console.log('🔌 Cleaning up socket connection');
+      socketInstance.disconnect();
+    };
+  }, []); // Only run once on mount
+
+  // Join conversation when conversationId changes
+  useEffect(() => {
+    if (socket && connected && conversationId) {
+      console.log('📥 Joining conversation:', conversationId);
+      
+      socket.emit('join_conversation', { conversationId });
+
+      socket.on('joined_conversation', (data) => {
+        console.log('✅ Joined conversation:', data);
+      });
+    }
+  }, [socket, connected, conversationId]);
+
+  // Send message
+  const sendMessage = useCallback((
+    content: string,
+    senderId: string,
+    conversationId: string,
+    senderRole?: 'TENANT' | 'ADMIN'
+  ) => {
+    if (!socket || !connected) {
+      console.error('Socket not connected');
+      return;
+    }
+
+    // Determine role from token if not provided
+    let role = senderRole;
+    if (!role) {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          // Map role to chat role (TENANT stays TENANT, ADMIN/SUPER_ADMIN becomes ADMIN)
+          const userRole = String(payload.role).toUpperCase();
+          role = userRole === 'TENANT' ? 'TENANT' : 'ADMIN';
+        } else {
+          role = 'ADMIN'; // Default fallback
+        }
+      } catch (error) {
+        console.error('Failed to determine role from token:', error);
+        role = 'ADMIN'; // Default fallback
+      }
+    }
+
+    console.log(`[ChatSocket] Sending message as ${role}`);
+
+    socket.emit('send_message', {
+      conversationId,
+      senderRole: role,
+      senderId,
+      content,
+    });
+  }, [socket, connected]);
+
+  // Mark messages as read
+  const markAsRead = useCallback((conversationId: string) => {
+    if (!socket || !connected) return;
+
+    socket.emit('mark_read', { conversationId });
+  }, [socket, connected]);
+
+  // Send typing indicator
+  const sendTyping = useCallback((conversationId: string) => {
+    if (!socket || !connected) return;
+
+    socket.emit('typing', { conversationId });
+  }, [socket, connected]);
+
+  // Send stop typing indicator
+  const sendStopTyping = useCallback((conversationId: string) => {
+    if (!socket || !connected) return;
+
+    socket.emit('stop_typing', { conversationId });
+  }, [socket, connected]);
+
+  return {
+    socket,
+    connected,
+    error,
+    sendMessage,
+    markAsRead,
+    sendTyping,
+    sendStopTyping,
+  };
+}
+
