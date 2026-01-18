@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getTenantInvoices } from '../../../lib/tenantApi';
+import { createTenantPaymentIntent, getTenantInvoices } from '../../../lib/tenantApi';
 import { ApiError } from '../../../lib/api';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -10,9 +10,26 @@ import TenantNavbar from '../../../components/TenantNavbar';
 const InvoicePage = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const router = useRouter();
   const { t } = useLanguage();
   const { darkMode } = useTheme();
+
+  // Helper to calculate days until/after due date
+  const getDaysRemaining = (dueDate: string): { days: number; isOverdue: boolean; urgency: 'normal' | 'soon' | 'overdue' } => {
+    const due = new Date(dueDate);
+    const now = new Date();
+    const diffTime = due.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return { days: Math.abs(diffDays), isOverdue: true, urgency: 'overdue' };
+    } else if (diffDays <= 3) {
+      return { days: diffDays, isOverdue: false, urgency: 'soon' };
+    }
+    return { days: diffDays, isOverdue: false, urgency: 'normal' };
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -30,6 +47,24 @@ const InvoicePage = () => {
     };
     loadData();
   }, [router]);
+
+  const handlePayInvoice = async (invoiceId: string) => {
+    setPaymentError(null);
+    setPayingInvoiceId(invoiceId);
+    try {
+      const intent = await createTenantPaymentIntent(invoiceId, 'UZUM');
+      if (intent.checkoutUrl) {
+        window.location.href = intent.checkoutUrl;
+        return;
+      }
+      setPaymentError(t.paymentFailed || 'Payment link is not available.');
+    } catch (err) {
+      console.error(err);
+      setPaymentError(t.paymentFailed || 'Unable to start payment. Please try again.');
+    } finally {
+      setPayingInvoiceId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -106,6 +141,15 @@ const InvoicePage = () => {
         </div>
 
         {/* Invoices Grid */}
+        {paymentError && (
+          <div className={`mb-4 border px-4 py-3 rounded-lg ${
+            darkMode
+              ? 'bg-red-900/20 border-red-700 text-red-200'
+              : 'bg-red-50 border-red-200 text-red-700'
+          }`}>
+            {paymentError}
+          </div>
+        )}
         {invoices.length === 0 ? (
           <div className={`text-center py-16 rounded-2xl border ${
             darkMode 
@@ -128,7 +172,8 @@ const InvoicePage = () => {
                     : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-2xl'
                 }`}
               >
-                <div className="flex flex-wrap items-center justify-between gap-4">
+                {/* Header Row */}
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
                   {/* Unit Name */}
                   <div className="flex items-center gap-3">
                     <div className={`p-3 rounded-xl border ${
@@ -152,12 +197,37 @@ const InvoicePage = () => {
                     </p>
                   </div>
 
-                  {/* Due Date */}
+                  {/* Due Date with Countdown */}
                   <div>
-                    <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.dueDate}</p>
-                    <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {new Date(invoice.dueDate).toLocaleDateString('uz-UZ')}
+                    <p className={`text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {invoice.status === 'OVERDUE' ? (t.deadline || 'Deadline') : (t.dueDate || 'Due Date')}
                     </p>
+                    <p className={`text-lg font-semibold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {new Date(invoice.dueDate).toLocaleDateString('uz-UZ', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                    {invoice.status !== 'PAID' && (() => {
+                      const { days, isOverdue, urgency } = getDaysRemaining(invoice.dueDate);
+                      return (
+                        <div className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold ${
+                          urgency === 'overdue'
+                            ? darkMode ? 'bg-red-500/30 text-red-300' : 'bg-red-100 text-red-700'
+                            : urgency === 'soon'
+                            ? darkMode ? 'bg-orange-500/30 text-orange-300' : 'bg-orange-100 text-orange-700'
+                            : darkMode ? 'bg-blue-500/30 text-blue-300' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {isOverdue
+                            ? `⚠️ ${days} ${t.daysOverdue || 'days overdue'}`
+                            : urgency === 'soon'
+                            ? `⏰ ${days} ${t.daysRemaining || 'days remaining'}`
+                            : `📅 ${days} ${t.daysRemaining || 'days remaining'}`
+                          }
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Status */}
@@ -168,6 +238,69 @@ const InvoicePage = () => {
                     </span>
                   </div>
                 </div>
+
+                {/* Pay Now Button Section */}
+                {invoice.status !== 'PAID' && (
+                  <div className={`mt-4 pt-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className={`text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {invoice.status === 'OVERDUE' 
+                            ? (t.payBefore || 'Please pay before deadline')
+                            : (t.paymentDue || 'Payment Due')
+                          }
+                        </p>
+                        {(() => {
+                          const { days, isOverdue } = getDaysRemaining(invoice.dueDate);
+                          if (isOverdue) {
+                            return (
+                              <p className={`text-sm font-semibold ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
+                                {t.urgentPayment || '⚠️ Urgent: Payment is overdue!'}
+                              </p>
+                            );
+                          } else if (days <= 3) {
+                            return (
+                              <p className={`text-sm font-semibold ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                                {t.dueSoon || `⏰ Only ${days} days left to pay`}
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                      <button
+                        onClick={() => handlePayInvoice(invoice.id)}
+                        disabled={payingInvoiceId === invoice.id}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+                          invoice.status === 'OVERDUE'
+                            ? darkMode
+                              ? 'bg-red-600 text-white hover:bg-red-700 shadow-red-500/50'
+                              : 'bg-red-600 text-white hover:bg-red-700 shadow-red-500/30'
+                            : darkMode
+                            ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400 shadow-yellow-500/50'
+                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30'
+                        }`}
+                      >
+                        {payingInvoiceId === invoice.id ? (
+                          <>
+                            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {t.loading || 'Loading...'}
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                            {t.payNow || 'Pay Now'}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

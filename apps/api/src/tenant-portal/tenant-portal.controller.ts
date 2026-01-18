@@ -6,6 +6,7 @@ import { TenantPortalService } from './tenant-portal.service';
 import { RegisterDeviceDto } from './dto/register-device.dto';
 import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
 import { AdminRole } from '@prisma/client'; // Import AdminRole
+import { PaymentIntentDto } from '../payments/dto/payment-intent.dto';
 
 @ApiTags('Tenant Portal')
 @ApiBearerAuth()
@@ -56,6 +57,14 @@ export class TenantPortalController {
     return this.tenantPortalService.getPaymentsForUser(req.user);
   }
 
+  @Post('payments/intent')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @ApiOperation({ summary: 'Create payment intent for an invoice' })
+  async createPaymentIntent(@Req() req, @Body() dto: PaymentIntentDto) {
+    this.ensureTenantAccess(req.user);
+    return this.tenantPortalService.createPaymentIntent(req.user, dto);
+  }
+
   @Get('payments/:id')
   // Permissions are handled by ensureTenantAccess helper
   @ApiOperation({ 
@@ -86,6 +95,13 @@ export class TenantPortalController {
   async getPaymentDetail(@Req() req, @Param('id') id: string) {
     this.ensureTenantAccess(req.user);
     return this.tenantPortalService.getPaymentDetail(req.user, id);
+  }
+
+  @Post('payments/:id/refresh')
+  @ApiOperation({ summary: 'Refresh payment status from provider' })
+  async refreshPaymentStatus(@Req() req, @Param('id') id: string) {
+    this.ensureTenantAccess(req.user);
+    return this.tenantPortalService.refreshPaymentStatus(req.user, id);
   }
 
   @Get('balance')

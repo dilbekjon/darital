@@ -54,6 +54,16 @@ export interface Translations {
   paid: string;
   overdue: string;
   noInvoices: string;
+  payNow: string;
+  paymentFailed: string;
+  refresh: string;
+  deadline: string;
+  daysRemaining: string;
+  daysOverdue: string;
+  dueSoon: string;
+  payBefore: string;
+  paymentDue: string;
+  urgentPayment: string;
   
   // Payments
   paymentsHistory: string;
@@ -224,6 +234,16 @@ const translations: Record<Language, Translations> = {
     paid: 'Paid',
     overdue: 'Overdue',
     noInvoices: 'No invoices found',
+    payNow: 'Pay Now',
+    paymentFailed: 'Unable to start payment. Please try again.',
+    refresh: 'Refresh',
+    deadline: 'Deadline',
+    daysRemaining: 'days remaining',
+    daysOverdue: 'days overdue',
+    dueSoon: 'Due Soon',
+    payBefore: 'Please pay before deadline',
+    paymentDue: 'Payment Due',
+    urgentPayment: 'Urgent: Payment is overdue!',
     
     // Payments
     paymentsHistory: 'Payments History',
@@ -392,6 +412,16 @@ const translations: Record<Language, Translations> = {
     paid: 'Оплачено',
     overdue: 'Просрочено',
     noInvoices: 'Счета не найдены',
+    payNow: 'Оплатить',
+    paymentFailed: 'Не удалось начать оплату. Попробуйте еще раз.',
+    refresh: 'Обновить',
+    deadline: 'Срок оплаты',
+    daysRemaining: 'дней осталось',
+    daysOverdue: 'дней просрочено',
+    dueSoon: 'Скоро срок оплаты',
+    payBefore: 'Пожалуйста, оплатите до срока',
+    paymentDue: 'Платеж должен быть оплачен',
+    urgentPayment: 'Срочно: Платеж просрочен!',
     
     // Payments
     paymentsHistory: 'История платежей',
@@ -560,6 +590,16 @@ const translations: Record<Language, Translations> = {
     paid: 'To\'langan',
     overdue: 'Muddati o\'tgan',
     noInvoices: 'Hisob-fakturalar topilmadi',
+    payNow: 'To\'lash',
+    paymentFailed: 'To\'lovni boshlab bo\'lmadi. Qayta urinib ko\'ring.',
+    refresh: 'Yangilash',
+    deadline: 'Muddati',
+    daysRemaining: 'kun qoldi',
+    daysOverdue: 'kun muddati o\'tgan',
+    dueSoon: 'Tez orada muddat',
+    payBefore: 'Iltimos, muddatgacha to\'lang',
+    paymentDue: 'To\'lov muddati',
+    urgentPayment: 'Shoshilinch: To\'lov muddati o\'tdi!',
     
     // Payments
     paymentsHistory: 'To\'lovlar tarixi',

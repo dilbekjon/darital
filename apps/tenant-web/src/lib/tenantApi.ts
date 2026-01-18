@@ -23,6 +23,15 @@ interface Payment {
   paidAt: string;
 }
 
+interface PaymentIntentResponse {
+  paymentId: string;
+  invoiceId: string;
+  amount: number;
+  provider: string;
+  providerPaymentId?: string;
+  checkoutUrl: string | null;
+}
+
 interface Balance {
   current: number;
 }
@@ -51,6 +60,22 @@ export async function getTenantInvoices(): Promise<Invoice[]> {
 
 export async function getTenantPayments(): Promise<Payment[]> {
   return fetchApi<Payment[]>('/tenant/payments');
+}
+
+export async function createTenantPaymentIntent(
+  invoiceId: string,
+  provider: 'UZUM' | 'CLICK' | 'PAYME' | 'NONE' = 'UZUM',
+): Promise<PaymentIntentResponse> {
+  return fetchApi<PaymentIntentResponse>('/tenant/payments/intent', {
+    method: 'POST',
+    body: JSON.stringify({ invoiceId, provider }),
+  });
+}
+
+export async function refreshTenantPayment(paymentId: string): Promise<any> {
+  return fetchApi(`/tenant/payments/${paymentId}/refresh`, {
+    method: 'POST',
+  });
 }
 
 export async function getTenantBalance(): Promise<Balance> {

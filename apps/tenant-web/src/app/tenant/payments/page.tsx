@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getTenantPayments } from '../../../lib/tenantApi';
+import { getTenantPayments, refreshTenantPayment } from '../../../lib/tenantApi';
 import { ApiError } from '../../../lib/api';
 import { useLanguage } from '../../../contexts/LanguageContext';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -10,6 +10,8 @@ import TenantNavbar from '../../../components/TenantNavbar';
 const PaymentsPage = () => {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshingPaymentId, setRefreshingPaymentId] = useState<string | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const router = useRouter();
   const { t } = useLanguage();
   const { darkMode } = useTheme();
@@ -30,6 +32,21 @@ const PaymentsPage = () => {
     };
     loadData();
   }, [router]);
+
+  const handleRefreshPayment = async (paymentId: string) => {
+    setRefreshError(null);
+    setRefreshingPaymentId(paymentId);
+    try {
+      await refreshTenantPayment(paymentId);
+      const paymentData = await getTenantPayments();
+      setPayments(paymentData);
+    } catch (err) {
+      console.error(err);
+      setRefreshError(t.paymentFailed || 'Unable to refresh payment status.');
+    } finally {
+      setRefreshingPaymentId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -102,6 +119,15 @@ const PaymentsPage = () => {
         </div>
 
         {/* Payments Grid */}
+        {refreshError && (
+          <div className={`mb-4 border px-4 py-3 rounded-lg ${
+            darkMode
+              ? 'bg-red-900/20 border-red-700 text-red-200'
+              : 'bg-red-50 border-red-200 text-red-700'
+          }`}>
+            {refreshError}
+          </div>
+        )}
         {payments.length === 0 ? (
           <div className={`text-center py-16 rounded-2xl border ${
             darkMode 
@@ -167,6 +193,23 @@ const PaymentsPage = () => {
                       {payment.status === 'CONFIRMED' && '✓ '}
                       {getStatusText(payment.status)}
                     </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div>
+                    {payment.status === 'PENDING' && payment.provider === 'UZUM' && (
+                      <button
+                        onClick={() => handleRefreshPayment(payment.id)}
+                        disabled={refreshingPaymentId === payment.id}
+                        className={`px-4 py-2 rounded-xl font-semibold transition-colors ${
+                          darkMode
+                            ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/50 hover:bg-yellow-500/30 disabled:opacity-50'
+                            : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60'
+                        }`}
+                      >
+                        {refreshingPaymentId === payment.id ? (t.loading || 'Loading...') : (t.refresh || 'Refresh')}
+                      </button>
+                    )}
                   </div>
                 </div>
 

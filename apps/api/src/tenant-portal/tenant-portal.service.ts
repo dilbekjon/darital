@@ -1,29 +1,32 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { RegisterDeviceDto } from './dto/register-device.dto';
 import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
+import { PaymentIntentDto, PaymentProviderEnum } from '../payments/dto/payment-intent.dto';
+import { PaymentMethod, PaymentProvider, PaymentStatus, Prisma } from '@prisma/client';
+import { CheckoutUzService } from '../payments/checkout-uz.service';
+import { PaymentsService } from '../payments/payments.service';
 
 @Injectable()
 export class TenantPortalService {
   private readonly logger = new Logger(TenantPortalService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly checkoutUzService: CheckoutUzService,
+    private readonly paymentsService: PaymentsService,
+  ) {}
 
   async getProfileForUser(user: any) {
-    // For TENANT role users, find tenant by email match
-    // For ADMIN/SUPER_ADMIN, they can debug but we'll still try to find a tenant
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { email: user.email },
+    // Resolve tenant by id from JWT (payload.sub mapped to user.id in JwtStrategy)
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
       include: {
         contracts: {
-          // Include ALL contracts (DRAFT, ACTIVE, COMPLETED, CANCELLED)
-          // Frontend will show status so tenant can see all their contracts
           include: {
             unit: true,
           },
-          orderBy: {
-            createdAt: 'desc',
-          },
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
@@ -32,8 +35,8 @@ export class TenantPortalService {
   }
 
   async getInvoicesForUser(user: any) {
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { email: user.email },
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
     });
 
     if (!tenant) return [];
@@ -64,8 +67,8 @@ export class TenantPortalService {
   }
 
   async getPaymentsForUser(user: any) {
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { email: user.email },
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
     });
 
     if (!tenant) return [];
@@ -85,6 +88,7 @@ export class TenantPortalService {
       id: payment.id,
       invoiceId: payment.invoiceId,
       method: payment.method,
+      provider: (payment as any).provider,
       amount: payment.amount,
       status: payment.status,
       paidAt: payment.paidAt,
@@ -92,12 +96,12 @@ export class TenantPortalService {
   }
 
   async getPaymentDetail(user: any, paymentId: string) {
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { email: user.email },
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
     });
 
     if (!tenant) {
-      throw new Error('Tenant not found');
+      throw new NotFoundException('Tenant not found');
     }
 
     const payment = await this.prisma.payment.findFirst({
@@ -123,13 +127,14 @@ export class TenantPortalService {
     });
 
     if (!payment) {
-      throw new Error('Payment not found or access denied');
+      throw new NotFoundException('Payment not found or access denied');
     }
 
     return {
       id: payment.id,
       amount: payment.amount,
       method: payment.method,
+      provider: (payment as any).provider,
       status: payment.status,
       createdAt: payment.createdAt,
       paidAt: payment.paidAt,
@@ -145,11 +150,9 @@ export class TenantPortalService {
   }
 
   async getBalanceForUser(user: any) {
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { email: user.email },
-      include: {
-        balance: true,
-      },
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
+      include: { balance: true },
     });
 
     if (!tenant || !tenant.balance) {
@@ -162,13 +165,13 @@ export class TenantPortalService {
   }
 
   async registerDevice(user: any, dto: RegisterDeviceDto) {
-    // Find tenant by email
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { email: user.email },
+    // Find tenant by id
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
     });
 
     if (!tenant) {
-      throw new Error('Tenant not found');
+      throw new NotFoundException('Tenant not found');
     }
 
     // Upsert device: if token exists, update; otherwise create
@@ -195,13 +198,13 @@ export class TenantPortalService {
   }
 
   async getDevices(user: any) {
-    // Find tenant by email
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { email: user.email },
+    // Find tenant by id
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
     });
 
     if (!tenant) {
-      throw new Error('Tenant not found');
+      throw new NotFoundException('Tenant not found');
     }
 
     // Get all devices for this tenant
@@ -220,14 +223,111 @@ export class TenantPortalService {
     };
   }
 
+  async createPaymentIntent(user: any, dto: PaymentIntentDto) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
+    });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: dto.invoiceId, contract: { tenantId: tenant.id } },
+      include: { contract: true },
+    });
+    if (!invoice) throw new ForbiddenException('Invoice not found or access denied');
+    if (invoice.status === 'PAID') {
+      throw new ConflictException('Invoice already paid');
+    }
+
+    const payment = await this.prisma.payment.create({
+      data: {
+        invoiceId: invoice.id,
+        method: PaymentMethod.ONLINE,
+        provider: dto.provider ?? PaymentProviderEnum.NONE,
+        status: PaymentStatus.PENDING,
+        amount: invoice.amount,
+        externalRef: invoice.id,
+      } as any,
+    });
+
+    if (dto.provider === PaymentProviderEnum.UZUM) {
+      try {
+        const checkoutResponse = await this.checkoutUzService.createInvoice(invoice.amount);
+        if (!checkoutResponse?.ok || !checkoutResponse.order_id || !checkoutResponse.pay_url) {
+          await this.prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+              status: PaymentStatus.CANCELLED,
+              rawPayload: checkoutResponse ?? { error: 'Invalid response from CheckoutUz' },
+            } as any,
+          });
+          throw new Error('Failed to create CheckoutUz invoice');
+        }
+
+        await this.prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            provider: PaymentProvider.UZUM,
+            providerPaymentId: String(checkoutResponse.order_id),
+            rawPayload: checkoutResponse,
+          } as any,
+        });
+
+        return {
+          paymentId: payment.id,
+          invoiceId: invoice.id,
+          amount: payment.amount,
+          provider: PaymentProvider.UZUM,
+          providerPaymentId: String(checkoutResponse.order_id),
+          checkoutUrl: checkoutResponse.pay_url,
+        };
+      } catch (error: any) {
+        this.logger.error(`CheckoutUz create invoice failed: ${error?.message || error}`);
+        throw new ConflictException('Unable to create payment intent. Please try again later.');
+      }
+    }
+
+    return {
+      paymentId: payment.id,
+      invoiceId: invoice.id,
+      amount: payment.amount,
+      provider: (payment as any).provider,
+      checkoutUrl: null,
+    };
+  }
+
+  async refreshPaymentStatus(user: any, paymentId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
+    });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        id: paymentId,
+        invoice: { contract: { tenantId: tenant.id } },
+      },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+
+    if ((payment as any).provider !== PaymentProvider.UZUM) {
+      return { ok: false, error: 'Payment provider is not CheckoutUz' };
+    }
+
+    if (payment.status === PaymentStatus.CONFIRMED) {
+      return { ok: true, alreadyConfirmed: true };
+    }
+
+    return this.paymentsService.refreshCheckoutUzPayment(payment.id);
+  }
+
   async getNotificationPreferences(user: any) {
-    // Find tenant by email
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { email: user.email },
+    // Find tenant by id
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
     });
 
     if (!tenant) {
-      throw new Error('Tenant not found');
+      throw new NotFoundException('Tenant not found');
     }
 
     // Get all preferences for this tenant
@@ -257,13 +357,13 @@ export class TenantPortalService {
   }
 
   async updateNotificationPreferences(user: any, dto: UpdateNotificationPreferencesDto) {
-    // Find tenant by email
-    const tenant = await this.prisma.tenant.findFirst({
-      where: { email: user.email },
+    // Find tenant by id
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
     });
 
     if (!tenant) {
-      throw new Error('Tenant not found');
+      throw new NotFoundException('Tenant not found');
     }
 
     // Upsert each preference
