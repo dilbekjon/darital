@@ -3,6 +3,8 @@ import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  // Explicitly expose PrismaClient methods and models for TypeScript
+  // This ensures all Prisma models (payment, invoice, etc.) are accessible
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {

@@ -19,7 +19,7 @@ services:
     name: darital-api
     runtime: node
     plan: free
-    buildCommand: npm install -g pnpm@10.19.0 && pnpm install && cd apps/api && pnpm run build
+    buildCommand: npm install -g pnpm@10.19.0 && pnpm install && cd apps/api && pnpm run prisma:generate && pnpm run build
     startCommand: cd apps/api && pnpm run start:prod
     envVars:
       - key: NODE_ENV

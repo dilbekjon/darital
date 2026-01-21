@@ -53,6 +53,7 @@ export default function TenantChatPage() {
                   content: message.content || '',
                   createdAt: message.createdAt,
                   status: message.status,
+                  senderRole: message.senderRole, // Include required senderRole
                 },
               ],
             };
