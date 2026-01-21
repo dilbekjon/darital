@@ -62,16 +62,19 @@ export class SmsService {
     //   to: phone
     // });
 
+    void _text;
     this.logger.log(`📱 [Twilio] SMS sent to ${phone}`);
   }
 
   private async sendViaVonage(phone: string, _text: string): Promise<void> {
     // TODO: Implement Vonage integration
+    void _text;
     this.logger.log(`📱 [Vonage] SMS sent to ${phone}`);
   }
 
   private async sendViaAwsSns(phone: string, _text: string): Promise<void> {
     // TODO: Implement AWS SNS integration
+    void _text;
     this.logger.log(`📱 [AWS SNS] SMS sent to ${phone}`);
   }
 }

@@ -66,6 +66,15 @@ export function useChatSocket(options: UseChatSocketOptions = {}) {
       onMessagesRead?.(data);
     });
 
+    // Listen for errors (e.g., trying to send to closed conversation)
+    socketInstance.on('error', (err: any) => {
+      console.error('❌ Socket error:', err);
+      if (err.message) {
+        // You can handle specific errors here if needed
+        console.error('Error message:', err.message);
+      }
+    });
+
     socketInstance.on('user_typing', (data) => {
       onUserTyping?.(data);
     });
@@ -111,15 +120,21 @@ export function useChatSocket(options: UseChatSocketOptions = {}) {
         const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
         if (token) {
           const payload = JSON.parse(atob(token.split('.')[1]));
-          // Map role to chat role (TENANT stays TENANT, ADMIN/SUPER_ADMIN becomes ADMIN)
+          // Map role to chat role
+          // TENANT_USER or TENANT -> TENANT
+          // ADMIN/SUPER_ADMIN -> ADMIN
           const userRole = String(payload.role).toUpperCase();
-          role = userRole === 'TENANT' ? 'TENANT' : 'ADMIN';
+          if (userRole === 'TENANT' || userRole === 'TENANT_USER') {
+            role = 'TENANT';
+          } else {
+            role = 'ADMIN';
+          }
         } else {
-          role = 'ADMIN'; // Default fallback
+          role = 'TENANT'; // Default fallback for tenant portal
         }
       } catch (error) {
         console.error('Failed to determine role from token:', error);
-        role = 'ADMIN'; // Default fallback
+        role = 'TENANT'; // Default fallback for tenant portal
       }
     }
 

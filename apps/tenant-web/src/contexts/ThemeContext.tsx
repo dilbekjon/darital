@@ -26,9 +26,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (savedTheme === 'dark') {
       setDarkModeState(true);
       document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
+      document.body.style.backgroundColor = '#000000';
     } else {
       setDarkModeState(false);
       document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
+      document.body.style.backgroundColor = '#ffffff';
     }
   }, []);
 
@@ -37,8 +41,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (!mounted) return;
     if (darkMode) {
       document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
+      document.body.style.backgroundColor = '#000000';
     } else {
       document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
+      document.body.style.backgroundColor = '#ffffff';
     }
   }, [darkMode, mounted]);
 

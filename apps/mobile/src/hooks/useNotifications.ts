@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
+// Platform is imported lazily if needed (currently not used in this file)
 import {
   registerForPushNotificationsAsync,
   registerDeviceWithBackend,

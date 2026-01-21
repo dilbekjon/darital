@@ -2,14 +2,29 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTenantProfile, getTenantBalance } from '../../lib/tenantApi';
-import { ApiError } from '../../lib/api';
+import { ApiError, fetchTenantApi } from '../../lib/api';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import TenantNavbar from '../../components/TenantNavbar';
+import DaritalLoader from '../../components/DaritalLoader';
+import PaymentChart from '../../components/PaymentChart';
+import SystemStatus from '../../components/SystemStatus';
+
+interface ChartData {
+  chartData: { month: string; monthLabel: string; paid: number; due: number }[];
+  summary: {
+    totalPaid: number;
+    totalDue: number;
+    onTimePayments: number;
+    latePayments: number;
+    averagePayment: number;
+  };
+}
 
 const TenantDashboard = () => {
   const [profile, setProfile] = useState<any>(null);
   const [balance, setBalance] = useState<any>(null);
+  const [chartData, setChartData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { t } = useLanguage();
@@ -18,12 +33,14 @@ const TenantDashboard = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [profileData, balanceData] = await Promise.all([
+        const [profileData, balanceData, chartDataResult] = await Promise.all([
           getTenantProfile(),
-          getTenantBalance()
+          getTenantBalance(),
+          fetchTenantApi('/tenant/receipts/chart-data').catch(() => null),
         ]);
         setProfile(profileData);
         setBalance(balanceData);
+        setChartData(chartDataResult);
       } catch (err) {
         console.error(err);
         if (typeof window !== 'undefined' && err instanceof ApiError && err.status === 401) {
@@ -37,15 +54,7 @@ const TenantDashboard = () => {
   }, [router]);
 
   if (loading) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center ${
-        darkMode ? 'bg-gradient-to-br from-gray-900 via-black to-gray-900' : 'bg-gradient-to-br from-blue-50 via-white to-blue-50'
-      }`}>
-        <div className={`animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 ${
-          darkMode ? 'border-yellow-500' : 'border-blue-500'
-        }`}></div>
-      </div>
-    );
+    return <DaritalLoader darkMode={darkMode} />;
   }
 
   const activeUnit = profile?.contracts?.[0]?.unit?.name || 'N/A';
@@ -77,6 +86,11 @@ const TenantDashboard = () => {
           <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
             {darkMode ? t.premiumOverview : t.propertyOverview}
           </p>
+        </div>
+
+        {/* System Status Indicator */}
+        <div className="flex justify-center mb-6">
+          <SystemStatus />
         </div>
 
         {/* Stats Grid */}
@@ -251,8 +265,33 @@ const TenantDashboard = () => {
                 <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Live Chat Support</p>
               </div>
             </a>
+
+            <a href="/tenant/documents" className={`group flex items-center gap-4 p-4 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border ${
+              darkMode
+                ? 'bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 hover:from-yellow-500/20 hover:to-yellow-600/20 border-yellow-500/40 hover:border-yellow-400'
+                : 'bg-gradient-to-r from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 border-transparent'
+            }`}>
+              <div className={`p-3 rounded-lg group-hover:scale-110 transition-transform duration-300 border ${
+                darkMode ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-white border-transparent'
+              }`}>
+                <svg className={`w-6 h-6 ${darkMode ? 'text-yellow-400' : 'text-orange-600'}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <p className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>📁 {t.documents || 'Documents'}</p>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.viewDocuments || 'Receipts & Files'}</p>
+              </div>
+            </a>
           </div>
         </div>
+
+        {/* Payment History Chart */}
+        {chartData && chartData.chartData.length > 0 && (
+          <div className="mt-8">
+            <PaymentChart chartData={chartData.chartData} summary={chartData.summary} />
+          </div>
+        )}
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `

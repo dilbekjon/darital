@@ -10,6 +10,7 @@ import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { EmptyState } from '../../../components/EmptyState';
 import { fetchApi, ApiError } from '../../../lib/api';
 import { getToken } from '../../../lib/auth';
+import DaritalLoader from '../../../components/DaritalLoader';
 
 interface Contract {
   id: string;
@@ -110,7 +111,7 @@ export default function AdminContractsPage() {
       const loadData = async () => {
         try {
           const [contractsData, tenantsData, unitsData] = await Promise.all([
-            fetchApi<Contract[]>('/contracts'),
+            fetchApi<Contract[]>('/contracts?includeArchived=false'),
             fetchApi<Tenant[]>('/tenants'),
             fetchApi<Unit[]>('/units'),
           ]);
@@ -133,11 +134,7 @@ export default function AdminContractsPage() {
   }, [loading, user, hasPermission]);
 
   if (loading || pageLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
-      </div>
-    );
+    return <DaritalLoader darkMode={darkMode} />;
   }
 
   if (!user || !hasPermission('contracts.read')) {
@@ -150,7 +147,7 @@ export default function AdminContractsPage() {
 
   const handleDeleteContract = async (contractId: string) => {
     if (!canDeleteContracts) return;
-    if (!confirm('Are you sure you want to delete this contract? This action cannot be undone.')) {
+    if (!confirm(`${t.confirmDeleteContract} ${t.actionCannotBeUndone}`)) {
       return;
     }
 
@@ -165,7 +162,7 @@ export default function AdminContractsPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('Failed to delete contract.');
+        setError(t.failedToDeleteContract);
       }
     }
   };
@@ -193,7 +190,7 @@ export default function AdminContractsPage() {
     try {
       const token = getToken();
       if (!token) {
-        setError('Authentication required');
+        setError(t.authenticationRequired);
         setSubmitting(false);
         return;
       }
@@ -222,7 +219,7 @@ export default function AdminContractsPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new ApiError(errorData.message || 'Failed to update contract', response.status, errorData);
+        throw new ApiError(response.status, errorData.message || 'Failed to update contract', errorData);
       }
 
       const updatedContract = await response.json();
@@ -240,7 +237,7 @@ export default function AdminContractsPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('Failed to update contract.');
+        setError(t.failedToUpdateContract);
       }
     } finally {
       setSubmitting(false);
@@ -292,7 +289,7 @@ export default function AdminContractsPage() {
           setError(errorData?.message || err.message);
         }
       } else {
-        setError('Failed to change contract status.');
+        setError(t.failedToChangeStatus);
       }
     } finally {
       setUpdatingStatus(false);
@@ -316,7 +313,7 @@ export default function AdminContractsPage() {
   const handleCreateContract = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canCreateContracts || !file) {
-      setError('Please select a PDF file');
+      setError(t.pleaseSelectPdfFile);
       return;
     }
     
@@ -337,7 +334,7 @@ export default function AdminContractsPage() {
 
       const token = getToken();
       if (!token) {
-        setError('Authentication required');
+        setError(t.authenticationRequired);
         setSubmitting(false);
         return;
       }
@@ -352,13 +349,13 @@ export default function AdminContractsPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new ApiError(errorData.message || 'Failed to create contract', response.status, errorData);
+        throw new ApiError(response.status, errorData.message || 'Failed to create contract', errorData);
       }
 
       const newContract = await response.json();
       
       // Reload contracts list
-      const contractsData = await fetchApi<Contract[]>('/contracts');
+      const contractsData = await fetchApi<Contract[]>('/contracts?includeArchived=false');
       setContracts(contractsData);
       
       setIsModalOpen(false);
@@ -370,7 +367,7 @@ export default function AdminContractsPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('An unexpected error occurred while creating contract.');
+        setError(t.failedToCreateContract);
       }
     } finally {
       setSubmitting(false);
@@ -449,7 +446,7 @@ export default function AdminContractsPage() {
             </div>
             <input
               type="text"
-              placeholder="Search contracts by tenant, unit, status, amount..."
+              placeholder={t.searchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`block w-full pl-10 pr-3 py-2 border rounded-lg ${
@@ -470,10 +467,10 @@ export default function AdminContractsPage() {
               } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
             >
               <option value="ALL">{t.allStatus || 'All Status'}</option>
-              <option value="DRAFT">Draft</option>
-              <option value="ACTIVE">Active</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="CANCELLED">Cancelled</option>
+              <option value="DRAFT">{t.statusDraft}</option>
+              <option value="ACTIVE">{t.statusActive}</option>
+              <option value="COMPLETED">{t.statusCompleted}</option>
+              <option value="CANCELLED">{t.statusCancelled}</option>
             </select>
           </div>
         </div>
@@ -490,11 +487,11 @@ export default function AdminContractsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             }
-            title={contracts.length === 0 ? (t.noContracts || 'No contracts yet') : 'No results found'}
+            title={contracts.length === 0 ? (t.noContracts || 'No contracts yet') : t.noResultsFound}
             description={
               contracts.length === 0
-                ? 'Get started by creating your first contract.'
-                : 'Try adjusting your search query or filter.'
+                ? t.getStartedByCreating
+                : t.tryAdjustingFilters
             }
             actionLabel={contracts.length === 0 && canCreateContracts ? (t.createContract || 'Create Contract') : undefined}
             onAction={contracts.length === 0 && canCreateContracts ? () => setIsModalOpen(true) : undefined}
@@ -518,21 +515,24 @@ export default function AdminContractsPage() {
                         {contract.tenant.fullName}
                       </h3>
                       <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Unit: {contract.unit.name}
+                        {t.unit}: {contract.unit.name}
                       </p>
                       <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         {formatDate(contract.startDate)} - {formatDate(contract.endDate)}
                       </p>
                     </div>
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(contract.status)}`}>
-                      {contract.status}
+                      {contract.status === 'DRAFT' ? t.statusDraft :
+                       contract.status === 'ACTIVE' ? t.statusActive :
+                       contract.status === 'COMPLETED' ? t.statusCompleted :
+                       contract.status === 'CANCELLED' ? t.statusCancelled : contract.status}
                     </span>
                   </div>
                   <div className={`flex items-center justify-between pt-3 border-t ${
                     darkMode ? 'border-blue-600/30' : 'border-gray-200'
                   }`}>
                     <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      UZS {contract.amount.toLocaleString()}
+                      UZS {contract.amount.toLocaleString()}<span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>/mo</span>
                     </span>
                     <div className="flex items-center gap-3 flex-wrap">
                       <a
@@ -545,7 +545,7 @@ export default function AdminContractsPage() {
                             : 'text-blue-600 hover:text-blue-800'
                         }`}
                       >
-                        View PDF
+                        {t.viewPDF}
                       </a>
                       {canUpdateContracts && (
                         <>
@@ -557,7 +557,7 @@ export default function AdminContractsPage() {
                                 : 'text-green-600 hover:text-green-800'
                             }`}
                           >
-                            Edit
+                            {t.edit}
                           </button>
                           {getAvailableStatuses(contract.status).length > 0 && (
                             <button
@@ -568,7 +568,7 @@ export default function AdminContractsPage() {
                                   : 'text-yellow-600 hover:text-yellow-800'
                               }`}
                             >
-                              Change Status
+                              {t.changeStatus}
                             </button>
                           )}
                         </>
@@ -582,7 +582,7 @@ export default function AdminContractsPage() {
                               : 'text-red-600 hover:text-red-800'
                           }`}
                         >
-                          Delete
+                          {t.delete}
                         </button>
                       )}
                     </div>
@@ -621,7 +621,7 @@ export default function AdminContractsPage() {
                     <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}>
-                      {t.amount}
+                      {t.monthlyRent || 'Monthly Rent'}
                     </th>
                     <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -670,11 +670,14 @@ export default function AdminContractsPage() {
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
-                        UZS {contract.amount.toLocaleString()}
+                        UZS {contract.amount.toLocaleString()}<span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>/mo</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(contract.status)}`}>
-                          {contract.status}
+                          {contract.status === 'DRAFT' ? t.statusDraft :
+                           contract.status === 'ACTIVE' ? t.statusActive :
+                           contract.status === 'COMPLETED' ? t.statusCompleted :
+                           contract.status === 'CANCELLED' ? t.statusCancelled : contract.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -712,7 +715,7 @@ export default function AdminContractsPage() {
                                       : 'text-yellow-600 hover:text-yellow-900'
                                   }`}
                                 >
-                                  Change Status
+                                  {t.changeStatus}
                                 </button>
                               )}
                             </>
@@ -750,7 +753,7 @@ export default function AdminContractsPage() {
           }`}>
             <h2 className={`text-2xl font-bold mb-6 ${
               darkMode ? 'text-white' : 'text-gray-900'
-            }`}>{t.editContract || 'Edit Contract'}</h2>
+            }`}>{t.editContract}</h2>
             {error && (
               <div className={`px-4 py-3 rounded-lg mb-4 border ${
                 darkMode 
@@ -766,14 +769,17 @@ export default function AdminContractsPage() {
                 darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-gray-50 border-gray-200'
               }`}>
                 <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  <strong>Tenant:</strong> {editingContract.tenant.fullName}
+                  <strong>{t.tenant}:</strong> {editingContract.tenant.fullName}
                 </p>
                 <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  <strong>Unit:</strong> {editingContract.unit.name}
+                  <strong>{t.unit}:</strong> {editingContract.unit.name}
                 </p>
                 <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  <strong>Current Status:</strong> <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(editingContract.status)}`}>
-                    {editingContract.status}
+                  <strong>{t.currentStatus}:</strong> <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(editingContract.status)}`}>
+                    {editingContract.status === 'DRAFT' ? t.statusDraft :
+                     editingContract.status === 'ACTIVE' ? t.statusActive :
+                     editingContract.status === 'COMPLETED' ? t.statusCompleted :
+                     editingContract.status === 'CANCELLED' ? t.statusCancelled : editingContract.status}
                   </span>
                 </p>
               </div>
@@ -817,12 +823,12 @@ export default function AdminContractsPage() {
                 </div>
               </div>
 
-              {/* Contract Amount */}
+              {/* Monthly Rent */}
               <div>
                 <label htmlFor="editAmount" className={`block text-sm font-semibold mb-2 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  {t.amount} (UZS) <span className="text-red-500">*</span>
+                  {t.monthlyRent || 'Monthly Rent'} (UZS) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -832,10 +838,21 @@ export default function AdminContractsPage() {
                   step="0.01"
                   value={editFormData.amount}
                   onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
+                  placeholder={t.monthlyRent || 'Enter monthly rent amount'}
                   className={`w-full rounded-md shadow-sm px-3 py-2 border ${
                     darkMode ? 'bg-gray-900 border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
                 />
+                {editFormData.amount && editFormData.startDate && editFormData.endDate && (
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {t.totalContractAmount || 'Total contract amount'}: UZS {(
+                      parseFloat(editFormData.amount) * 
+                      Math.max(1, Math.ceil(
+                        (new Date(editFormData.endDate).getTime() - new Date(editFormData.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)
+                      ))
+                    ).toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                  </p>
+                )}
               </div>
 
               {/* Contract Notes */}
@@ -843,14 +860,14 @@ export default function AdminContractsPage() {
                 <label htmlFor="editNotes" className={`block text-sm font-semibold mb-2 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  Contract Notes / Description
+                  {t.contractNotes}
                 </label>
                 <textarea
                   id="editNotes"
                   rows={4}
                   value={editFormData.notes}
                   onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
-                  placeholder="Add any additional notes, terms, or description..."
+                  placeholder={t.contractNotesPlaceholder}
                   className={`w-full rounded-md shadow-sm px-3 py-2 border ${
                     darkMode ? 'bg-gray-900 border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
@@ -862,13 +879,13 @@ export default function AdminContractsPage() {
                 <label htmlFor="editFile" className={`block text-sm font-semibold mb-2 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  Contract PDF File (Optional)
+                  {t.contractPdfFile}
                 </label>
                 <div className={`p-3 rounded-lg border mb-2 ${
                   darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-gray-50 border-gray-200'
                 }`}>
                   <p className={`text-sm mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <strong>Current PDF:</strong>{' '}
+                    <strong>{t.currentPdf}:</strong>{' '}
                     <a
                       href={editingContract.pdfUrl}
                       target="_blank"
@@ -877,11 +894,11 @@ export default function AdminContractsPage() {
                         darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'
                       }`}
                     >
-                      View Current PDF
+                      {t.viewCurrentPdf}
                     </a>
                   </p>
                   <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Leave empty to keep the current PDF, or select a new file to replace it.
+                    {t.leaveEmptyToKeepPdf}
                   </p>
                 </div>
                 <input
@@ -898,7 +915,7 @@ export default function AdminContractsPage() {
                     darkMode ? 'bg-blue-900/20 border-blue-800' : 'bg-blue-50 border-blue-200'
                   }`}>
                     <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
-                      <strong>New File Selected:</strong> {editFile.name} ({(editFile.size / 1024).toFixed(2)} KB)
+                      <strong>{t.newFileSelected}:</strong> {editFile.name} ({(editFile.size / 1024).toFixed(2)} KB)
                     </p>
                   </div>
                 )}
@@ -926,7 +943,7 @@ export default function AdminContractsPage() {
                   disabled={submitting}
                   className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
-                  {submitting ? (t.loading || 'Saving...') : (t.save || 'Save Changes')}
+                  {submitting ? t.loading : t.saveChanges}
                 </button>
               </div>
             </form>
@@ -1210,10 +1227,10 @@ export default function AdminContractsPage() {
                 </div>
               )}
 
-              {/* Contract Amount */}
+              {/* Monthly Rent */}
               <div>
                 <label htmlFor="amount" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  {t.amount} (UZS) <span className="text-red-500">*</span>
+                  {t.monthlyRent || 'Monthly Rent'} (UZS) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -1223,15 +1240,15 @@ export default function AdminContractsPage() {
                   step="0.01"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  placeholder="Enter contract amount"
+                  placeholder={t.monthlyRent || 'Enter monthly rent amount'}
                   className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
                 />
                 {formData.amount && formData.startDate && formData.endDate && (
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Monthly average: UZS {(
-                      parseFloat(formData.amount) / 
+                    {t.totalContractAmount || 'Total contract amount'}: UZS {(
+                      parseFloat(formData.amount) * 
                       Math.max(1, Math.ceil(
                         (new Date(formData.endDate).getTime() - new Date(formData.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)
                       ))

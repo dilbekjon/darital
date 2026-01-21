@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { PrismaService } from '../prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
@@ -9,14 +10,33 @@ import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
 import { PaymentWebhookDto } from './dto/payment-webhook.dto';
 import { PaymentProviderEnum } from './dto/payment-intent.dto';
 import { CheckoutUzService } from './checkout-uz.service';
+import { ChatGateway } from '../chat/chat.gateway';
 
 @Injectable()
 export class PaymentsService {
+  private chatGateway: ChatGateway | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly checkoutUzService: CheckoutUzService,
+    private readonly moduleRef: ModuleRef,
   ) {}
+
+  /**
+   * Get ChatGateway instance lazily to avoid circular dependency
+   */
+  private getChatGateway(): ChatGateway | null {
+    if (!this.chatGateway && this.moduleRef) {
+      try {
+        this.chatGateway = this.moduleRef.get(ChatGateway, { strict: false });
+      } catch {
+        // Gateway not available yet (during module initialization)
+        return null;
+      }
+    }
+    return this.chatGateway;
+  }
 
   private isSuccessStatus(status?: string) {
     if (!status) return false;
@@ -31,7 +51,8 @@ export class PaymentsService {
   }
 
   private normalizeCheckoutUzStatus(status?: string) {
-    return status ? status.toLowerCase() : '';
+    // Normalize Checkout.uz status to lowercase (same as Python pattern)
+    return status ? status.toLowerCase().trim() : '';
   }
 
   async confirmPaymentTransaction(params: {
@@ -44,7 +65,7 @@ export class PaymentsService {
   }) {
     const { paymentId, providerPaymentId, paidAt, amount, rawPayload, provider } = params;
 
-    return this.prisma.$transaction(async (tx) => {
+    const confirmed = await this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: { id: paymentId },
         include: { invoice: { include: { contract: true } } },
@@ -128,12 +149,59 @@ export class PaymentsService {
 
       return confirmed;
     });
+
+    // Emit payment_updated event via WebSocket (after transaction completes)
+    // Fetch payment with full relations for emission
+    const paymentWithRelations = await this.prisma.payment.findUnique({
+      where: { id: confirmed.id },
+      include: {
+        invoice: {
+          include: {
+            contract: {
+              include: {
+                tenant: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (paymentWithRelations) {
+      const gateway = this.getChatGateway();
+      if (gateway) {
+        // Emit asynchronously to not block the response
+        setImmediate(async () => {
+          try {
+            await gateway.emitPaymentUpdated(paymentWithRelations);
+          } catch (error) {
+            // Log but don't fail payment confirmation
+            console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+          }
+        });
+      }
+    }
+
+    return confirmed;
   }
 
   async handleWebhook(provider: PaymentProviderEnum, dto: PaymentWebhookDto) {
-    if (provider === PaymentProviderEnum.UZUM) {
+    // For Checkout.uz (UZUM and CLICK both use Checkout.uz), always verify payment via API first (same pattern as Python)
+    // This ensures we always have the latest status from Checkout.uz
+    if (provider === PaymentProviderEnum.UZUM || provider === PaymentProviderEnum.CLICK) {
       const orderId = dto.order_id || dto.orderId || dto.providerPaymentId;
-      return this.confirmCheckoutUzOrder(orderId, dto.paymentId, dto);
+      if (orderId) {
+        // Verify payment status via Checkout.uz API (same as Python verify_payment)
+        // Map CLICK to UZUM internally since both use Checkout.uz
+        return this.confirmCheckoutUzOrder(orderId, dto.paymentId, dto);
+      }
+      // If no orderId, fall through to generic webhook handling
     }
 
     const { paymentId, providerPaymentId, status, paidAt, amount } = dto;
@@ -182,15 +250,71 @@ export class PaymentsService {
     }
 
     if (this.isSuccessStatus(status)) {
-      await this.confirmPaymentTransaction({
-        paymentId: targetPayment.id,
-        providerPaymentId: providerPaymentId ?? (targetPayment as any).providerPaymentId ?? undefined,
-        paidAt: paidAt ? new Date(paidAt) : new Date(),
-        amount: amount !== undefined ? amount : targetPayment.amount,
-        rawPayload: dto.rawPayload ?? dto,
-        provider: provider,
+      // Check if payment already has webhook data (idempotency check)
+      const existingRawPayload = (targetPayment as any).rawPayload;
+      const hasWebhookData = existingRawPayload?.webhook || 
+                            existingRawPayload?.status === 'paid' || 
+                            existingRawPayload?.status === 'success' ||
+                            existingRawPayload?.paidAt;
+      
+      // Prepare webhook payload with explicit webhook flag
+      const webhookPayload = {
+        ...(dto.rawPayload ?? dto),
+        webhook: true, // Explicit flag to indicate webhook was received
+        status: status || 'paid',
+        receivedAt: new Date().toISOString(),
+      };
+
+      // Payment received successfully - keep as PENDING for admin verification
+      // Store provider info but don't auto-confirm (admin must verify)
+      const updated = await this.prisma.payment.update({
+        where: { id: targetPayment.id },
+        data: {
+          providerPaymentId: providerPaymentId ?? (targetPayment as any).providerPaymentId ?? undefined,
+          provider: this.mapProviderEnum(provider ?? (targetPayment as any).provider),
+          rawPayload: webhookPayload,
+          // Keep status as PENDING - admin will verify
+        } as any,
+        include: {
+          invoice: {
+            include: {
+              contract: {
+                include: {
+                  tenant: true,
+                  unit: true,
+                },
+              },
+            },
+          },
+        },
       });
-      return { ok: true, confirmed: true };
+
+      // Only send notification if this is the first time webhook data is being stored
+      // This prevents duplicate notifications from webhook retries or scheduler checks
+      if (!hasWebhookData) {
+        const unitName = (updated.invoice as any)?.contract?.unit?.name;
+        await this.notifications.notifyTenantPaymentReceived(
+          targetPayment.invoice.contract.tenantId,
+          updated.id,
+          updated.amount.toNumber(),
+          provider,
+          unitName,
+        );
+      }
+
+      // Emit payment_updated event for real-time admin updates
+      const gateway = this.getChatGateway();
+      if (gateway) {
+        setImmediate(async () => {
+          try {
+            await gateway.emitPaymentUpdated(updated);
+          } catch (error) {
+            console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+          }
+        });
+      }
+
+      return { ok: true, pending: true, message: 'Payment received, awaiting admin verification' };
     }
 
     // Non-success: just persist raw payload and provider ids for debugging
@@ -207,11 +331,18 @@ export class PaymentsService {
   }
 
   async findAll(query: ListPaymentsQueryDto) {
-    const { page, limit, tenantId, contractId, status, fromDate, toDate } = query;
+    const { page, limit, tenantId, contractId, status, fromDate, toDate, includeArchived, onlyArchived } = query;
     const safePage = Math.max(1, Number(page) || 1);
     const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
     const skip = (safePage - 1) * safeLimit;
     const where: Prisma.PaymentWhereInput = {};
+
+    // Archive filtering
+    if (onlyArchived) {
+      where.isArchived = true;
+    } else if (!includeArchived) {
+      where.isArchived = false;
+    }
 
     if (status) where.status = status;
     // Build createdAt filter safely without spreading ambiguous types
@@ -243,6 +374,12 @@ export class PaymentsService {
                       email: true,
                     },
                   },
+                  unit: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
                 },
               },
             },
@@ -254,7 +391,33 @@ export class PaymentsService {
       }),
     ]);
 
-    const data = payments.map((payment) => ({
+    // Sort by importance: 
+    // 1. PENDING with overdue invoice first
+    // 2. PENDING (awaiting verification) 
+    // 3. CANCELLED
+    // 4. CONFIRMED (most recent first)
+    const now = new Date();
+    const sortedPayments = [...payments].sort((a, b) => {
+      // Status priority: PENDING > CANCELLED > CONFIRMED
+      const statusPriority = { PENDING: 0, CANCELLED: 1, CONFIRMED: 2 };
+      const priorityA = statusPriority[a.status] ?? 3;
+      const priorityB = statusPriority[b.status] ?? 3;
+      
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      
+      // Within PENDING, prioritize overdue invoices
+      if (a.status === 'PENDING' && b.status === 'PENDING') {
+        const aOverdue = a.invoice?.dueDate && new Date(a.invoice.dueDate) < now;
+        const bOverdue = b.invoice?.dueDate && new Date(b.invoice.dueDate) < now;
+        if (aOverdue && !bOverdue) return -1;
+        if (!aOverdue && bOverdue) return 1;
+      }
+      
+      // Within same status, sort by createdAt (most recent first)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
+    const data = sortedPayments.map((payment) => ({
       id: payment.id,
       invoiceId: payment.invoiceId,
       method: payment.method,
@@ -262,11 +425,16 @@ export class PaymentsService {
       status: payment.status,
       paidAt: payment.paidAt ? payment.paidAt.toISOString() : null,
       createdAt: payment.createdAt.toISOString(),
+      provider: (payment as any).provider || null,
+      providerPaymentId: (payment as any).providerPaymentId || null,
+      rawPayload: (payment as any).rawPayload || null,
       tenant: payment.invoice.contract.tenant,
+      unit: payment.invoice.contract.unit,
       invoice: {
         id: payment.invoice.id,
         amount: payment.invoice.amount.toNumber(),
         status: payment.invoice.status,
+        dueDate: payment.invoice.dueDate ? payment.invoice.dueDate.toISOString() : null,
       },
     }));
 
@@ -318,8 +486,197 @@ export class PaymentsService {
     if (dto.status === PaymentStatus.CONFIRMED) {
       return this.confirmPaymentTransaction({ paymentId: id });
     }
+    
     // Cancel or set pending without financial effects
-    return this.prisma.payment.update({ where: { id }, data: { status: dto.status } });
+    const updated = await this.prisma.payment.update({ 
+      where: { id }, 
+      data: { status: dto.status },
+      include: {
+        invoice: {
+          include: {
+            contract: {
+              include: {
+                tenant: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Emit payment_updated event via WebSocket
+    const gateway = this.getChatGateway();
+    if (gateway) {
+      setImmediate(async () => {
+        try {
+          await gateway.emitPaymentUpdated(updated);
+        } catch (error) {
+          console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+        }
+      });
+    }
+
+    return updated;
+  }
+
+  /**
+   * Verify payment (Accept or Decline) - Only for admins
+   * Accept: Confirms payment and marks invoice as paid
+   * Decline: Cancels payment
+   */
+  async verifyPayment(paymentId: string, accept: boolean, declineReason?: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        invoice: {
+          include: {
+            contract: {
+              include: {
+                tenant: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    // Idempotency: if already in final state, return without sending notifications
+    if (accept && payment.status === PaymentStatus.CONFIRMED) {
+      // Already confirmed, return existing payment without sending duplicate notifications
+      return payment;
+    }
+    if (!accept && payment.status === PaymentStatus.CANCELLED) {
+      // Already cancelled, return existing payment without sending duplicate notifications
+      return payment;
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new ConflictException(`Payment is already ${payment.status}, cannot verify`);
+    }
+
+    if (accept) {
+      // Accept payment: confirm it
+      const confirmed = await this.confirmPaymentTransaction({ paymentId });
+
+      // Fetch full payment details for notification and WebSocket
+      const confirmedWithRelations = await this.prisma.payment.findUnique({
+        where: { id: confirmed.id },
+        include: {
+          invoice: {
+            include: {
+              contract: {
+                include: {
+                  tenant: {
+                    select: {
+                      id: true,
+                      fullName: true,
+                      email: true,
+                    },
+                  },
+                  unit: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (confirmedWithRelations) {
+        // Send confirmation notification to tenant (only once)
+        const unitName = (confirmedWithRelations.invoice as any)?.contract?.unit?.name;
+        await this.notifications.notifyTenantPaymentVerified(
+          payment.invoice.contract.tenantId,
+          paymentId,
+          payment.amount.toNumber(),
+          true,
+          undefined,
+          unitName,
+        );
+
+        // Emit payment_updated event for real-time admin updates
+        const gateway = this.getChatGateway();
+        if (gateway) {
+          setImmediate(async () => {
+            try {
+              await gateway.emitPaymentUpdated(confirmedWithRelations);
+            } catch (error) {
+              console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+            }
+          });
+        }
+
+        return confirmedWithRelations;
+      }
+
+      return confirmed;
+    } else {
+      // Decline payment: cancel it
+      const declined = await this.prisma.payment.update({
+        where: { id: paymentId },
+        data: { status: PaymentStatus.CANCELLED } as any,
+        include: {
+          invoice: {
+            include: {
+              contract: {
+                include: {
+                  tenant: {
+                    select: {
+                      id: true,
+                      fullName: true,
+                      email: true,
+                    },
+                  },
+                  unit: {
+                    select: {
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Send decline notification to tenant
+      const unitName = (declined.invoice as any)?.contract?.unit?.name;
+      await this.notifications.notifyTenantPaymentVerified(
+        payment.invoice.contract.tenantId,
+        paymentId,
+        payment.amount.toNumber(),
+        false,
+        declineReason || 'Payment could not be verified by financial administrators',
+        unitName,
+      );
+
+      // Emit payment_updated event
+      const gateway = this.getChatGateway();
+      if (gateway) {
+        setImmediate(async () => {
+          try {
+            await gateway.emitPaymentUpdated(declined);
+          } catch (error) {
+            console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+          }
+        });
+      }
+
+      return declined;
+    }
   }
 
   // kept for compatibility; delegates to confirmPaymentTransaction
@@ -327,12 +684,15 @@ export class PaymentsService {
     return this.confirmPaymentTransaction({ paymentId });
   }
 
-  async confirmCheckoutUzOrder(orderId?: string, fallbackPaymentId?: string, rawPayload?: any) {
+  async confirmCheckoutUzOrder(orderId?: string | number, fallbackPaymentId?: string, rawPayload?: any) {
     if (!orderId) {
       return { ok: false, error: 'Missing order_id for CheckoutUz' };
     }
 
-    const statusResponse = await this.checkoutUzService.getInvoiceStatus(orderId);
+    // Ensure orderId is string for consistency (CheckoutUz returns numbers but we store as string)
+    const orderIdStr = String(orderId);
+
+    const statusResponse = await this.checkoutUzService.getInvoiceStatus(orderIdStr);
     if (!statusResponse?.ok) {
       return {
         ok: false,
@@ -340,8 +700,9 @@ export class PaymentsService {
       };
     }
 
+    // Try to find payment by providerPaymentId (stored as string)
     let targetPayment = await this.prisma.payment.findUnique({
-      where: { providerPaymentId: orderId } as any,
+      where: { providerPaymentId: orderIdStr } as any,
       include: { invoice: true },
     });
 
@@ -353,7 +714,7 @@ export class PaymentsService {
       if (targetPayment && !(targetPayment as any).providerPaymentId) {
         await this.prisma.payment.update({
           where: { id: targetPayment.id },
-          data: { providerPaymentId: orderId, provider: PaymentProvider.UZUM } as any,
+          data: { providerPaymentId: orderIdStr, provider: PaymentProvider.UZUM } as any,
         });
       }
     }
@@ -366,27 +727,90 @@ export class PaymentsService {
       return { ok: true, alreadyConfirmed: true };
     }
 
-    const paymentStatus = this.normalizeCheckoutUzStatus(statusResponse.payment?.status);
+    // Get payment status from Checkout.uz API response (same pattern as Python verify_payment)
+    const payment = statusResponse.payment || {};
+    const status = (payment.status || '').toLowerCase();
     const raw = { checkoutUz: statusResponse, webhook: rawPayload };
 
-    if (paymentStatus === 'paid') {
-      await this.confirmPaymentTransaction({
-        paymentId: targetPayment.id,
-        providerPaymentId: orderId,
-        paidAt: statusResponse.payment?.paid_at,
-        amount: statusResponse.payment?.amount ?? targetPayment.amount,
-        rawPayload: raw,
-        provider: PaymentProviderEnum.UZUM,
+    // Checkout.uz uses "paid" status when payment is confirmed (matching Python pattern)
+    if (status === 'paid') {
+      // Check if payment already has webhook data (idempotency check)
+      const existingRawPayload = (targetPayment as any).rawPayload;
+      const hasWebhookData = existingRawPayload?.webhook || 
+                            existingRawPayload?.checkoutUz?.payment?.status === 'paid' ||
+                            (existingRawPayload?.checkoutUz && existingRawPayload?.webhook);
+      
+      // Prepare raw payload with explicit webhook flag
+      const rawWithWebhook = {
+        ...raw,
+        webhook: true, // Explicit flag to indicate webhook/API confirmation was received
+        receivedAt: new Date().toISOString(),
+      };
+
+      // Payment received successfully - keep as PENDING for admin verification
+      // Store provider info but don't auto-confirm (admin must verify)
+      const updated = await this.prisma.payment.update({
+        where: { id: targetPayment.id },
+        data: {
+          providerPaymentId: orderIdStr,
+          provider: PaymentProvider.UZUM,
+          rawPayload: rawWithWebhook,
+          // Keep status as PENDING - admin will verify
+        } as any,
+        include: {
+          invoice: {
+            include: {
+              contract: {
+                include: {
+                  tenant: true,
+                  unit: true,
+                },
+              },
+            },
+          },
+        },
       });
-      return { ok: true, confirmed: true };
+
+      // Get tenant ID and unit name from invoice contract
+      const invoiceWithContract = await this.prisma.invoice.findUnique({
+        where: { id: targetPayment.invoiceId },
+        include: { contract: { include: { unit: true } } },
+      });
+
+      // Only send notification if this is the first time webhook data is being stored
+      // This prevents duplicate notifications from scheduler checks or webhook retries
+      if (invoiceWithContract && !hasWebhookData) {
+        const unitName = invoiceWithContract.contract?.unit?.name;
+        await this.notifications.notifyTenantPaymentReceived(
+          invoiceWithContract.contract.tenantId,
+          updated.id,
+          updated.amount.toNumber(),
+          'UZUM',
+          unitName,
+        );
+      }
+
+      // Emit payment_updated event for real-time admin updates
+      const gateway = this.getChatGateway();
+      if (gateway) {
+        setImmediate(async () => {
+          try {
+            await gateway.emitPaymentUpdated(updated);
+          } catch (error) {
+            console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+          }
+        });
+      }
+
+      return { ok: true, pending: true, message: 'Payment received, awaiting admin verification' };
     }
 
-    if (paymentStatus === 'canceled') {
+    if (status === 'canceled' || status === 'cancelled') {
       await this.prisma.payment.update({
         where: { id: targetPayment.id },
         data: {
           status: PaymentStatus.CANCELLED,
-          providerPaymentId: orderId,
+          providerPaymentId: orderIdStr,
           provider: PaymentProvider.UZUM,
           rawPayload: raw,
         } as any,
@@ -394,16 +818,17 @@ export class PaymentsService {
       return { ok: true, cancelled: true };
     }
 
+    // Update payment metadata (status is still pending)
     await this.prisma.payment.update({
       where: { id: targetPayment.id },
       data: {
-        providerPaymentId: orderId,
+        providerPaymentId: orderIdStr,
         provider: PaymentProvider.UZUM,
         rawPayload: raw,
       } as any,
     });
 
-    return { ok: true, status: paymentStatus || 'pending' };
+    return { ok: true, status: status || 'pending' };
   }
 
   async refreshCheckoutUzPayment(paymentId: string) {
@@ -413,6 +838,47 @@ export class PaymentsService {
       return { ok: false, error: 'Payment provider is not CheckoutUz' };
     }
     return this.confirmCheckoutUzOrder((payment as any).providerPaymentId, paymentId);
+  }
+
+  /**
+   * Delete a payment
+   * Only allowed for PENDING or CANCELLED payments
+   * Cannot delete CONFIRMED payments as they affect financial records
+   */
+  async remove(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: { invoice: true },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    // Prevent deletion of confirmed payments (they affect financial records)
+    if (payment.status === PaymentStatus.CONFIRMED) {
+      throw new ConflictException('Cannot delete confirmed payment. It has already been processed and affects financial records.');
+    }
+
+    // Delete the payment
+    await this.prisma.payment.delete({
+      where: { id: paymentId },
+    });
+
+    // Emit payment_updated event for real-time admin updates
+    const gateway = this.getChatGateway();
+    if (gateway) {
+      setImmediate(async () => {
+        try {
+          // Emit a deleted event (payment object with status DELETED for frontend to handle)
+          await gateway.emitPaymentUpdated({ ...payment, status: 'DELETED' } as any);
+        } catch (error) {
+          console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+        }
+      });
+    }
+
+    return { message: 'Payment deleted successfully', id: paymentId };
   }
 }
 

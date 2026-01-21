@@ -6,6 +6,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useState } from 'react';
 import { Language, languageNames, languageFlags } from '../lib/i18n';
+import NotificationCenter from './NotificationCenter';
 
 export default function TenantNavbar() {
   const router = useRouter();
@@ -90,6 +91,9 @@ export default function TenantNavbar() {
             >
               {darkMode ? '☀️' : '🌙'}
             </button>
+
+            {/* Notification Center */}
+            <NotificationCenter />
 
             {/* User Menu */}
             <div className="relative">

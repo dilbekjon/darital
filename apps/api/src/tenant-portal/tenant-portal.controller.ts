@@ -197,5 +197,30 @@ export class TenantPortalController {
     this.ensureTenantAccess(req.user);
     return this.tenantPortalService.updateNotificationPreferences(req.user, dto);
   }
+
+  // ===== RECEIPTS =====
+
+  @Get('receipts/payment/:paymentId')
+  @ApiOperation({ summary: 'Get receipt data for a payment' })
+  async getReceiptData(@Req() req, @Param('paymentId') paymentId: string) {
+    this.ensureTenantAccess(req.user);
+    return this.tenantPortalService.getReceiptData(req.user, paymentId);
+  }
+
+  @Get('receipts/chart-data')
+  @ApiOperation({ summary: 'Get payment chart data for tenant dashboard' })
+  async getChartData(@Req() req) {
+    this.ensureTenantAccess(req.user);
+    return this.tenantPortalService.getPaymentChartData(req.user);
+  }
+
+  // ===== DOCUMENTS =====
+
+  @Get('documents')
+  @ApiOperation({ summary: 'Get all documents for the tenant' })
+  async getDocuments(@Req() req) {
+    this.ensureTenantAccess(req.user);
+    return this.tenantPortalService.getDocuments(req.user);
+  }
 }
 

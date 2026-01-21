@@ -1,5 +1,5 @@
 import * as LocalAuthentication from 'expo-local-authentication';
-import { Platform } from 'react-native';
+// Platform is imported lazily inside functions to avoid early access
 
 /**
  * Check if biometric hardware is available AND user has enrolled biometrics.

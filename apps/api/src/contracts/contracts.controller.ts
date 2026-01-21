@@ -6,6 +6,9 @@ import {
   Param,
   Patch,
   Post,
+  Put,
+  Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -34,8 +37,16 @@ export class ContractsController {
   @Get()
   @Permissions('contracts.read') // New permissions decorator
   @ApiOperation({ summary: 'List contracts', description: 'Accessible by: ADMIN, SUPER_ADMIN. TENANT access will be handled by TenantPortal.' })
-  async findAll() {
-    return this.contractsService.findAll();
+  async findAll(@Query('includeArchived') includeArchived?: string, @Query('onlyArchived') onlyArchived?: string) {
+    const includeArchivedBool = includeArchived === 'true';
+    const onlyArchivedBool = onlyArchived === 'true';
+
+    if (onlyArchivedBool) {
+      // Return only archived contracts
+      return this.contractsService.findArchived();
+    }
+
+    return this.contractsService.findAll(includeArchivedBool);
   }
 
   @Get(':id')
@@ -178,17 +189,42 @@ export class ContractsController {
     return this.contractsService.changeStatus(id, dto);
   }
 
+  @Put(':id/archive')
+  @Permissions('contracts.update')
+  @ApiOperation({
+    summary: 'Archive contract',
+    description: 'Move contract to archive (soft delete). Accessible by: ADMIN, SUPER_ADMIN only'
+  })
+  @ApiResponse({ status: 200, description: 'Contract archived successfully' })
+  @ApiResponse({ status: 404, description: 'Contract not found' })
+  async archive(@Param('id') id: string, @Body() body: { reason?: string }, @Req() req) {
+    const adminId = req.user.id;
+    return this.contractsService.archive(id, adminId, body.reason);
+  }
+
+  @Put(':id/unarchive')
+  @Permissions('contracts.update')
+  @ApiOperation({
+    summary: 'Unarchive contract',
+    description: 'Restore contract from archive. Accessible by: ADMIN, SUPER_ADMIN only'
+  })
+  @ApiResponse({ status: 200, description: 'Contract unarchived successfully' })
+  @ApiResponse({ status: 404, description: 'Contract not found' })
+  async unarchive(@Param('id') id: string) {
+    return this.contractsService.unarchive(id);
+  }
+
   @Delete(':id')
   @Permissions('contracts.delete')
-  @ApiOperation({ 
-    summary: 'Delete contract', 
-    description: 'Accessible by: ADMIN, SUPER_ADMIN only. Cannot delete contract with existing invoices. Unit status will be set to FREE if contract was ACTIVE or DRAFT.' 
+  @ApiOperation({
+    summary: 'Permanently delete contract',
+    description: 'Permanently delete archived contract. Accessible by: ADMIN, SUPER_ADMIN only. Can only delete archived contracts without invoices.'
   })
-  @ApiResponse({ status: 200, description: 'Contract deleted successfully' })
+  @ApiResponse({ status: 200, description: 'Contract permanently deleted' })
   @ApiResponse({ status: 401, description: 'Unauthorized - JWT token required' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   @ApiResponse({ status: 404, description: 'Contract not found' })
-  @ApiResponse({ status: 409, description: 'Conflict - Contract has existing invoices' })
+  @ApiResponse({ status: 409, description: 'Cannot delete contract with invoices or non-archived contract' })
   async remove(@Param('id') id: string) {
     return this.contractsService.remove(id);
   }

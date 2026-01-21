@@ -4,11 +4,16 @@ export default {
     slug: "darital-tenant",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/icon.png",
+    // icon: "./assets/icon.png", // Commented out if file doesn't exist
     userInterfaceStyle: "automatic",
     scheme: "daritaltenant",
+    // Explicitly disable New Architecture (Fabric/TurboModules) for Expo Go compatibility
+    // New Architecture requires a custom dev client build
+    newArchEnabled: false,
+    // Use Hermes engine (default for Expo SDK 54)
+    jsEngine: "hermes",
     splash: {
-      image: "./assets/splash.png",
+      // image: "./assets/splash.png", // Commented out if file doesn't exist
       resizeMode: "contain",
       backgroundColor: "#ffffff"
     },
@@ -23,10 +28,10 @@ export default {
       }
     },
     android: {
-      adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#ffffff"
-      },
+      // adaptiveIcon: {
+      //   foregroundImage: "./assets/adaptive-icon.png",
+      //   backgroundColor: "#ffffff"
+      // }, // Commented out if file doesn't exist
       package: "com.darital.tenant",
       permissions: [
         "USE_BIOMETRIC",
@@ -34,15 +39,29 @@ export default {
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE"
       ],
-      googleServicesFile: "./google-services.json"
+      // googleServicesFile: "./google-services.json" // Commented out if file doesn't exist
     },
     web: {
       favicon: "./assets/favicon.png"
     },
     extra: {
-      apiUrl: process.env.EXPO_PUBLIC_API_URL || "http://100.65.44.27:3001/api"
+      // API URL must be set via EXPO_PUBLIC_API_URL env var
+      // In dev, defaults to http://localhost:3001/api (see constants-fallback.ts)
+      // In prod, must be explicitly set or app will fail
+      apiUrl: process.env.EXPO_PUBLIC_API_URL || "http://localhost:3001/api"
     },
     plugins: [
+      [
+        "expo-build-properties",
+        {
+          android: {
+            newArchEnabled: false,
+          },
+          ios: {
+            newArchEnabled: false,
+          },
+        },
+      ],
       [
         "expo-local-authentication",
         {

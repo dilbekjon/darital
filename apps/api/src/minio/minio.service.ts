@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { Client as MinioClient } from 'minio';
 
 export interface UploadedObjectInfo {
@@ -14,24 +14,96 @@ export class MinioService {
   private bucket: string;
   private endpoint: string;
   private port: number;
+  private readonly enabled: boolean;
 
   constructor() {
-    this.endpoint = process.env.MINIO_ENDPOINT || 'localhost';
-    this.port = parseInt(process.env.MINIO_PORT || '9000', 10);
-    const accessKey = process.env.MINIO_ACCESS_KEY || process.env.MINIO_ROOT_USER || 'minioadmin';
-    const secretKey = process.env.MINIO_SECRET_KEY || process.env.MINIO_ROOT_PASSWORD || 'minioadmin';
-    this.bucket = process.env.MINIO_BUCKET || 'contracts';
+    const {
+      MINIO_ENDPOINT,
+      MINIO_PORT,
+      MINIO_ACCESS_KEY,
+      MINIO_SECRET_KEY,
+      MINIO_ROOT_USER,
+      MINIO_ROOT_PASSWORD,
+      MINIO_BUCKET,
+    } = process.env;
 
-    this.client = new MinioClient({
-      endPoint: this.endpoint,
-      port: this.port,
-      useSSL: false,
-      accessKey,
-      secretKey,
-    });
+    const nodeEnv = process.env.NODE_ENV;
+    const isProd = nodeEnv === 'production';
+
+    const strictConfig = () => {
+      if (!MINIO_ENDPOINT) throw new InternalServerErrorException('MINIO_ENDPOINT is not set');
+      if (!MINIO_PORT) throw new InternalServerErrorException('MINIO_PORT is not set');
+      const accessKeyStrict = MINIO_ACCESS_KEY || MINIO_ROOT_USER;
+      const secretKeyStrict = MINIO_SECRET_KEY || MINIO_ROOT_PASSWORD;
+      if (!accessKeyStrict) throw new InternalServerErrorException('MINIO_ACCESS_KEY (or MINIO_ROOT_USER) is not set');
+      if (!secretKeyStrict) throw new InternalServerErrorException('MINIO_SECRET_KEY (or MINIO_ROOT_PASSWORD) is not set');
+      if (!MINIO_BUCKET) throw new InternalServerErrorException('MINIO_BUCKET is not set');
+      return {
+        endpoint: MINIO_ENDPOINT,
+        port: parseInt(MINIO_PORT, 10),
+        accessKey: accessKeyStrict,
+        secretKey: secretKeyStrict,
+        bucket: MINIO_BUCKET,
+      };
+    };
+
+    const devDefaults = {
+      endpoint: 'localhost',
+      port: 9000,
+      accessKey: 'minioadmin', // Match Docker Compose default
+      secretKey: 'minioadmin', // Match Docker Compose default
+      bucket: 'contracts',
+    };
+
+    if (isProd) {
+      const cfg = strictConfig();
+      this.endpoint = cfg.endpoint;
+      this.port = cfg.port;
+      this.bucket = cfg.bucket;
+      this.client = new MinioClient({
+        endPoint: this.endpoint,
+        port: this.port,
+        useSSL: false,
+        accessKey: cfg.accessKey,
+        secretKey: cfg.secretKey,
+      });
+      this.enabled = true;
+    } else {
+      const endpoint = MINIO_ENDPOINT || devDefaults.endpoint;
+      const port = parseInt(MINIO_PORT || `${devDefaults.port}`, 10);
+      const accessKey = MINIO_ACCESS_KEY || MINIO_ROOT_USER || devDefaults.accessKey;
+      const secretKey = MINIO_SECRET_KEY || MINIO_ROOT_PASSWORD || devDefaults.secretKey;
+      const bucket = MINIO_BUCKET || devDefaults.bucket;
+
+      if (!endpoint || !port || !accessKey || !secretKey || !bucket) {
+        this.logger.warn('MinIO env not set and defaults unavailable; MinIO is disabled for dev. Uploads will fail.');
+        this.enabled = false;
+        return;
+      }
+
+      if (!MINIO_ENDPOINT || !MINIO_PORT || (!MINIO_ACCESS_KEY && !MINIO_ROOT_USER) || (!MINIO_SECRET_KEY && !MINIO_ROOT_PASSWORD) || !MINIO_BUCKET) {
+        this.logger.warn(`MinIO env not fully set. Using dev defaults endpoint=${endpoint}:${port}, bucket=${bucket}. Set real MINIO_* to override.`);
+      }
+
+      this.endpoint = endpoint;
+      this.port = port;
+      this.bucket = bucket;
+      this.client = new MinioClient({
+        endPoint: this.endpoint,
+        port: this.port,
+        useSSL: false,
+        accessKey,
+        secretKey,
+      });
+      this.enabled = true;
+    }
   }
 
   async ensureBucket(): Promise<void> {
+    if (!this.enabled) {
+      this.logger.warn('MinIO is disabled; ensureBucket skipped.');
+      return;
+    }
     const exists = await this.client.bucketExists(this.bucket).catch(() => false);
     if (!exists) {
       this.logger.log(`Creating MinIO bucket: ${this.bucket}`);
@@ -40,6 +112,18 @@ export class MinioService {
         this.logger.warn(`Could not set public read policy for bucket ${this.bucket}: ${err}`);
       });
     }
+  }
+
+  /**
+   * Optional startup check to validate connectivity and bucket existence.
+   * Call this during application bootstrap if you want a fail-fast health check.
+   */
+  async verifyConfiguration(): Promise<void> {
+    if (!this.enabled) {
+      this.logger.warn('MinIO is disabled; verifyConfiguration skipped.');
+      return;
+    }
+    await this.ensureBucket();
   }
 
   private async ensurePublicRead(bucket: string): Promise<void> {
@@ -62,6 +146,9 @@ export class MinioService {
   }
 
   async upload(buffer: Buffer, objectName: string, contentType?: string): Promise<UploadedObjectInfo> {
+    if (!this.enabled) {
+      throw new InternalServerErrorException('MinIO is disabled in this environment; uploads are not available.');
+    }
     await this.ensureBucket();
     const meta = { 'Content-Type': contentType || 'application/octet-stream' } as any;
     await this.client.putObject(this.bucket, objectName, buffer, undefined, meta);
@@ -71,6 +158,9 @@ export class MinioService {
 
   async uploadFile(file: Express.Multer.File, bucket?: string): Promise<string> {
     try {
+      if (!this.enabled) {
+        throw new InternalServerErrorException('MinIO is disabled in this environment; uploads are not available.');
+      }
       const useBucket = bucket || this.bucket;
       // Ensure target bucket exists and is public
       if (useBucket !== this.bucket) {

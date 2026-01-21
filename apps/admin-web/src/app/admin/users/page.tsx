@@ -245,7 +245,7 @@ export default function AdminUsersPage() {
             </div>
             <input
               type="text"
-              placeholder="Search users by name, email, role..."
+              placeholder={t.searchUsers}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`block w-full pl-10 pr-3 py-2 border rounded-lg ${
@@ -266,11 +266,11 @@ export default function AdminUsersPage() {
               } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
             >
               <option value="ALL">{t.allRoles || 'All Roles'}</option>
-              <option value="SUPER_ADMIN">Super Admin</option>
-              <option value="ADMIN">Admin</option>
-              <option value="CASHIER">Cashier</option>
-              <option value="SUPPORT">Support</option>
-              <option value="ANALYST">Analyst</option>
+              <option value="SUPER_ADMIN">{t.superAdmin}</option>
+              <option value="ADMIN">{t.admin}</option>
+              <option value="CASHIER">{t.cashier}</option>
+              <option value="SUPPORT">{t.support}</option>
+              <option value="ANALYST">{t.analyst}</option>
             </select>
           </div>
         </div>
@@ -287,11 +287,11 @@ export default function AdminUsersPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h2a2 2 0 002-2V7a2 2 0 00-2-2h-2.586a1 1 0 00-.707.293L12 7.707l-2.707-2.707A1 1 0 008.586 5H7a2 2 0 00-2 2v11a2 2 0 002 2h2m4 0h2a2 2 0 002-2v-7a2 2 0 00-2-2h-2m-4 0V5a2 2 0 00-2-2H9a2 2 0 00-2 2v2m-4 0a5 5 0 0110 0v2a5 5 0 01-10 0V7a2 2 0 00-2-2H3a2 2 0 00-2 2v11a2 2 0 002 2h2" />
               </svg>
             }
-            title={users.length === 0 ? (t.noUsersFound || 'No users found') : 'No results found'}
+            title={users.length === 0 ? t.noUsersFound : t.noResultsFound}
             description={
               users.length === 0
-                ? 'Get started by creating your first admin user.'
-                : 'Try adjusting your search query or filter.'
+                ? t.getStartedByCreatingUser
+                : t.tryAdjustingFilters
             }
             actionLabel={users.length === 0 && canManageUsers ? (t.createUser || 'Create User') : undefined}
             onAction={users.length === 0 && canManageUsers ? () => setIsCreateModalOpen(true) : undefined}
@@ -348,7 +348,11 @@ export default function AdminUsersPage() {
                   }`}>{u.email}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
-                  }`}>{u.role}</td>
+                  }`}>{u.role === 'SUPER_ADMIN' ? t.superAdmin :
+                         u.role === 'ADMIN' ? t.admin :
+                         u.role === 'CASHIER' ? t.cashier :
+                         u.role === 'SUPPORT' ? t.support :
+                         u.role === 'ANALYST' ? t.analyst : u.role}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>{new Date(u.createdAt).toLocaleDateString()}</td>
@@ -442,7 +446,7 @@ export default function AdminUsersPage() {
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
                 />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.passwordMinLength || 'Minimum 6 characters'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.passwordMinLength}</p>
               </div>
               <div className="mb-4">
                 <label htmlFor="role" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -460,7 +464,13 @@ export default function AdminUsersPage() {
                   {Object.values(AdminRole)
                     .filter(role => role !== AdminRole.TENANT_USER)
                     .map((role) => (
-                      <option key={role} value={role}>{role}</option>
+                      <option key={role} value={role}>
+                        {role === AdminRole.SUPER_ADMIN ? t.superAdmin :
+                         role === AdminRole.ADMIN ? t.admin :
+                         role === AdminRole.CASHIER ? t.cashier :
+                         role === AdminRole.SUPPORT ? t.support :
+                         role === AdminRole.ANALYST ? t.analyst : role}
+                      </option>
                     ))}
                 </select>
               </div>
@@ -481,7 +491,7 @@ export default function AdminUsersPage() {
                   disabled={isSubmitting}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? t.loading || 'Creating...' : t.createUser}
+                  {isSubmitting ? t.creating : t.createUser}
                 </button>
               </div>
             </form>
@@ -518,7 +528,13 @@ export default function AdminUsersPage() {
                 {Object.values(AdminRole)
                   .filter(role => role !== AdminRole.TENANT_USER) // Cannot assign TENANT_USER role here
                   .map((role) => (
-                    <option key={role} value={role}>{role}</option>
+                    <option key={role} value={role}>
+                      {role === AdminRole.SUPER_ADMIN ? t.superAdmin :
+                       role === AdminRole.ADMIN ? t.admin :
+                       role === AdminRole.CASHIER ? t.cashier :
+                       role === AdminRole.SUPPORT ? t.support :
+                       role === AdminRole.ANALYST ? t.analyst : role}
+                    </option>
                   ))}
               </select>
             </div>

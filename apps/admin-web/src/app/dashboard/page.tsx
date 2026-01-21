@@ -6,7 +6,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../contexts/ToastContext';
-import { fetchApi, ApiError } from '../../lib/api';
+import { fetchApi, ApiError, normalizeListResponse } from '../../lib/api';
+import DaritalLoader from '../../components/DaritalLoader';
+import SystemStatus from '../../components/SystemStatus';
 
 interface DashboardStats {
   tenants: number;
@@ -59,12 +61,17 @@ export default function DashboardPage() {
     setError(null);
     try {
       // Fetch data from multiple endpoints
-      const [tenants, contracts, payments, invoices] = await Promise.all([
-        fetchApi<any[]>('/tenants').catch(() => []),
-        fetchApi<any[]>('/contracts').catch(() => []),
-        fetchApi<any[]>('/payments').catch(() => []),
-        fetchApi<any[]>('/invoices').catch(() => []),
+      const [tenantsRes, contractsRes, paymentsRes, invoicesRes] = await Promise.all([
+        fetchApi<any>('/tenants').catch(() => []),
+        fetchApi<any>('/contracts').catch(() => []),
+        fetchApi<any>('/payments').catch(() => []),
+        fetchApi<any>('/invoices').catch(() => []),
       ]);
+
+      const tenants = normalizeListResponse<any>(tenantsRes).items || [];
+      const contracts = normalizeListResponse<any>(contractsRes).items || [];
+      const payments = normalizeListResponse<any>(paymentsRes).items || [];
+      const invoices = normalizeListResponse<any>(invoicesRes).items || [];
 
       // Calculate statistics
       const confirmedPayments = payments.filter((p: any) => p.status === 'CONFIRMED');
@@ -102,7 +109,7 @@ export default function DashboardPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Failed to load dashboard statistics');
+        setError(t.failedToLoadDashboard);
       }
     } finally {
       setLoading(false);
@@ -110,15 +117,7 @@ export default function DashboardPage() {
   };
 
   if (authLoading || loading) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center ${
-        darkMode ? 'bg-black' : 'bg-gradient-to-br from-blue-50 via-white to-blue-50'
-      }`}>
-        <div className={`animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 ${
-          darkMode ? 'border-blue-500' : 'border-blue-500'
-        }`}></div>
-      </div>
-    );
+    return <DaritalLoader darkMode={darkMode} />;
   }
 
   if (!user) {
@@ -164,6 +163,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* System Status Indicator */}
+        <div className="flex justify-center mb-6">
+          <SystemStatus />
+        </div>
+
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
             {error}
@@ -182,7 +186,7 @@ export default function DashboardPage() {
               }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.tenants || 'Tenants'}</p>
+                  <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.tenants}</p>
                   <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{stats?.tenants || 0}</p>
                 </div>
                 <div className={`p-3 rounded-lg ${
@@ -206,7 +210,7 @@ export default function DashboardPage() {
               }`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.activeContracts || 'Active Contracts'}</p>
+                  <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.activeContracts}</p>
                   <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{stats?.activeContracts || 0}</p>
                   <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>of {stats?.contracts || 0} total</p>
                 </div>
@@ -232,7 +236,7 @@ export default function DashboardPage() {
                 }`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.monthlyRevenue || 'Monthly Revenue'}</p>
+                    <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.monthlyRevenue}</p>
                     <p className={`text-2xl font-bold ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
                       {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(stats?.totalRevenue || 0)}
                     </p>
@@ -257,7 +261,7 @@ export default function DashboardPage() {
                 }`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.pendingPayments || 'Pending Payments'}</p>
+                    <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.pendingPayments}</p>
                     <p className={`text-3xl font-bold ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>{stats?.pendingPaymentsCount || 0}</p>
                     <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                       {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(stats?.pendingPayments || 0)}
@@ -283,7 +287,7 @@ export default function DashboardPage() {
             darkMode ? 'bg-black border-blue-600/30' : 'bg-white border-gray-200'
           }`}>
             <h2 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              {t.whatNeedsAttention || 'What Needs Your Attention'}
+              {t.whatNeedsAttention}
             </h2>
             <div className="space-y-3">
               {stats && stats.overdueInvoices > 0 && (
@@ -298,10 +302,10 @@ export default function DashboardPage() {
                     <div className="w-2 h-2 rounded-full bg-red-500"></div>
                     <div>
                       <p className={`text-sm font-medium ${darkMode ? 'text-red-300' : 'text-red-800'}`}>
-                        {stats.overdueInvoices} {t.overdueInvoices || 'Overdue Invoices'}
+                        {stats.overdueInvoices} {t.overdueInvoices}
                       </p>
                       <p className={`text-xs ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
-                        {t.requiresImmediateAction || 'Requires immediate action'}
+                        {t.requiresImmediateAction}
                       </p>
                     </div>
                   </div>
@@ -323,10 +327,10 @@ export default function DashboardPage() {
                     <div className={`w-2 h-2 rounded-full ${darkMode ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
                     <div>
                       <p className={`text-sm font-medium ${darkMode ? 'text-blue-300' : 'text-yellow-800'}`}>
-                        {stats.pendingPaymentsCount} {t.pendingPayments || 'Pending Payments'}
+                        {stats.pendingPaymentsCount} {t.pendingPayments}
                       </p>
                       <p className={`text-xs ${darkMode ? 'text-blue-400' : 'text-yellow-600'}`}>
-                        {t.awaitingConfirmation || 'Awaiting confirmation'}
+                        {t.awaitingConfirmation}
                       </p>
                     </div>
                   </div>
@@ -348,10 +352,10 @@ export default function DashboardPage() {
                     <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                     <div>
                       <p className={`text-sm font-medium ${darkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                        {stats.expiringContracts} {t.contractsExpiringSoon || 'Contracts Expiring Soon'}
+                        {stats.expiringContracts} {t.contractsExpiringSoon}
                       </p>
                       <p className={`text-xs ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                        {t.within30Days || 'Within 30 days'}
+                        {t.within30Days}
                       </p>
                     </div>
                   </div>
@@ -366,7 +370,7 @@ export default function DashboardPage() {
                   <svg className="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <p className="text-sm">{t.allCaughtUp || 'All caught up! No urgent items.'}</p>
+                  <p className="text-sm">{t.allCaughtUp}</p>
                 </div>
               )}
             </div>
@@ -377,7 +381,7 @@ export default function DashboardPage() {
             darkMode ? 'bg-black border-blue-600/30' : 'bg-white border-gray-200'
           }`}>
             <h2 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              {t.quickActions || 'Quick Actions'}
+              {t.quickActions}
             </h2>
             <div className="grid grid-cols-2 gap-3">
               {canViewContracts && (
@@ -394,7 +398,7 @@ export default function DashboardPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                     <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {t.createContract || 'Create Contract'}
+                      {t.createContract}
                     </span>
                   </div>
                 </button>
@@ -414,7 +418,7 @@ export default function DashboardPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                     <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {t.addTenant || 'Add Tenant'}
+                      {t.addTenant}
                     </span>
                   </div>
                 </button>
@@ -434,7 +438,7 @@ export default function DashboardPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {t.recordPayment || 'Record Payment'}
+                      {t.recordPayment}
                     </span>
                   </div>
                 </button>
@@ -454,7 +458,7 @@ export default function DashboardPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                     <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {t.openSupportChat || 'Open Support Chat'}
+                      {t.openSupportChat}
                     </span>
                   </div>
                 </button>

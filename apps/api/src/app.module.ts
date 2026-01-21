@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -16,17 +16,27 @@ import { TelegramModule } from './telegram/telegram.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TenantPortalModule } from './tenant-portal/tenant-portal.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { SentryModule } from './sentry/sentry.module';
 import { ChatModule } from './chat/chat.module';
 import { ReportsModule } from './reports/reports.module';
+import { BuildingsModule } from './buildings/buildings.module';
+import { DocumentsModule } from './documents/documents.module';
+import { ReceiptsModule } from './receipts/receipts.module';
+import { InAppNotificationsModule } from './in-app-notifications/in-app-notifications.module';
+import { ExportsModule } from './exports/exports.module';
+import { BulkActionsModule } from './bulk-actions/bulk-actions.module';
+import { EmailTemplatesModule } from './email-templates/email-templates.module';
+import { ArchiveModule } from './archive/archive.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './rbac/permissions.guard';
 import { CustomThrottlerGuard } from './telegram/custom-throttler.guard';
-import { PrismaService } from './prisma.service';
+import { AllExceptionsFilter } from './filters/all-exceptions.filter';
+import { PrismaModule } from './prisma.module';
 
 @Module({
   imports: [
+    PrismaModule, // Import PrismaModule first so PrismaService is available globally
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot({
       throttlers: [
@@ -52,11 +62,22 @@ import { PrismaService } from './prisma.service';
     AuditLogsModule,
     ChatModule,
     ReportsModule,
+    BuildingsModule,
+    DocumentsModule,
+    ReceiptsModule,
+    InAppNotificationsModule,
+    ExportsModule,
+    BulkActionsModule,
+    EmailTemplatesModule,
+    ArchiveModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    PrismaService,
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter, // Register global exception filter via DI
+    },
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard, // Custom guard that skips Telegram messages

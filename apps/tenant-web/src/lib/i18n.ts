@@ -48,6 +48,8 @@ export interface Translations {
   invoicesList: string;
   unitName: string;
   amount: string;
+  monthlyRent: string;
+  totalContractAmount: string;
   dueDate: string;
   status: string;
   pending: string;
@@ -179,6 +181,9 @@ export interface Translations {
   minutesAgo: string;
   hoursAgo: string;
   daysAgo: string;
+
+  // System Status
+  systemOnline: string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -228,6 +233,8 @@ const translations: Record<Language, Translations> = {
     invoicesList: 'Invoices List',
     unitName: 'Unit Name',
     amount: 'Amount',
+    monthlyRent: 'Monthly Rent',
+    totalContractAmount: 'Total Contract Amount',
     dueDate: 'Due Date',
     status: 'Status',
     pending: 'Pending',
@@ -359,6 +366,9 @@ const translations: Record<Language, Translations> = {
     minutesAgo: 'm ago',
     hoursAgo: 'h ago',
     daysAgo: 'd ago',
+
+    // System Status
+    systemOnline: 'System Online',
   },
   ru: {
     // Navigation & Common
@@ -406,6 +416,8 @@ const translations: Record<Language, Translations> = {
     invoicesList: 'Список счетов',
     unitName: 'Название квартиры',
     amount: 'Сумма',
+    monthlyRent: 'Ежемесячная аренда',
+    totalContractAmount: 'Общая сумма контракта',
     dueDate: 'Срок оплаты',
     status: 'Статус',
     pending: 'В ожидании',
@@ -537,6 +549,9 @@ const translations: Record<Language, Translations> = {
     minutesAgo: 'мин. назад',
     hoursAgo: 'ч. назад',
     daysAgo: 'дн. назад',
+
+    // System Status
+    systemOnline: 'Система онлайн',
   },
   uz: {
     // Navigation & Common
@@ -584,6 +599,8 @@ const translations: Record<Language, Translations> = {
     invoicesList: 'Hisob-fakturalar ro\'yxati',
     unitName: 'Xona nomi',
     amount: 'Miqdor',
+    monthlyRent: 'Oylik ijara',
+    totalContractAmount: 'Shartnomaning umumiy summasi',
     dueDate: 'To\'lov muddati',
     status: 'Holat',
     pending: 'Kutilmoqda',
@@ -715,6 +732,9 @@ const translations: Record<Language, Translations> = {
     minutesAgo: 'daqiqa oldin',
     hoursAgo: 'soat oldin',
     daysAgo: 'kun oldin',
+
+    // System Status
+    systemOnline: 'Tizim ishlamoqda',
   },
 };
 

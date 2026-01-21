@@ -51,7 +51,7 @@ export default function AdminReportsPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('An unexpected error occurred while fetching reports.');
+        setError(t.unexpectedError);
       }
     } finally {
       setPageLoading(false);
@@ -150,7 +150,7 @@ export default function AdminReportsPage() {
             } disabled:opacity-50 disabled:cursor-not-allowed`}
             disabled={!startDate || !endDate}
           >
-            {t.generateReport || 'Generate Report'}
+            {t.generateReport}
           </button>
         </div>
       </div>
@@ -164,7 +164,7 @@ export default function AdminReportsPage() {
             }`}>
               <h3 className={`text-sm font-medium mb-2 ${
                 darkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}>{t.totalRevenue || 'Total Revenue'}</h3>
+              }`}>{t.totalRevenue}</h3>
               <p className={`text-2xl font-bold ${
                 darkMode ? 'text-green-400' : 'text-green-600'
               }`}>
@@ -176,7 +176,7 @@ export default function AdminReportsPage() {
             }`}>
               <h3 className={`text-sm font-medium mb-2 ${
                 darkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}>{t.totalInvoiced || 'Total Invoiced'}</h3>
+              }`}>{t.totalInvoiced}</h3>
               <p className={`text-2xl font-bold ${
                 darkMode ? 'text-blue-400' : 'text-blue-600'
               }`}>
@@ -188,7 +188,7 @@ export default function AdminReportsPage() {
             }`}>
               <h3 className={`text-sm font-medium mb-2 ${
                 darkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}>{t.pendingPayments || 'Pending Payments'}</h3>
+              }`}>{t.pendingPayments}</h3>
               <p className={`text-2xl font-bold ${
                 darkMode ? 'text-yellow-400' : 'text-yellow-600'
               }`}>
@@ -200,7 +200,7 @@ export default function AdminReportsPage() {
             }`}>
               <h3 className={`text-sm font-medium mb-2 ${
                 darkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}>{t.outstandingAmount || 'Outstanding Amount'}</h3>
+              }`}>{t.outstandingAmount}</h3>
               <p className={`text-2xl font-bold ${
                 darkMode ? 'text-red-400' : 'text-red-600'
               }`}>
@@ -215,12 +215,12 @@ export default function AdminReportsPage() {
           }`}>
             <h2 className={`text-xl font-semibold mb-4 ${
               darkMode ? 'text-white' : 'text-gray-900'
-            }`}>{t.contracts || 'Contracts'}</h2>
+            }`}>{t.contracts}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.total || 'Total'}</p>
+                }`}>{t.total}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-white' : 'text-gray-900'
                 }`}>{reportData.contracts?.total || 0}</p>
@@ -228,7 +228,7 @@ export default function AdminReportsPage() {
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.active || 'Active'}</p>
+                }`}>{t.active}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-green-400' : 'text-green-600'
                 }`}>{reportData.contracts?.active || 0}</p>
@@ -236,7 +236,7 @@ export default function AdminReportsPage() {
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.completed || 'Completed'}</p>
+                }`}>{t.completed}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-blue-400' : 'text-blue-600'
                 }`}>{reportData.contracts?.completed || 0}</p>
@@ -244,7 +244,7 @@ export default function AdminReportsPage() {
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.draft || 'Draft'}</p>
+                }`}>{t.draft}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-gray-400' : 'text-gray-600'
                 }`}>{reportData.contracts?.draft || 0}</p>
@@ -258,12 +258,12 @@ export default function AdminReportsPage() {
           }`}>
             <h2 className={`text-xl font-semibold mb-4 ${
               darkMode ? 'text-white' : 'text-gray-900'
-            }`}>{t.payments || 'Payments'}</h2>
+            }`}>{t.payments}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.total || 'Total'}</p>
+                }`}>{t.total}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-white' : 'text-gray-900'
                 }`}>{reportData.payments?.total || 0}</p>
@@ -271,7 +271,7 @@ export default function AdminReportsPage() {
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.confirmed || 'Confirmed'}</p>
+                }`}>{t.confirmed}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-green-400' : 'text-green-600'
                 }`}>{reportData.payments?.confirmed || 0}</p>
@@ -279,7 +279,7 @@ export default function AdminReportsPage() {
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.pending || 'Pending'}</p>
+                }`}>{t.pending}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-yellow-400' : 'text-yellow-600'
                 }`}>{reportData.payments?.pending || 0}</p>
@@ -287,7 +287,7 @@ export default function AdminReportsPage() {
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.cancelled || 'Cancelled'}</p>
+                }`}>{t.cancelled}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-red-400' : 'text-red-600'
                 }`}>{reportData.payments?.cancelled || 0}</p>
@@ -301,12 +301,12 @@ export default function AdminReportsPage() {
           }`}>
             <h2 className={`text-xl font-semibold mb-4 ${
               darkMode ? 'text-white' : 'text-gray-900'
-            }`}>{t.invoices || 'Invoices'}</h2>
+            }`}>{t.invoices}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.total || 'Total'}</p>
+                }`}>{t.total}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-white' : 'text-gray-900'
                 }`}>{reportData.invoices?.total || 0}</p>
@@ -314,7 +314,7 @@ export default function AdminReportsPage() {
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.paid || 'Paid'}</p>
+                }`}>{t.paid}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-green-400' : 'text-green-600'
                 }`}>{reportData.invoices?.paid || 0}</p>
@@ -322,7 +322,7 @@ export default function AdminReportsPage() {
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.pending || 'Pending'}</p>
+                }`}>{t.pending}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-yellow-400' : 'text-yellow-600'
                 }`}>{reportData.invoices?.pending || 0}</p>
@@ -330,7 +330,7 @@ export default function AdminReportsPage() {
               <div>
                 <p className={`text-sm ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
-                }`}>{t.overdue || 'Overdue'}</p>
+                }`}>{t.overdue}</p>
                 <p className={`text-2xl font-bold ${
                   darkMode ? 'text-red-400' : 'text-red-600'
                 }`}>{reportData.invoices?.overdue || 0}</p>

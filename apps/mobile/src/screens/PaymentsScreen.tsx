@@ -23,6 +23,7 @@ interface PaymentsScreenProps {
 export default function PaymentsScreen({ navigation }: PaymentsScreenProps) {
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<any[]>([]);
+  const [paginationMeta, setPaginationMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const { t } = useLanguage();
@@ -39,11 +40,29 @@ export default function PaymentsScreen({ navigation }: PaymentsScreenProps) {
       
       // Try to fetch from API
       const result = await apiGet('/tenant/payments');
-      setPayments(result);
       
-      // Cache the result
-      await AsyncStorage.setItem(PAYMENTS_CACHE_KEY, JSON.stringify(result));
-      console.log('✅ Payments cached successfully');
+      // Handle paginated response: { data, meta } or legacy array format
+      let paymentList: any[];
+      let meta: { page: number; limit: number; total: number } | null = null;
+      
+      if (result && typeof result === 'object' && 'data' in result && Array.isArray(result.data)) {
+        // New paginated format
+        paymentList = result.data;
+        meta = result.meta || null;
+        setPaginationMeta(meta);
+      } else if (Array.isArray(result)) {
+        // Legacy array format (backward compatibility)
+        paymentList = result;
+        setPaginationMeta(null);
+      } else {
+        throw new Error('Invalid response format from API');
+      }
+      
+      setPayments(paymentList);
+      
+      // Cache the result (store as array for backward compatibility)
+      await AsyncStorage.setItem(PAYMENTS_CACHE_KEY, JSON.stringify(paymentList));
+      console.log('✅ Payments cached successfully', meta ? `(${paymentList.length} of ${meta.total})` : '');
     } catch (e: any) {
       console.log('⚠️ API error, attempting to load from cache:', e.message);
       
@@ -52,7 +71,9 @@ export default function PaymentsScreen({ navigation }: PaymentsScreenProps) {
         const cachedData = await AsyncStorage.getItem(PAYMENTS_CACHE_KEY);
         if (cachedData) {
           const parsed = JSON.parse(cachedData);
-          setPayments(parsed);
+          // Cached data is always an array (for backward compatibility)
+          setPayments(Array.isArray(parsed) ? parsed : []);
+          setPaginationMeta(null); // No pagination info in cache
           setIsOffline(true);
           console.log('✅ Loaded from cache (offline mode)');
         } else {
@@ -253,10 +274,20 @@ function PaymentCard({ item, index, darkMode, t, getStatusColor, getStatusText, 
           <Text style={styles.icon}>💰</Text>
         </View>
         <View style={styles.cardHeaderText}>
+          {item.unitName && (
+            <Text
+              style={[
+                styles.cardTitle,
+                { color: darkMode ? '#FFFFFF' : '#1F2937' },
+              ]}
+            >
+              🏠 {item.unitName}
+            </Text>
+          )}
           <Text
             style={[
-              styles.cardTitle,
-              { color: darkMode ? '#FFFFFF' : '#1F2937' },
+              item.unitName ? styles.cardSubtext : styles.cardTitle,
+              { color: item.unitName ? (darkMode ? '#9CA3AF' : '#6B7280') : (darkMode ? '#FFFFFF' : '#1F2937') },
             ]}
           >
             {item.method}
@@ -327,11 +358,15 @@ function PaymentCard({ item, index, darkMode, t, getStatusColor, getStatusText, 
             { color: darkMode ? '#6B7280' : '#9CA3AF' },
           ]}
         >
-          {t.paidAt}: {new Date(item.paidAt).toLocaleDateString('uz-UZ')} •{' '}
-          {new Date(item.paidAt).toLocaleTimeString('uz-UZ', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+          {item.paidAt ? t.paidAt : (t.createdAt || 'Created')}: {
+            item.paidAt 
+              ? new Date(item.paidAt).toLocaleDateString('uz-UZ')
+              : new Date(item.createdAt).toLocaleDateString('uz-UZ')
+          } •{' '}
+          {item.paidAt
+            ? new Date(item.paidAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
+            : new Date(item.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
+          }
         </Text>
       </View>
 

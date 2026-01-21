@@ -34,55 +34,39 @@ export default function LoginPage() {
         return
       }
       
-      console.log('Attempting login with email:', trimmedEmail)
       const data = await login(trimmedEmail, trimmedPassword)
-      console.log('Login successful, token received')
       
-      // Save token with expiration (2 hours for testing)
-      // TODO: Change back to 7 days after testing
-      // 2 hours = 2 / 24 days
-      saveToken(data.accessToken, 2 / 24)
+      // Save token with expiration (7 days)
+      saveToken(data.accessToken, 7)
 
       // Get user info to determine role
       try {
-        console.log('Fetching user info...')
         const user = await getMe()
-        console.log('User info received:', user)
         
         // Force a page reload to refresh AuthContext with new user data
-        // This ensures all components get the updated user state
         if (user.role === 'TENANT_USER' || user.role === 'TENANT') {
-          // Redirect to tenant portal (different domain/port)
+          // Redirect to tenant portal
           window.location.href = 'http://localhost:3002/login'
         } else {
-          // Redirect to admin dashboard and reload to refresh AuthContext
+          // Redirect to admin dashboard
           window.location.href = '/dashboard'
         }
       } catch (meError) {
-        console.error('Error fetching user info:', meError)
         // If getMe fails, still try to redirect (token is valid)
-        // But show a warning
         if (meError instanceof ApiError) {
-          setError(`Login successful but failed to fetch user info: ${meError.message}. Redirecting anyway...`)
-          setTimeout(() => {
-            window.location.href = '/dashboard'
-          }, 2000)
+          setError(`Login successful but failed to fetch user info: ${meError.message}. Redirecting...`)
         } else {
           setError('Login successful but failed to fetch user info. Redirecting...')
-          setTimeout(() => {
-            window.location.href = '/dashboard'
-          }, 2000)
         }
+        setTimeout(() => {
+          window.location.href = '/dashboard'
+        }, 2000)
         setIsLoading(false)
       }
     } catch (err) {
-      console.error('Login error:', err)
       if (err instanceof ApiError) {
-        const errorMessage = err.data?.message || err.message || 'Invalid email or password'
-        console.error('API Error:', err.status, errorMessage, err.data)
-        setError(errorMessage)
+        setError(err.data?.message || err.message || 'Invalid email or password')
       } else {
-        console.error('Unknown error:', err)
         setError(`Cannot connect to API: ${err instanceof Error ? err.message : 'Unknown error'}`)
       }
       setIsLoading(false)

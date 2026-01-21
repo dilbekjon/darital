@@ -1,11 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
+import { getApiUrl } from '../lib/constants-fallback';
 import type { Conversation, Message } from '../lib/chatApi';
 
-const API_BASE = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
-const SOCKET_URL = API_BASE.replace('/api', '');
+// Lazy load URLs to avoid calling getApiUrl() at module load time
+function getApiBase(): string {
+  return getApiUrl();
+}
+
+function getSocketUrl(): string {
+  return getApiBase().replace('/api', '');
+}
 
 // Singleton socket instance to prevent multiple connections
 let socketInstance: Socket | null = null;
@@ -17,6 +23,7 @@ interface UseTenantChatReturn {
   conversations: Conversation[];
   messages: Message[];
   connected: boolean;
+  currentConversation: Conversation | null;
   refreshConversations: () => Promise<void>;
   refreshMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, content: string) => Promise<void>;
@@ -29,6 +36,7 @@ export function useTenantChat(): UseTenantChatReturn {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [connected, setConnected] = useState(false);
+  const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   
   const socketRef = useRef<Socket | null>(null);
   const activeConversationId = useRef<string | null>(null);
@@ -68,7 +76,7 @@ export function useTenantChat(): UseTenantChatReturn {
 
       console.log('[useTenantChat] Initializing socket connection...');
 
-      const socket = io(`${SOCKET_URL}/chat`, {
+      const socket = io(`${getSocketUrl()}/chat`, {
         auth: { token },
         transports: ['websocket', 'polling'],
         reconnection: true,
@@ -80,6 +88,12 @@ export function useTenantChat(): UseTenantChatReturn {
         console.log('[useTenantChat] ✅ Socket connected');
         setConnected(true);
         setError(null);
+        
+        // Rejoin active conversation room if we have one
+        if (activeConversationId.current) {
+          socket.emit('join_conversation', { conversationId: activeConversationId.current });
+          console.log(`[useTenantChat] 📥 Rejoined conversation room after reconnect: conversation:${activeConversationId.current}`);
+        }
       });
 
       socket.on('disconnect', () => {
@@ -92,11 +106,15 @@ export function useTenantChat(): UseTenantChatReturn {
         setError(err.message || 'Socket connection error');
       });
 
-      socket.on('message_received', (message: Message) => {
-        console.log('[useTenantChat] 📨 New message received:', message.id);
+      // Listen for both message_created (new) and message_received (backward compat)
+      // Use a stable handler that checks activeConversationId at the time of event
+      const handleNewMessage = (message: Message) => {
+        const currentConvId = activeConversationId.current;
+        console.log(`[useTenantChat] 📨 New message received: ${message.id}, conversationId: ${message.conversationId}, activeConversationId: ${currentConvId}`);
         
         // Only add message if it belongs to active conversation
-        if (activeConversationId.current === message.conversationId) {
+        if (currentConvId && currentConvId === message.conversationId) {
+          console.log(`[useTenantChat] ✅ Message matches active conversation, adding to state`);
           setMessages((prev) => {
             // Avoid duplicates (check by ID)
             const exists = prev.some((m) => m.id === message.id);
@@ -110,8 +128,53 @@ export function useTenantChat(): UseTenantChatReturn {
               !m.id.startsWith('temp-') || m.content !== message.content
             );
             
+            console.log(`[useTenantChat] ✅ Adding message ${message.id} to state (prev count: ${prev.length}, new count: ${withoutTemp.length + 1})`);
             return [...withoutTemp, message];
           });
+        } else {
+          console.log(`[useTenantChat] ⚠️  Message ignored - conversationId mismatch or no active conversation`);
+        }
+      };
+
+      socket.on('message_created', handleNewMessage);
+      socket.on('message_received', handleNewMessage);
+
+      // Listen for conversation updates (assign, close, etc.)
+      socket.on('conversation_updated', (data: { conversation: Conversation }) => {
+        console.log('[useTenantChat] 🔄 Conversation updated:', data.conversation.id);
+        
+        // Update conversations list
+        setConversations((prev) => {
+          const updated = prev.map((conv) => 
+            conv.id === data.conversation.id ? { ...conv, ...data.conversation } : conv
+          );
+          // If conversation not in list, add it
+          if (!prev.find(c => c.id === data.conversation.id)) {
+            return [...updated, data.conversation];
+          }
+          return updated;
+        });
+        
+        // Update current conversation if it's the active one
+        if (activeConversationId.current === data.conversation.id) {
+          setCurrentConversation(data.conversation);
+        }
+      });
+
+      // Listen for unread count updates
+      socket.on('unread_count_updated', () => {
+        console.log('[useTenantChat] 📊 Unread count updated');
+        // Optionally refresh conversations to get updated unread counts
+        refreshConversations();
+      });
+
+      // Listen for errors (e.g., CONVERSATION_CLOSED)
+      socket.on('error', (err: any) => {
+        console.warn('[useTenantChat] ❌ Socket error:', err);
+        if (err.code === 'CONVERSATION_CLOSED') {
+          setError('This conversation is closed. You cannot send messages.');
+        } else {
+          setError(err.message || 'Socket error');
         }
       });
 
@@ -154,7 +217,7 @@ export function useTenantChat(): UseTenantChatReturn {
       setError(null);
 
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE}/conversations`, {
+      const response = await fetch(`${getApiBase()}/conversations`, {
         method: 'GET',
         headers,
       });
@@ -189,10 +252,18 @@ export function useTenantChat(): UseTenantChatReturn {
     try {
       setLoading(true);
       setError(null);
+      
+      // Leave previous conversation room if switching
+      const socket = socketRef.current || socketInstance;
+      if (socket && socket.connected && activeConversationId.current && activeConversationId.current !== conversationId) {
+        socket.emit('leave_conversation', { conversationId: activeConversationId.current });
+        console.log(`[useTenantChat] 📤 Left previous conversation room: ${activeConversationId.current}`);
+      }
+      
       activeConversationId.current = conversationId;
 
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE}/conversations/${conversationId}/messages`, {
+      const response = await fetch(`${getApiBase()}/conversations/${conversationId}/messages`, {
         method: 'GET',
         headers,
       });
@@ -207,10 +278,20 @@ export function useTenantChat(): UseTenantChatReturn {
       
       console.log(`[useTenantChat] ✅ Loaded ${data.length} messages for conversation ${conversationId}`);
 
-      // Join conversation room via socket
-      const socket = socketRef.current || socketInstance;
-      if (socket && socket.connected) {
-        socket.emit('join_conversation', { conversationId });
+      // Join conversation room via socket (ensure we're connected first)
+      if (socket) {
+        if (socket.connected) {
+          socket.emit('join_conversation', { conversationId });
+          console.log(`[useTenantChat] 📥 Joined conversation room: conversation:${conversationId}`);
+        } else {
+          // If not connected, wait for connection then join
+          const onConnect = () => {
+            socket.emit('join_conversation', { conversationId });
+            console.log(`[useTenantChat] 📥 Joined conversation room after reconnect: conversation:${conversationId}`);
+            socket.off('connect', onConnect);
+          };
+          socket.once('connect', onConnect);
+        }
       }
     } catch (err: any) {
       console.warn('[useTenantChat] Error loading messages:', err);
@@ -220,6 +301,17 @@ export function useTenantChat(): UseTenantChatReturn {
     }
   }, []);
 
+  // Cleanup: leave room when component unmounts or conversation changes
+  useEffect(() => {
+    return () => {
+      const socket = socketRef.current || socketInstance;
+      if (socket && socket.connected && activeConversationId.current) {
+        socket.emit('leave_conversation', { conversationId: activeConversationId.current });
+        console.log(`[useTenantChat] 📤 Left conversation room on cleanup: ${activeConversationId.current}`);
+      }
+    };
+  }, []);
+
   // Helper: Base64 decode (React Native compatible)
   const base64Decode = (str: string): string => {
     try {
@@ -227,9 +319,13 @@ export function useTenantChat(): UseTenantChatReturn {
       if (typeof atob !== 'undefined') {
         return atob(str);
       }
-      // Fallback for older environments
-      return decodeURIComponent(escape(Buffer.from(str, 'base64').toString('binary')));
-    } catch (err) {
+      // Fallback: manual base64 decode (no Buffer in React Native)
+    } catch {
+      // Fall through to manual decode
+    }
+    
+    // Manual base64 decode as fallback
+    {
       // Manual base64 decode as last resort
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
       let output = '';
@@ -327,7 +423,7 @@ export function useTenantChat(): UseTenantChatReturn {
       setError(null);
 
       const headers = await getAuthHeaders();
-      const response = await fetch(`${API_BASE}/conversations`, {
+      const response = await fetch(`${getApiBase()}/conversations`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -378,6 +474,7 @@ export function useTenantChat(): UseTenantChatReturn {
     conversations,
     messages,
     connected,
+    currentConversation,
     refreshConversations,
     refreshMessages,
     sendMessage,

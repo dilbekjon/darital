@@ -9,6 +9,7 @@ import { NoAccess } from '../../../components/common/NoAccess';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { EmptyState } from '../../../components/EmptyState';
 import { fetchApi, ApiError } from '../../../lib/api';
+import DaritalLoader from '../../../components/DaritalLoader';
 
 interface Tenant {
   id: string;
@@ -16,6 +17,10 @@ interface Tenant {
   email: string;
   phone: string;
   createdAt: string;
+  isArchived?: boolean;
+  archivedAt?: string;
+  archivedBy?: string;
+  archiveReason?: string;
 }
 
 export default function AdminTenantsPage() {
@@ -26,6 +31,7 @@ export default function AdminTenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,6 +64,8 @@ export default function AdminTenantsPage() {
 
       const loadTenants = async () => {
         try {
+          // Only load active (non-archived) tenants by default
+          // Archived tenants are managed in the archive page
           const data = await fetchApi<Tenant[]>('/tenants');
           setTenants(data);
         } catch (err) {
@@ -76,11 +84,7 @@ export default function AdminTenantsPage() {
   }, [loading, user, hasPermission]);
 
   if (loading || pageLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
-      </div>
-    );
+    return <DaritalLoader darkMode={darkMode} />;
   }
 
   if (!user || !hasPermission('tenants.read')) {
@@ -90,10 +94,114 @@ export default function AdminTenantsPage() {
   const canCreateTenants = hasPermission('tenants.create');
   const canEditTenants = hasPermission('tenants.update');
   const canDeleteTenants = hasPermission('tenants.delete');
+  const canArchiveTenants = hasPermission('tenants.update'); // Archive requires update permission
 
-  const handleDeleteTenant = async (tenantId: string) => {
+  const handleArchiveTenant = async (tenantId: string) => {
+    if (!canArchiveTenants) {
+      console.warn('No permission to archive tenants');
+      return;
+    }
+
+    if (pageLoading || tenants.length === 0) {
+      console.warn('Tenants not loaded yet, cannot archive');
+      setError('Please wait for tenants to load before archiving.');
+      return;
+    }
+
+    console.log('Attempting to archive tenant:', tenantId);
+    console.log('Available tenants count:', tenants.length);
+
+    // Always refresh the tenant data to ensure we have the latest information
+    let currentTenants = tenants;
+    if (tenants.length === 0) {
+      try {
+        console.log('Refreshing tenant list...');
+        currentTenants = await fetchApi<Tenant[]>('/tenants');
+        setTenants(currentTenants);
+      } catch (refreshErr) {
+        console.error('Failed to refresh tenants:', refreshErr);
+        setError('Failed to load tenant data. Please try again.');
+        return;
+      }
+    }
+
+    // Find the tenant object from the current tenants list
+    const tenant = currentTenants.find(t => t.id === tenantId);
+    if (!tenant) {
+      console.error('Tenant not found for archiving:', tenantId, 'Available tenant IDs:', currentTenants.map(t => ({ id: t.id, name: t.fullName })));
+      setError('Tenant not found. Please refresh the page and try again.');
+      return;
+    }
+
+    console.log('Found tenant for archiving:', tenant.fullName);
+
+    const reason = prompt(`Archive Tenant: ${tenant.fullName}\n\nThis will archive the tenant and ALL their related data:\n• Contracts\n• Invoices  \n• Payments\n\n${t.archiveTenantPrompt || 'Enter reason for archiving this tenant (optional):'}`);
+    if (reason === null) return; // User cancelled
+
+    try {
+      await fetchApi(`/tenants/${tenantId}/archive`, {
+        method: 'PUT',
+        body: JSON.stringify({ reason: reason || undefined }),
+      });
+
+      // Refresh the list to remove archived tenant from view
+      const loadTenants = async () => {
+        try {
+          const data = await fetchApi<Tenant[]>('/tenants');
+          setTenants(data);
+        } catch (err) {
+          console.error('Failed to reload tenants:', err);
+        }
+      };
+      await loadTenants();
+    setError(null);
+    setSuccess(`Tenant "${tenant.fullName}" and all related data (contracts, invoices, payments, conversations) have been archived successfully. You can view them in the Archive Management page.`);
+
+    // Clear success message after 10 seconds
+    setTimeout(() => setSuccess(null), 10000);
+    } catch (err) {
+      console.error('Failed to archive tenant:', err);
+      if (err instanceof ApiError) {
+        setError(err.data?.message || err.message);
+      } else {
+        setError('Failed to archive tenant.');
+      }
+    }
+  };
+
+  const handleUnarchiveTenant = async (tenantId: string) => {
     if (!canDeleteTenants) return;
-    if (!confirm('Are you sure you want to delete this tenant? This action cannot be undone.')) {
+
+    try {
+      await fetchApi(`/tenants/${tenantId}/unarchive`, {
+        method: 'PUT',
+      });
+
+      // Refresh the list to show updated status
+      const loadTenants = async () => {
+        try {
+          const data = await fetchApi<Tenant[]>('/tenants?includeArchived=true');
+          setTenants(data);
+        } catch (err) {
+          console.error('Failed to reload tenants:', err);
+        }
+      };
+      await loadTenants();
+      setError(null);
+    } catch (err) {
+      console.error('Failed to unarchive tenant:', err);
+      if (err instanceof ApiError) {
+        setError(err.data?.message || err.message);
+      } else {
+        setError('Failed to unarchive tenant.');
+      }
+    }
+  };
+
+  const handlePermanentDeleteTenant = async (tenantId: string) => {
+    if (!canDeleteTenants) return;
+
+    if (!confirm('⚠️ This will permanently delete the tenant and cannot be undone. Continue?')) {
       return;
     }
 
@@ -101,14 +209,16 @@ export default function AdminTenantsPage() {
       await fetchApi(`/tenants/${tenantId}`, {
         method: 'DELETE',
       });
-      
+
+      // Remove from the list
       setTenants((prev) => prev.filter((tenant) => tenant.id !== tenantId));
+      setError(null);
     } catch (err) {
-      console.error('Failed to delete tenant:', err);
+      console.error('Failed to permanently delete tenant:', err);
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('Failed to delete tenant.');
+        setError('Failed to permanently delete tenant.');
       }
     }
   };
@@ -122,6 +232,7 @@ export default function AdminTenantsPage() {
     setEditingTenant(null);
     resetForm();
     setError(null);
+    setSuccess(null);
     setIsModalOpen(true);
   };
 
@@ -134,6 +245,7 @@ export default function AdminTenantsPage() {
       password: '',
     });
     setError(null);
+    setSuccess(null);
     setIsModalOpen(true);
   };
 
@@ -201,7 +313,7 @@ export default function AdminTenantsPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('An unexpected error occurred while saving tenant.');
+        setError(t.unexpectedError);
       }
     } finally {
       setSubmitting(false);
@@ -243,6 +355,18 @@ export default function AdminTenantsPage() {
         )}
       </div>
 
+      {success && (
+        <div className="bg-green-100 dark:bg-green-900/20 border border-green-400 dark:border-green-800 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg mb-4" role="alert">
+          {success}
+          <button
+            onClick={() => setSuccess(null)}
+            className="float-right ml-4 font-bold"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg mb-4" role="alert">
           {error}
@@ -260,7 +384,7 @@ export default function AdminTenantsPage() {
             </div>
             <input
               type="text"
-              placeholder="Search tenants..."
+              placeholder={t.searchTenants}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`block w-full pl-10 pr-3 py-2 border rounded-lg ${
@@ -284,11 +408,11 @@ export default function AdminTenantsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h2a2 2 0 002-2V7a2 2 0 00-2-2h-2.586a1 1 0 00-.707.293L12 7.707l-2.707-2.707A1 1 0 008.586 5H7a2 2 0 00-2 2v11a2 2 0 002 2h2m4 0h2a2 2 0 002-2v-7a2 2 0 00-2-2h-2m-4 0V5a2 2 0 00-2-2H9a2 2 0 00-2 2v2m-4 0a5 5 0 0110 0v2a5 5 0 01-10 0V7a2 2 0 00-2-2H3a2 2 0 00-2 2v11a2 2 0 002 2h2" />
               </svg>
             }
-            title={tenants.length === 0 ? (t.noTenants || 'No tenants yet') : 'No results found'}
+            title={tenants.length === 0 ? t.noTenants : t.noResultsFound}
             description={
               tenants.length === 0
-                ? 'Get started by creating your first tenant account.'
-                : 'Try adjusting your search query.'
+                ? t.getStartedByCreatingTenant
+                : t.tryAdjustingFilters
             }
             actionLabel={tenants.length === 0 && canCreateTenants ? (t.createTenant || 'Create Tenant') : undefined}
             onAction={tenants.length === 0 && canCreateTenants ? openCreateModal : undefined}
@@ -308,9 +432,18 @@ export default function AdminTenantsPage() {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <h3 className={`text-base font-semibold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {tenant.fullName}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className={`text-base font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {tenant.fullName}
+                        </h3>
+                        {tenant.isArchived && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            darkMode ? 'bg-orange-900/30 text-orange-300' : 'bg-orange-100 text-orange-800'
+                          }`}>
+                            Archived
+                          </span>
+                        )}
+                      </div>
                       {tenant.email && (
                         <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                           {tenant.email}
@@ -321,7 +454,7 @@ export default function AdminTenantsPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      {canEditTenants && (
+                      {canEditTenants && !tenant.isArchived && (
                         <button
                           onClick={() => openEditModal(tenant)}
                           className={`transition-colors text-sm font-medium ${
@@ -333,22 +466,49 @@ export default function AdminTenantsPage() {
                           {t.edit}
                         </button>
                       )}
-                      {canDeleteTenants && (
+                      {canArchiveTenants && !tenant.isArchived && (
                         <button
-                          onClick={() => handleDeleteTenant(tenant.id)}
+                          onClick={() => handleArchiveTenant(tenant.id)}
+                          disabled={pageLoading}
                           className={`transition-colors text-sm font-medium ${
-                            darkMode
-                              ? 'text-red-400 hover:text-red-300'
-                              : 'text-red-600 hover:text-red-800'
+                            pageLoading
+                              ? 'opacity-50 cursor-not-allowed'
+                              : darkMode
+                                ? 'text-orange-400 hover:text-orange-300'
+                                : 'text-orange-600 hover:text-orange-800'
                           }`}
                         >
-                          {t.delete || 'Delete'}
+                          Archive
                         </button>
+                      )}
+                      {canArchiveTenants && tenant.isArchived && (
+                        <>
+                          <button
+                            onClick={() => handleUnarchiveTenant(tenant.id)}
+                            className={`transition-colors text-sm font-medium ${
+                              darkMode
+                                ? 'text-green-400 hover:text-green-300'
+                                : 'text-green-600 hover:text-green-800'
+                            }`}
+                          >
+                            Unarchive
+                          </button>
+                          <button
+                            onClick={() => handlePermanentDeleteTenant(tenant.id)}
+                            className={`transition-colors text-sm font-medium ${
+                              darkMode
+                                ? 'text-red-400 hover:text-red-300'
+                                : 'text-red-600 hover:text-red-800'
+                            }`}
+                          >
+                            Delete
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
                   <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                    Created: {new Date(tenant.createdAt).toLocaleDateString()}
+                    {t.createdAt}: {new Date(tenant.createdAt).toLocaleDateString()}
                   </div>
                 </div>
               ))}
@@ -399,9 +559,18 @@ export default function AdminTenantsPage() {
                       } ${darkMode ? 'hover:bg-blue-600/10' : 'hover:bg-gray-50'}`}
                     >
                       <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
-                        darkMode ? 'text-white' : 'text-gray-900'
+                        darkMode ? (tenant.isArchived ? 'text-gray-400' : 'text-white') : (tenant.isArchived ? 'text-gray-500' : 'text-gray-900')
                       }`}>
-                        {tenant.fullName}
+                        <div className="flex items-center gap-2">
+                          {tenant.fullName}
+                          {tenant.isArchived && (
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                              darkMode ? 'bg-orange-900/30 text-orange-300' : 'bg-orange-100 text-orange-800'
+                            }`}>
+                              Archived
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -420,8 +589,8 @@ export default function AdminTenantsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-3">
-                          {canEditTenants && (
-                            <button 
+                          {canEditTenants && !tenant.isArchived && (
+                            <button
                               onClick={() => openEditModal(tenant)}
                               className={`transition-colors ${
                                 darkMode
@@ -432,17 +601,44 @@ export default function AdminTenantsPage() {
                               {t.edit}
                             </button>
                           )}
-                          {canDeleteTenants && (
+                          {canArchiveTenants && !tenant.isArchived && (
                             <button
-                              onClick={() => handleDeleteTenant(tenant.id)}
+                              onClick={() => handleArchiveTenant(tenant.id)}
+                              disabled={pageLoading}
                               className={`transition-colors ${
-                                darkMode
-                                  ? 'text-red-400 hover:text-red-300'
-                                  : 'text-red-600 hover:text-red-900'
+                                pageLoading
+                                  ? 'opacity-50 cursor-not-allowed'
+                                  : darkMode
+                                    ? 'text-orange-400 hover:text-orange-300'
+                                    : 'text-orange-600 hover:text-orange-900'
                               }`}
                             >
-                              {t.delete || 'Delete'}
+                              Archive
                             </button>
+                          )}
+                          {canArchiveTenants && tenant.isArchived && (
+                            <>
+                              <button
+                                onClick={() => handleUnarchiveTenant(tenant.id)}
+                                className={`transition-colors ${
+                                  darkMode
+                                    ? 'text-green-400 hover:text-green-300'
+                                    : 'text-green-600 hover:text-green-900'
+                                }`}
+                              >
+                                Unarchive
+                              </button>
+                              <button
+                                onClick={() => handlePermanentDeleteTenant(tenant.id)}
+                                className={`transition-colors ${
+                                  darkMode
+                                    ? 'text-red-400 hover:text-red-300'
+                                    : 'text-red-600 hover:text-red-900'
+                                }`}
+                              >
+                                Delete
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -464,6 +660,18 @@ export default function AdminTenantsPage() {
             <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
               {editingTenant ? t.edit : t.createTenant}
             </h2>
+            {success && (
+              <div className="bg-green-100 dark:bg-green-900/20 border border-green-400 dark:border-green-800 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg mb-4" role="alert">
+                {success}
+                <button
+                  onClick={() => setSuccess(null)}
+                  className="float-right ml-4 font-bold"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
             {error && (
               <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg mb-4" role="alert">
                 {error}
@@ -527,7 +735,7 @@ export default function AdminTenantsPage() {
                       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                   } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                 />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Optional - used for login and notifications</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.emailOptional}</p>
               </div>
 
               {/* Password */}
@@ -549,7 +757,7 @@ export default function AdminTenantsPage() {
                         : 'bg-white border-gray-300 text-gray-900'
                     } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Minimum 6 characters</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.passwordMinLength}</p>
                 </div>
               ) : (
                 <div className="mb-4">
@@ -560,7 +768,7 @@ export default function AdminTenantsPage() {
                     type="password"
                     id="password"
                     minLength={6}
-                    placeholder="Enter new password to change"
+                    placeholder={t.enterNewPasswordToChange}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     className={`w-full rounded-lg border ${
@@ -569,7 +777,7 @@ export default function AdminTenantsPage() {
                         : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
                     } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                   />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Leave empty to keep current password</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.leaveEmptyToKeepPassword}</p>
                 </div>
               )}
 

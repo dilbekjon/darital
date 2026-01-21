@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import Constants from 'expo-constants';
+import { useFocusEffect } from '@react-navigation/native';
+// Constants import removed - using constants-fallback instead
 import { useTenantChat } from '../hooks/useTenantChat';
 import { useLanguage } from '../contexts/LanguageContext';
 import type { Message } from '../lib/chatApi';
@@ -25,6 +26,7 @@ export default function ChatRoomScreen({ route, navigation }: any) {
     error,
     messages,
     connected,
+    currentConversation,
     refreshMessages,
     sendMessage,
   } = useTenantChat();
@@ -33,12 +35,20 @@ export default function ChatRoomScreen({ route, navigation }: any) {
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  // Load messages on mount
-  useEffect(() => {
-    if (conversationId) {
-      refreshMessages(conversationId);
-    }
-  }, [conversationId]);
+  // Load messages and ensure socket subscription when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (conversationId) {
+        console.log(`[ChatRoomScreen] 📥 Screen focused, loading messages for conversation: ${conversationId}`);
+        refreshMessages(conversationId);
+      }
+      
+      return () => {
+        console.log(`[ChatRoomScreen] 📤 Screen blurred, conversation: ${conversationId}`);
+        // Cleanup is handled by useTenantChat hook
+      };
+    }, [conversationId, refreshMessages])
+  );
 
   // Auto-scroll when messages change
   useEffect(() => {
@@ -50,7 +60,7 @@ export default function ChatRoomScreen({ route, navigation }: any) {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || sending || !connected) return;
+    if (!messageInput.trim() || sending || !connected || currentConversation?.status === 'CLOSED') return;
 
     setSending(true);
     const content = messageInput.trim();
@@ -92,9 +102,8 @@ export default function ChatRoomScreen({ route, navigation }: any) {
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isTenant = item.senderRole === 'TENANT';
-    const apiUrl = (Constants.expoConfig?.extra?.apiUrl?.replace('/api', '') || 
-                    process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') || 
-                    'http://localhost:3001');
+    const { getApiUrl } = require('../lib/constants-fallback');
+    const apiUrl = getApiUrl().replace('/api', '');
     
     return (
       <View
@@ -216,25 +225,37 @@ export default function ChatRoomScreen({ route, navigation }: any) {
         }
       />
 
+      {/* Closed Conversation Banner */}
+      {currentConversation?.status === 'CLOSED' && (
+        <View style={styles.closedBanner}>
+          <Text style={styles.closedBannerText}>
+            This conversation is closed. You cannot send messages.
+          </Text>
+        </View>
+      )}
+
       {/* Input Box */}
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.textInput}
+          style={[
+            styles.textInput,
+            currentConversation?.status === 'CLOSED' && styles.textInputDisabled,
+          ]}
           value={messageInput}
           onChangeText={setMessageInput}
-          placeholder={t.typeMessage}
+          placeholder={currentConversation?.status === 'CLOSED' ? 'Conversation closed' : t.typeMessage}
           placeholderTextColor="#9ca3af"
           multiline
           maxLength={1000}
-          editable={!sending}
+          editable={!sending && currentConversation?.status !== 'CLOSED'}
         />
         <TouchableOpacity
           style={[
             styles.sendButton,
-            (!messageInput.trim() || sending || !connected) && styles.sendButtonDisabled,
+            (!messageInput.trim() || sending || !connected || currentConversation?.status === 'CLOSED') && styles.sendButtonDisabled,
           ]}
           onPress={handleSendMessage}
-          disabled={!messageInput.trim() || sending || !connected}
+          disabled={!messageInput.trim() || sending || !connected || currentConversation?.status === 'CLOSED'}
         >
           <Text style={styles.sendButtonText}>
             {sending ? '...' : t.send}
@@ -432,6 +453,22 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '600',
+  },
+  closedBanner: {
+    backgroundColor: '#fef3c7',
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#fbbf24',
+  },
+  closedBannerText: {
+    color: '#92400e',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  textInputDisabled: {
+    backgroundColor: '#f3f4f6',
+    color: '#9ca3af',
   },
 });
 

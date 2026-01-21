@@ -151,12 +151,20 @@ const PaymentsPage = () => {
 
                   {/* Paid Date */}
                   <div>
-                    <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.paidAt}</p>
+                    <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {payment.paidAt ? t.paidAt : (t.createdAt || 'Created')}
+                    </p>
                     <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {new Date(payment.paidAt).toLocaleDateString('uz-UZ')}
+                      {payment.paidAt 
+                        ? new Date(payment.paidAt).toLocaleDateString('uz-UZ')
+                        : new Date(payment.createdAt).toLocaleDateString('uz-UZ')
+                      }
                     </p>
                     <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>
-                      {new Date(payment.paidAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                      {payment.paidAt 
+                        ? new Date(payment.paidAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
+                        : new Date(payment.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
+                      }
                     </p>
                   </div>
 

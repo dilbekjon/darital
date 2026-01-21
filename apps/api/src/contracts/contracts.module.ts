@@ -1,15 +1,16 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ContractsController } from './contracts.controller';
 import { ContractsService } from './contracts.service';
-import { PrismaService } from '../prisma.service';
-import { MinioService } from '../minio/minio.service';
+import { MinioModule } from '../minio/minio.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { InvoicesModule } from '../invoices/invoices.module';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [NotificationsModule, MinioModule, forwardRef(() => InvoicesModule)],
   controllers: [ContractsController],
-  providers: [ContractsService, PrismaService, MinioService, AuditInterceptor],
+  providers: [ContractsService, AuditInterceptor],
+  exports: [ContractsService],
 })
 export class ContractsModule {}
 

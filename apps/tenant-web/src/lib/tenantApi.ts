@@ -20,7 +20,11 @@ interface Payment {
   method: 'ONLINE' | 'OFFLINE';
   amount: number;
   status: 'PENDING' | 'CONFIRMED';
-  paidAt: string;
+  paidAt: string | null;
+  provider?: string | null;
+  providerPaymentId?: string | null;
+  rawPayload?: any;
+  createdAt?: string;
 }
 
 interface PaymentIntentResponse {

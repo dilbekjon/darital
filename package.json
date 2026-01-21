@@ -12,9 +12,18 @@
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down -v",
     "infra:logs": "docker compose logs -f --tail=100",
-    "infra:ps": "docker compose ps"
+    "infra:ps": "docker compose ps",
+    "infra:start": "docker compose up -d",
+    "infra:stop": "docker compose down",
+    "db:reset": "pnpm --filter api prisma migrate reset --force && pnpm --filter api seed",
+    "dev:api": "pnpm --filter api dev",
+    "dev:admin": "pnpm --filter admin-web dev",
+    "dev:mobile": "pnpm --filter mobile start",
+    "dev:all": "concurrently -n API,ADMIN,MOBILE \"pnpm dev:api\" \"pnpm dev:admin\" \"pnpm dev:mobile\""
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prisma": "^6.18.0",
     "turbo": "^2.5.8"
   },
   "packageManager": "pnpm@10.19.0",
@@ -24,5 +33,8 @@
   },
   "workspaces": [
     "apps/*"
-  ]
+  ],
+  "dependencies": {
+    "@prisma/client": "^6.18.0"
+  }
 }

@@ -15,6 +15,16 @@ export class AuditLogsService {
         },
         skip,
         take: limit,
+        include: {
+          actor: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
       }),
       this.prisma.adminAuditLog.count(),
     ]);

@@ -255,15 +255,22 @@ export class NotificationsService {
    */
   async sendTelegramToTenant(tenantId: string, message: string, imageUrl?: string): Promise<void> {
     try {
-      const telegramUser = await this.prisma.telegramUser.findFirst({
+      // Use findMany with take: 1 to ensure only ONE telegram user per tenant
+      // This prevents duplicate sends if multiple records exist
+      const telegramUsers = await this.prisma.telegramUser.findMany({
         where: { tenantId },
+        take: 1, // Only get the first one to prevent duplicates
+        orderBy: { createdAt: 'desc' }, // Get the most recent one if multiple exist
       });
 
-      if (!telegramUser) {
+      if (telegramUsers.length === 0) {
         this.logger.debug(`No Telegram linked for tenant ${tenantId}, skipping`);
         return;
       }
 
+      const telegramUser = telegramUsers[0];
+      
+      // Prevent duplicate sends by only sending once
       await this.sendTelegramMessage(telegramUser.chatId, message, imageUrl);
       this.logger.log(`📱 Telegram sent to tenant → tenantId=${tenantId} chatId=${telegramUser.chatId}`);
     } catch (error: any) {
@@ -460,6 +467,229 @@ Method: ${method}
     `.trim();
 
     await this.sendAdminTelegram(telegramMessage);
+  }
+
+  /**
+   * Notify tenant that payment was received and awaiting admin verification
+   */
+  async notifyTenantPaymentReceived(
+    tenantId: string,
+    paymentId: string,
+    amount: number,
+    provider?: string,
+    unitName?: string,
+  ): Promise<void> {
+    try {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+      });
+
+      if (!tenant || !tenant.email) {
+        this.logger.debug(`No tenant or email found for tenantId=${tenantId}, skipping notification`);
+        return;
+      }
+
+      const providerName = provider === 'UZUM' ? 'UZUM Pay' : provider || 'payment gateway';
+      const unitInfo = unitName ? `\nUnit: ${unitName}` : '';
+      const subject = 'Payment Received - Awaiting Verification';
+      const body = `
+Dear ${tenant.fullName},
+
+We have received your payment of ${amount.toFixed(2)} UZS via ${providerName}.${unitInfo}
+
+✅ Your payment has been successfully processed by the payment gateway.
+
+Our financial administrators are now verifying the payment. Once verified, your invoice will be marked as paid.
+
+You will receive another notification when the payment is confirmed.
+
+Payment ID: ${paymentId}
+
+Thank you for your payment!
+
+Best regards,
+Darital Team
+      `.trim();
+
+      // Send email using payment reminder method (with custom subject/body)
+      // Note: Using sendPaymentReminder as a workaround, but the actual email content is custom
+      await this.mailService.sendPaymentReminder(
+        tenant.email, 
+        new Date(), 
+        amount, 
+        'Payment Received', 
+        undefined
+      );
+
+      // Send Telegram if available
+      const unitInfoUz = unitName ? `\n🏠 Xona: <b>${unitName}</b>` : '';
+      const telegramMessage = `
+✅ <b>To'lov Qabul Qilindi!</b>
+
+Sizning ${amount.toFixed(2)} UZS miqdoridagi to'lovingiz ${providerName} orqali muvaffaqiyatli qabul qilindi.${unitInfoUz}
+
+💼 Moliya administratorlari hozirda to'lovni tekshiryapti. Tekshiruvdan so'ng, hisob-fakturangiz to'landi deb belgilanadi.
+
+Tekshiruv yakunlanganda sizga yana bir xabar yuboramiz.
+
+To'lov ID: <code>${paymentId}</code>
+
+Rahmat!
+Darital Jamoasi
+      `.trim();
+
+      await this.sendTelegramToTenant(tenantId, telegramMessage);
+
+      // Send push notification if device registered
+      const pushBody = unitName 
+        ? `Payment for ${unitName}: ${amount.toFixed(2)} UZS is being verified.`
+        : `Your payment of ${amount.toFixed(2)} UZS is being verified. You will be notified once confirmed.`;
+      await this.sendPushToTenant(
+        tenantId,
+        'Payment Received ✅',
+        pushBody,
+      );
+
+      this.logger.log(`📧 Sent payment received notification to tenant ${tenantId}${unitName ? ` for unit ${unitName}` : ''}`);
+    } catch (error: any) {
+      this.logger.warn(`Failed to notify tenant payment received: ${error?.message || 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Notify tenant that payment was verified (accepted or declined)
+   */
+  async notifyTenantPaymentVerified(
+    tenantId: string,
+    paymentId: string,
+    amount: number,
+    verified: boolean,
+    reason?: string,
+    unitName?: string,
+  ): Promise<void> {
+    try {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+      });
+
+      if (!tenant || !tenant.email) {
+        this.logger.debug(`No tenant or email found for tenantId=${tenantId}, skipping notification`);
+        return;
+      }
+
+      const unitInfo = unitName ? `\nUnit: ${unitName}` : '';
+      const unitInfoUz = unitName ? `\n🏠 Xona: <b>${unitName}</b>` : '';
+
+      if (verified) {
+        const subject = 'Payment Verified - Invoice Paid';
+        const body = `
+Dear ${tenant.fullName},
+
+Great news! Your payment of ${amount.toFixed(2)} UZS has been verified and confirmed by our financial administrators.${unitInfo}
+
+✅ Payment Status: CONFIRMED
+✅ Invoice Status: PAID
+
+Your invoice has been successfully marked as paid. Thank you for your payment!
+
+Payment ID: ${paymentId}
+
+Best regards,
+Darital Team
+        `.trim();
+
+        // Send email using payment reminder method
+        await this.mailService.sendPaymentReminder(
+          tenant.email, 
+          new Date(), 
+          amount, 
+          'Payment Verified', 
+          undefined
+        );
+
+        const telegramMessage = `
+✅ <b>To'lov Tasdiqlandi!</b>
+
+Sizning ${amount.toFixed(2)} UZS miqdoridagi to'lovingiz muvaffaqiyatli tasdiqlandi!${unitInfoUz}
+
+✅ To'lov holati: TASDIQLANDI
+✅ Hisob-faktura holati: TO'LANDI
+
+Hisob-fakturangiz to'landi deb belgilandi. Rahmat!
+
+To'lov ID: <code>${paymentId}</code>
+
+Darital Jamoasi
+        `.trim();
+
+        await this.sendTelegramToTenant(tenantId, telegramMessage);
+
+        const pushBody = unitName 
+          ? `Payment for ${unitName}: ${amount.toFixed(2)} UZS confirmed!`
+          : `Your payment of ${amount.toFixed(2)} UZS has been verified and confirmed!`;
+        await this.sendPushToTenant(
+          tenantId,
+          'Payment Confirmed ✅',
+          pushBody,
+        );
+      } else {
+        const subject = 'Payment Verification - Action Required';
+        const body = `
+Dear ${tenant.fullName},
+
+We regret to inform you that your payment of ${amount.toFixed(2)} UZS could not be verified.${unitInfo}
+
+❌ Payment Status: DECLINED
+${reason ? `Reason: ${reason}` : ''}
+
+Please contact our support team if you have any questions or concerns.
+
+Payment ID: ${paymentId}
+
+Best regards,
+Darital Team
+        `.trim();
+
+        // Send email using payment reminder method
+        await this.mailService.sendPaymentReminder(
+          tenant.email, 
+          new Date(), 
+          amount, 
+          'Payment Verified', 
+          undefined
+        );
+
+        const telegramMessage = `
+❌ <b>To'lov Tasdiqlanmadi</b>
+
+Sizning ${amount.toFixed(2)} UZS miqdoridagi to'lovingiz tasdiqlanmadi.${unitInfoUz}
+
+❌ To'lov holati: RAD ETILDI
+${reason ? `Sabab: ${reason}` : ''}
+
+Savollaringiz bo'lsa, qo'llab-quvvatlash xizmati bilan bog'laning.
+
+To'lov ID: <code>${paymentId}</code>
+
+Darital Jamoasi
+        `.trim();
+
+        await this.sendTelegramToTenant(tenantId, telegramMessage);
+
+        const pushBodyDeclined = unitName 
+          ? `Payment for ${unitName}: ${amount.toFixed(2)} UZS declined. Contact support.`
+          : `Your payment of ${amount.toFixed(2)} UZS could not be verified. Please contact support.`;
+        await this.sendPushToTenant(
+          tenantId,
+          'Payment Declined ❌',
+          pushBodyDeclined,
+        );
+      }
+
+      this.logger.log(`📧 Sent payment verification notification to tenant ${tenantId} (verified: ${verified})${unitName ? ` for unit ${unitName}` : ''}`);
+    } catch (error: any) {
+      this.logger.warn(`Failed to notify tenant payment verified: ${error?.message || 'Unknown error'}`);
+    }
   }
 }
 

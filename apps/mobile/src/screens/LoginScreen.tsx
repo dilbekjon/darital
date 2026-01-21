@@ -24,8 +24,8 @@ interface Props {
 }
 
 export default function LoginScreen({ onLoggedIn }: Props) {
-  const [email, setEmail] = useState('almurotov.dilbek@gmail.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSetPasscode, setShowSetPasscode] = useState(false);
   const [authToken, setAuthToken] = useState<string>('');

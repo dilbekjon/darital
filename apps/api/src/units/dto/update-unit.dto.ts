@@ -30,5 +30,10 @@ export class UpdateUnitDto {
   @IsOptional()
   @IsEnum(UnitStatus)
   status?: UnitStatus;
+
+  @ApiPropertyOptional({ example: 'clx123...', description: 'Building ID to assign this unit to (set to null to unlink)' })
+  @IsOptional()
+  @IsString()
+  buildingId?: string | null;
 }
 

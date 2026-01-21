@@ -4,6 +4,8 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useUnreadChatCount } from '../hooks/useUnreadChatCount';
+import { usePendingPaymentsCount } from '../hooks/usePendingPaymentsCount';
 
 interface SidebarMenuItem {
   label: string;
@@ -24,6 +26,8 @@ export function AdminSidebar() {
   const { darkMode } = useTheme();
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { count: unreadCount } = useUnreadChatCount();
+  const { count: pendingPaymentsCount } = usePendingPaymentsCount();
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -101,12 +105,34 @@ export function AdminSidebar() {
       section: 'operations',
     },
     {
+      label: t.buildings || 'Buildings',
+      href: '/admin/buildings',
+      permissionCodes: ['contracts.read'],
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      ),
+      section: 'operations',
+    },
+    {
       label: t.payments,
       href: '/admin/payments',
       permissionCodes: ['payments.read'],
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+        </svg>
+      ),
+      section: 'operations',
+    },
+    {
+      label: t.invoices || 'Invoices',
+      href: '/admin/invoices',
+      permissionCodes: ['payments.read'],
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       ),
       section: 'operations',
@@ -134,6 +160,28 @@ export function AdminSidebar() {
       ),
       section: 'communication',
     },
+    {
+      label: 'Telegram Chat',
+      href: '/admin/telegram',
+      permissionCodes: ['notifications.manage'],
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      ),
+      section: 'communication',
+    },
+    {
+      label: t.emailTemplates || 'Email Templates',
+      href: '/admin/email-templates',
+      permissionCodes: ['notifications.manage'],
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      ),
+      section: 'communication',
+    },
     // Administration
     {
       label: t.adminUsers,
@@ -146,6 +194,44 @@ export function AdminSidebar() {
       ),
       section: 'administration',
     },
+    {
+      label: t.activityLogs || 'Activity Logs',
+      href: '/admin/activity',
+      permissionCodes: ['admin.users.read'],
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+      ),
+      section: 'administration',
+    },
+    {
+      label: 'Archive Management',
+      href: '/admin/archive',
+      permissionCodes: ['admin.users.read'],
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+        </svg>
+      ),
+      section: 'administration',
+    },
+    // Dev Tools (only show in development)
+    ...(typeof window !== 'undefined' && process.env.NODE_ENV !== 'production'
+      ? [
+          {
+            label: 'Dev QA', // Keep as is - dev tool
+            href: '/admin/dev/qa',
+            permissionCodes: ['payments.read'],
+            icon: (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ),
+            section: 'administration',
+          },
+        ]
+      : []),
   ];
 
   // Filter items based on user permissions
@@ -170,10 +256,10 @@ export function AdminSidebar() {
 
   // Section titles
   const sectionTitles: Record<string, string> = {
-    insights: 'Insights',
-    operations: 'Operations',
-    communication: 'Communication',
-    administration: 'Administration',
+    insights: t.insights,
+    operations: t.operations,
+    communication: t.communication,
+    administration: t.administration,
   };
 
   if (loading || !user || user.role === 'TENANT_USER') {
@@ -184,7 +270,7 @@ export function AdminSidebar() {
     <div className="p-4">
       <div className={`text-xl font-bold mb-6 ${
         darkMode ? 'text-blue-400' : 'text-gray-900'
-      }`}>Admin Panel</div>
+      }`}>{t.adminPanel}</div>
       <nav>
         {Object.entries(sections).map(([sectionKey, items]) => {
           if (items.length === 0) return null;
@@ -197,27 +283,52 @@ export function AdminSidebar() {
                 {sectionTitles[sectionKey]}
               </p>
               <ul>
-                {items.map((item) => (
-                  <li key={item.href} className="mb-1">
-                    <Link 
-                      href={item.href} 
-                      onClick={() => setIsMobileOpen(false)}
-                      className={`flex items-center gap-3 py-2 px-4 rounded-lg transition-colors 
-                        ${pathname === item.href 
-                          ? (darkMode 
-                              ? 'bg-blue-600/30 text-blue-400 border border-blue-600/50' 
-                              : 'bg-blue-600 text-white')
-                          : (darkMode
-                              ? 'hover:bg-blue-600/10 text-white'
-                              : 'hover:bg-gray-100 text-gray-700')
-                        }
-                      `}
-                    >
-                      {item.icon}
-                      <span>{item.label}</span>
-                    </Link>
-                  </li>
-                ))}
+                {items.map((item) => {
+                  // Check if this is the chat item and has unread messages
+                  const isChatItem = item.href === '/admin/chat';
+                  const isPaymentsItem = item.href === '/admin/payments';
+                  const showChatBadge = isChatItem && unreadCount > 0;
+                  const showPaymentsBadge = isPaymentsItem && pendingPaymentsCount > 0;
+                  const showBadge = showChatBadge || showPaymentsBadge;
+                  const badgeCount = showChatBadge ? unreadCount : (showPaymentsBadge ? pendingPaymentsCount : 0);
+
+                  return (
+                    <li key={item.href} className="mb-1">
+                      <Link 
+                        href={item.href} 
+                        onClick={() => setIsMobileOpen(false)}
+                        className={`flex items-center gap-3 py-2 px-4 rounded-lg transition-colors relative
+                          ${pathname === item.href 
+                            ? (darkMode 
+                                ? 'bg-blue-600/30 text-blue-400 border border-blue-600/50' 
+                                : 'bg-blue-600 text-white')
+                            : (darkMode
+                                ? 'hover:bg-blue-600/10 text-white'
+                                : 'hover:bg-gray-100 text-gray-700')
+                          }
+                        `}
+                      >
+                        {item.icon}
+                        <span className="flex-1">{item.label}</span>
+                        {showBadge && (
+                          <span className={`
+                            flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold
+                            ${pathname === item.href
+                              ? darkMode
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-white text-blue-600'
+                              : darkMode
+                                ? 'bg-yellow-500 text-white'
+                                : 'bg-yellow-500 text-white'
+                            }
+                          `}>
+                            {badgeCount > 99 ? '99+' : badgeCount}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           );

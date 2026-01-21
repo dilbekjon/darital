@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class ReportsService {

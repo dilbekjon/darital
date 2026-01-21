@@ -7,9 +7,15 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# Get the script directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"
+
 echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║   Darital - Starting All Services     ║${NC}"
 echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
+echo ""
+echo -e "${BLUE}📁 Project Root: $PROJECT_ROOT${NC}"
 echo ""
 
 # Function to check if a port is in use
@@ -51,7 +57,11 @@ echo ""
 
 # Start Backend API (includes Telegram Bot)
 echo -e "${GREEN}🚀 Starting Backend API (with Telegram Bot)...${NC}"
-cd "/Users/dilbekalmurotov/Desktop/Darital Final/apps/api"
+if [ ! -d "$PROJECT_ROOT/apps/api" ]; then
+    echo -e "${RED}❌ Error: Backend API directory not found at $PROJECT_ROOT/apps/api${NC}"
+    exit 1
+fi
+cd "$PROJECT_ROOT/apps/api"
 pnpm run dev > /tmp/darital-api.log 2>&1 &
 API_PID=$!
 echo -e "${BLUE}   PID: $API_PID${NC}"
@@ -79,7 +89,11 @@ fi
 
 # Start Admin Web App
 echo -e "${GREEN}🌐 Starting Admin Web App...${NC}"
-cd "/Users/dilbekalmurotov/Desktop/Darital Final/apps/admin-web"
+if [ ! -d "$PROJECT_ROOT/apps/admin-web" ]; then
+    echo -e "${RED}❌ Error: Admin Web directory not found at $PROJECT_ROOT/apps/admin-web${NC}"
+    exit 1
+fi
+cd "$PROJECT_ROOT/apps/admin-web"
 rm -rf .next/cache .next/dev/lock 2>/dev/null
 pnpm run dev > /tmp/darital-admin.log 2>&1 &
 ADMIN_PID=$!
@@ -99,7 +113,11 @@ done
 
 # Start Tenant Portal
 echo -e "${GREEN}👥 Starting Tenant Portal...${NC}"
-cd "/Users/dilbekalmurotov/Desktop/Darital Final/apps/tenant-web"
+if [ ! -d "$PROJECT_ROOT/apps/tenant-web" ]; then
+    echo -e "${RED}❌ Error: Tenant Portal directory not found at $PROJECT_ROOT/apps/tenant-web${NC}"
+    exit 1
+fi
+cd "$PROJECT_ROOT/apps/tenant-web"
 rm -rf .next/cache .next/dev/lock 2>/dev/null
 pnpm run dev > /tmp/darital-tenant.log 2>&1 &
 TENANT_PID=$!
@@ -119,11 +137,73 @@ done
 
 # Start Mobile App
 echo -e "${GREEN}📱 Starting Mobile App (Expo)...${NC}"
-cd "/Users/dilbekalmurotov/Desktop/Darital Final/apps/mobile"
-pnpm start > /tmp/darital-mobile.log 2>&1 &
-MOBILE_PID=$!
-echo -e "${BLUE}   PID: $MOBILE_PID${NC}"
-sleep 8
+if [ ! -d "$PROJECT_ROOT/apps/mobile" ]; then
+    echo -e "${RED}❌ Error: Mobile App directory not found at $PROJECT_ROOT/apps/mobile${NC}"
+    echo -e "${YELLOW}   Skipping mobile app...${NC}"
+    MOBILE_PID=""
+else
+    cd "$PROJECT_ROOT/apps/mobile"
+    # Kill any existing Expo/Metro processes
+    lsof -ti:8081 | xargs kill -9 2>/dev/null || true
+    pkill -f "expo start" 2>/dev/null || true
+    pkill -f "metro" 2>/dev/null || true
+    sleep 2
+    
+    # Clear log file
+    > /tmp/darital-mobile.log
+    
+    # Clear Expo and Metro caches to avoid HMR errors
+    cd "$PROJECT_ROOT/apps/mobile"
+    echo -e "${YELLOW}   Clearing Expo cache...${NC}"
+    rm -rf .expo/.cache 2>/dev/null || true
+    rm -rf node_modules/.cache 2>/dev/null || true
+    
+    # Start Expo with cache cleared
+    # Note: Visiting http://localhost:8081 tries to load web bundle which causes HMR errors
+    # The QR code is better viewed via terminal output or expo-tools
+    npx expo start --clear --lan > /tmp/darital-mobile.log 2>&1 &
+    MOBILE_PID=$!
+    echo -e "${BLUE}   PID: $MOBILE_PID${NC}"
+    echo -e "${YELLOW}⏳ Waiting for Expo to start (this may take 10-15 seconds)...${NC}"
+    
+    # Wait for Expo to be ready (check if port 8081 is listening)
+    EXPO_READY=false
+    for i in {1..30}; do
+        if check_port 8081; then
+            EXPO_READY=true
+            sleep 5  # Give Expo time to generate QR code and connection info
+            break
+        fi
+        sleep 1
+    done
+    
+    # Try to extract the exp:// URL and QR code info from logs
+    sleep 3  # Wait for logs to be written
+    EXP_URL=$(grep -o "exp://[^[:space:]]*" /tmp/darital-mobile.log 2>/dev/null | head -1 || echo "")
+    LAN_IP=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | head -1 | awk '{print $2}' || echo "your-ip")
+    
+    echo ""
+    echo -e "${GREEN}════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}📱 Mobile App QR Code${NC}"
+    echo -e "${GREEN}════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${YELLOW}⚠️  Note: http://localhost:8081 shows web bundle (causes HMR error)${NC}"
+    echo -e "${YELLOW}   The QR code is best viewed in terminal output below${NC}"
+    echo ""
+    if [ -n "$EXP_URL" ]; then
+        echo -e "${GREEN}📱 Connection URL:${NC}"
+        echo -e "${BLUE}   $EXP_URL${NC}"
+        echo ""
+        echo -e "${YELLOW}💡 To scan with Expo Go app:${NC}"
+        echo -e "${BLUE}   1. Open Expo Go app on your phone${NC}"
+        echo -e "${BLUE}   2. Tap 'Enter URL manually'${NC}"
+        echo -e "${BLUE}   3. Enter: $EXP_URL${NC}"
+        echo ""
+    fi
+    echo -e "${YELLOW}📱 To view QR code:${NC}"
+    echo -e "${BLUE}   tail -f /tmp/darital-mobile.log${NC}"
+    echo ""
+fi
 
 echo ""
 echo -e "${GREEN}════════════════════════════════════════${NC}"
@@ -139,13 +219,15 @@ echo ""
 if curl -s http://localhost:3001/api/health > /dev/null 2>&1; then
     echo -e "${GREEN}✅ Backend API: Running on http://localhost:3001${NC}"
     echo -e "${BLUE}   📚 Swagger Docs: http://localhost:3001/docs${NC}"
-    # Check if Telegram bot is enabled
+    # Wait a moment for logs to be written, then check Telegram bot status
+    sleep 2
     if grep -q "Telegram bot is ENABLED" /tmp/darital-api.log 2>/dev/null || grep -q "Telegram bot initialized successfully" /tmp/darital-api.log 2>/dev/null; then
         echo -e "${GREEN}   🤖 Telegram Bot: Enabled and running${NC}"
-    elif grep -q "Telegram bot is DISABLED" /tmp/darital-api.log 2>/dev/null; then
-        echo -e "${YELLOW}   🤖 Telegram Bot: Disabled (set TELEGRAM_ENABLE=true to enable)${NC}"
+    elif grep -q "Telegram bot is DISABLED" /tmp/darital-api.log 2>/dev/null || grep -q "Telegram bot disabled" /tmp/darital-api.log 2>/dev/null; then
+        echo -e "${YELLOW}   🤖 Telegram Bot: Disabled${NC}"
+        echo -e "${YELLOW}      Set TELEGRAM_ENABLE=true and TELEGRAM_BOT_TOKEN in apps/api/.env${NC}"
     else
-        echo -e "${BLUE}   🤖 Telegram Bot: Status unknown (check logs)${NC}"
+        echo -e "${BLUE}   🤖 Telegram Bot: Status unknown (check logs: tail -f /tmp/darital-api.log)${NC}"
     fi
 else
     echo -e "${RED}⏳ Backend API: Starting... (check logs: tail -f /tmp/darital-api.log)${NC}"
@@ -166,11 +248,16 @@ else
 fi
 
 # Check Mobile App
-if check_port 8081; then
-    echo -e "${GREEN}✅ Mobile App: Running (Metro Bundler on port 8081)${NC}"
-    echo -e "${BLUE}   📱 Scan QR code in terminal or check Expo DevTools${NC}"
+if [ -n "$MOBILE_PID" ]; then
+    if check_port 8081; then
+        echo -e "${GREEN}✅ Mobile App: Running (Metro Bundler on port 8081)${NC}"
+        echo -e "${BLUE}   📱 QR Code: See above or visit http://localhost:8081${NC}"
+        echo -e "${BLUE}   📝 Logs: tail -f /tmp/darital-mobile.log${NC}"
+    else
+        echo -e "${RED}⏳ Mobile App: Starting... (check logs: tail -f /tmp/darital-mobile.log)${NC}"
+    fi
 else
-    echo -e "${RED}⏳ Mobile App: Starting... (check logs: tail -f /tmp/darital-mobile.log)${NC}"
+    echo -e "${YELLOW}⚠️  Mobile App: Not started (directory not found)${NC}"
 fi
 
 echo ""
@@ -180,7 +267,11 @@ echo -e "${YELLOW}════════════════════�
 echo -e "${BLUE}Backend API:    $API_PID${NC}"
 echo -e "${BLUE}Admin Panel:    $ADMIN_PID${NC}"
 echo -e "${BLUE}Tenant Portal:  $TENANT_PID${NC}"
-echo -e "${BLUE}Mobile App:     $MOBILE_PID${NC}"
+if [ -n "$MOBILE_PID" ]; then
+    echo -e "${BLUE}Mobile App:     $MOBILE_PID${NC}"
+else
+    echo -e "${YELLOW}Mobile App:     Not started${NC}"
+fi
 echo ""
 echo -e "${YELLOW}💡 Tips:${NC}"
 echo -e "   • View logs: tail -f /tmp/darital-{api|admin|tenant|mobile}.log"
@@ -194,7 +285,24 @@ echo -e "${GREEN}   Admin Panel:   http://localhost:3000${NC}"
 echo -e "${GREEN}   Tenant Portal: http://localhost:3002${NC}"
 echo -e "${GREEN}   Backend API:   http://localhost:3001/api${NC}"
 echo -e "${GREEN}   Swagger Docs:  http://localhost:3001/docs${NC}"
-echo ""
+if [ -n "$MOBILE_PID" ]; then
+    echo ""
+    echo -e "${GREEN}════════════════════════════════════════${NC}"
+    echo -e "${GREEN}📱 MOBILE APP CONNECTION${NC}"
+    echo -e "${GREEN}════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${YELLOW}⚠️  Note: http://localhost:8081 loads web bundle (causes HMR error)${NC}"
+    echo ""
+    echo -e "${YELLOW}📱 Best way to get QR code:${NC}"
+    echo -e "${BLUE}   1. View in terminal: tail -f /tmp/darital-mobile.log${NC}"
+    echo -e "${BLUE}   2. Look for the 'exp://' URL in the output above${NC}"
+    echo ""
+    echo -e "${YELLOW}📲 How to connect:${NC}"
+    echo -e "${BLUE}   • iOS: Camera app or Expo Go app${NC}"
+    echo -e "${BLUE}   • Android: Expo Go app${NC}"
+    echo -e "${BLUE}   • Use 'Enter URL manually' option in Expo Go${NC}"
+    echo ""
+fi
 echo -e "${BLUE}📝 Note: Telegram Bot starts automatically with Backend API${NC}"
 echo -e "${BLUE}   (Requires TELEGRAM_ENABLE=true and TELEGRAM_BOT_TOKEN in .env)${NC}"
 echo ""

@@ -33,6 +33,7 @@ kill_port() {
 # Stop all services
 kill_port 3001 "Backend API"
 kill_port 3000 "Admin Web"
+kill_port 3002 "Tenant Portal"
 kill_port 8081 "Metro Bundler (Mobile)"
 kill_port 19000 "Expo DevTools"
 kill_port 19001 "Expo Dev Server"
@@ -42,7 +43,8 @@ kill_port 19002 "Expo Tunnel"
 echo ""
 echo -e "${YELLOW}🔍 Cleaning up remaining processes...${NC}"
 pkill -f "apps/api" 2>/dev/null && echo -e "${GREEN}   ✅ Stopped API processes${NC}"
-pkill -f "apps/admin-web" 2>/dev/null && echo -e "${GREEN}   ✅ Stopped Web processes${NC}"
+pkill -f "apps/admin-web" 2>/dev/null && echo -e "${GREEN}   ✅ Stopped Admin Web processes${NC}"
+pkill -f "apps/tenant-web" 2>/dev/null && echo -e "${GREEN}   ✅ Stopped Tenant Portal processes${NC}"
 pkill -f "apps/mobile" 2>/dev/null && echo -e "${GREEN}   ✅ Stopped Mobile processes${NC}"
 pkill -f "expo start" 2>/dev/null && echo -e "${GREEN}   ✅ Stopped Expo processes${NC}"
 

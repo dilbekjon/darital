@@ -32,10 +32,19 @@ export class AuditLogsController {
             type: 'object',
             properties: {
               id: { type: 'string' },
-              actorId: { type: 'string' }, // Updated from userId
+              actorId: { type: 'string' },
+              actor: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  fullName: { type: 'string' },
+                  email: { type: 'string' },
+                  role: { type: 'string' },
+                },
+              },
               action: { type: 'string' },
-              subject: { type: 'string', nullable: true }, // Updated from resourceId
-              meta: { type: 'object', nullable: true }, // Updated from payload
+              subject: { type: 'string', nullable: true },
+              meta: { type: 'object', nullable: true },
               createdAt: { type: 'string', format: 'date-time' },
             },
           },

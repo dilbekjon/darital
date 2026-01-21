@@ -22,5 +22,10 @@ export class CreateUnitDto {
   @IsNumber()
   @Min(0)
   floor?: number;
+
+  @ApiPropertyOptional({ example: 'clx123...', description: 'Building ID to assign this unit to' })
+  @IsOptional()
+  @IsString()
+  buildingId?: string;
 }
 

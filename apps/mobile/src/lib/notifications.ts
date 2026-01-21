@@ -1,21 +1,37 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { getApiUrl } from './constants-fallback';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiGet } from '../api/client';
 
 const NOTIFICATIONS_STORAGE_KEY = 'recentNotifications';
 const MAX_STORED_NOTIFICATIONS = 5;
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Flag to ensure notification handler is only set once
+let notificationHandlerInitialized = false;
+
+/**
+ * Initialize notification handler - call this after React Native is initialized
+ * This is called lazily to avoid accessing Platform constants too early
+ */
+function initializeNotificationHandler() {
+  if (notificationHandlerInitialized) {
+    return;
+  }
+  
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+    notificationHandlerInitialized = true;
+  } catch (error) {
+    console.warn('[Notifications] Failed to set notification handler:', error);
+  }
+}
 
 interface StoredNotification {
   id: string;
@@ -29,6 +45,9 @@ interface StoredNotification {
  * Register for push notifications and get FCM token
  */
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  // Initialize notification handler on first use (after RN is ready)
+  initializeNotificationHandler();
+  
   let token: string | null = null;
 
   try {
@@ -57,8 +76,10 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     // Try to get projectId from app config, or use without it
     let tokenData;
     try {
-      // First try with projectId from Constants if available
-      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+      // Get project ID from fallback (doesn't use expo-constants)
+      const { getConstantsSafe } = require('./constants-fallback');
+      const constants = getConstantsSafe();
+      const projectId = constants?.expoConfig?.extra?.eas?.projectId;
       if (projectId) {
         tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
       } else {
@@ -85,13 +106,19 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 
   // Configure Android notification channel
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
-    });
+  // Lazy import Platform to avoid accessing it before RN is initialized
+  try {
+    const { Platform } = require('react-native');
+    if (Platform && Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    }
+  } catch (error) {
+    console.warn('[Notifications] Could not configure Android channel:', error);
   }
 
   return token;
@@ -102,7 +129,9 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
  */
 export async function registerDeviceWithBackend(fcmToken: string): Promise<boolean> {
   try {
-    const platform = Platform.OS;
+    // Lazy import Platform to avoid accessing it before RN is initialized
+    const { Platform } = require('react-native');
+    const platform = Platform?.OS || 'unknown';
     const token = await getToken();
     
     if (!token) {

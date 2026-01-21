@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsString } from 'class-validator';
+import { IsDateString, IsNumberString, IsString } from 'class-validator';
 
 export class CreateInvoiceDto {
   @ApiProperty()
@@ -11,7 +11,7 @@ export class CreateInvoiceDto {
   dueDate!: string;
 
   @ApiProperty({ description: 'Decimal amount as string, e.g., 1000.00' })
-  @IsString()
+  @IsNumberString({}, { message: 'amount must be a numeric string (e.g., 1000.00)' })
   amount!: string;
 }
 

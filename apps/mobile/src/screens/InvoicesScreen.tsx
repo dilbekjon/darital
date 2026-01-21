@@ -23,6 +23,7 @@ interface InvoicesScreenProps {
 export default function InvoicesScreen({ navigation }: InvoicesScreenProps) {
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [paginationMeta, setPaginationMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const { t } = useLanguage();
@@ -39,11 +40,29 @@ export default function InvoicesScreen({ navigation }: InvoicesScreenProps) {
       
       // Try to fetch from API
       const result = await apiGet('/tenant/invoices');
-      setInvoices(result);
       
-      // Cache the result
-      await AsyncStorage.setItem(INVOICES_CACHE_KEY, JSON.stringify(result));
-      console.log('✅ Invoices cached successfully');
+      // Handle paginated response: { data, meta } or legacy array format
+      let invoiceList: any[];
+      let meta: { page: number; limit: number; total: number } | null = null;
+      
+      if (result && typeof result === 'object' && 'data' in result && Array.isArray(result.data)) {
+        // New paginated format
+        invoiceList = result.data;
+        meta = result.meta || null;
+        setPaginationMeta(meta);
+      } else if (Array.isArray(result)) {
+        // Legacy array format (backward compatibility)
+        invoiceList = result;
+        setPaginationMeta(null);
+      } else {
+        throw new Error('Invalid response format from API');
+      }
+      
+      setInvoices(invoiceList);
+      
+      // Cache the result (store as array for backward compatibility)
+      await AsyncStorage.setItem(INVOICES_CACHE_KEY, JSON.stringify(invoiceList));
+      console.log('✅ Invoices cached successfully', meta ? `(${invoiceList.length} of ${meta.total})` : '');
     } catch (e: any) {
       console.log('⚠️ API error, attempting to load from cache:', e.message);
       
@@ -52,7 +71,9 @@ export default function InvoicesScreen({ navigation }: InvoicesScreenProps) {
         const cachedData = await AsyncStorage.getItem(INVOICES_CACHE_KEY);
         if (cachedData) {
           const parsed = JSON.parse(cachedData);
-          setInvoices(parsed);
+          // Cached data is always an array (for backward compatibility)
+          setInvoices(Array.isArray(parsed) ? parsed : []);
+          setPaginationMeta(null); // No pagination info in cache
           setIsOffline(true);
           console.log('✅ Loaded from cache (offline mode)');
         } else {

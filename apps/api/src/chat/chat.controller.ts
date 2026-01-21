@@ -78,6 +78,29 @@ export class ChatController {
     }
   }
 
+  @Get('unread/count')
+  @Permissions('chat.read')
+  @ApiOperation({
+    summary: 'Get unread conversations count',
+    description: 'Returns the count of conversations with unread messages for admins',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Unread conversations count',
+    schema: {
+      example: { count: 5 },
+    },
+  })
+  async getUnreadCount(@Req() req) {
+    try {
+      const count = await this.chatService.getUnreadConversationsCount(req.user);
+      return { count };
+    } catch (error) {
+      console.error('[ChatController] Error fetching unread count:', error);
+      throw error;
+    }
+  }
+
   @Get()
   @Permissions('chat.read') // Both tenants (their own) and admins (all) need chat.read
   @ApiOperation({
@@ -228,7 +251,39 @@ export class ChatController {
     description: 'Admin assigned successfully',
   })
   async assignAdmin(@Param('id') id: string, @Req() req) {
-    return this.chatService.assignAdmin(id, req.user.sub);
+    // JwtStrategy.validate() returns { id, email, role, ... }, not { sub, ... }
+    const adminId = req.user.id || req.user.sub;
+    if (!adminId) {
+      throw new Error('User ID not found in request');
+    }
+    return this.chatService.assignAdmin(id, adminId);
+  }
+
+  @Patch(':id/unassign')
+  @Permissions('chat.reply') // Unassigning is part of managing/replying to chats
+  @ApiOperation({
+    summary: 'Unassign admin from conversation',
+    description: 'Remove admin assignment from a conversation (Admin only)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Conversation ID',
+    example: 'clx123456',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Admin unassigned successfully',
+  })
+  async unassignAdmin(@Param('id') id: string, @Req() req) {
+    try {
+      console.log(`[ChatController] Unassigning conversation: ${id}`);
+      const conversation = await this.chatService.unassignAdmin(id);
+      console.log(`[ChatController] Conversation unassigned successfully: ${conversation.id}`);
+      return conversation;
+    } catch (error) {
+      console.error('[ChatController] Error unassigning conversation:', error);
+      throw error;
+    }
   }
 
   @Patch(':id/close')

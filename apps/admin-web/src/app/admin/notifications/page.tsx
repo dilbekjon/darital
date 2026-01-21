@@ -59,7 +59,7 @@ export default function AdminNotificationsPage() {
           if (err instanceof ApiError) {
             setError(err.message);
           } else {
-            setError('An unexpected error occurred.');
+            setError(t.unexpectedError);
           }
         } finally {
           setPageLoading(false);
@@ -78,11 +78,11 @@ export default function AdminNotificationsPage() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        setError(t.imageSizeLimit || 'Image size must be less than 10MB');
+        setError(t.imageSizeLimit);
         return;
       }
       if (!file.type.startsWith('image/')) {
-        setError(t.selectImageFile || 'Please select an image file');
+        setError(t.selectImageFile);
         return;
       }
       setSelectedImage(file);
@@ -132,8 +132,8 @@ export default function AdminNotificationsPage() {
       
       setSuccess({
         type: 'test',
-        message: data.message || 'Test notification sent successfully',
-        tenantName: selectedTenant?.fullName || 'Tenant',
+        message: data.message || t.testNotificationSent,
+        tenantName: selectedTenant?.fullName || t.tenant,
       });
       
       // Clear image after successful send
@@ -147,7 +147,7 @@ export default function AdminNotificationsPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('An unexpected error occurred while sending test notification.');
+        setError(t.unexpectedError);
       }
     } finally {
       setSendingTest(false);
@@ -187,8 +187,8 @@ export default function AdminNotificationsPage() {
       
       setSuccess({
         type: 'telegram',
-        message: data.message || 'Telegram message sent successfully',
-        tenantName: selectedTenant?.fullName || 'Tenant',
+        message: data.message || t.telegramMessageSent,
+        tenantName: selectedTenant?.fullName || t.tenant,
       });
       
       setTelegramMessage('');
@@ -201,7 +201,7 @@ export default function AdminNotificationsPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('An unexpected error occurred while sending telegram message.');
+        setError(t.unexpectedError);
       }
     } finally {
       setSendingTelegram(false);
@@ -225,10 +225,11 @@ export default function AdminNotificationsPage() {
   }
 
   return (
-    <div className={`p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto min-h-screen ${
-      darkMode ? 'bg-gray-900' : 'bg-gray-100'
+    <div className={`p-4 sm:p-6 lg:p-8 h-full overflow-y-auto ${
+      darkMode ? 'bg-black' : 'bg-gray-100'
     }`}>
-      {/* Breadcrumbs */}
+      <div className={`max-w-7xl mx-auto pb-8`}>
+        {/* Breadcrumbs */}
       <Breadcrumbs
         items={[
           { label: t.dashboard || 'Dashboard', href: '/dashboard' },
@@ -307,7 +308,7 @@ export default function AdminNotificationsPage() {
                 <h2 className="text-xl font-bold text-white">
                   {t.sendTestNotifications || 'Send Test Notifications'}
                 </h2>
-                <p className="text-sm text-blue-100">Email + Telegram</p>
+                <p className="text-sm text-blue-100">{t.email} + Telegram</p>
               </div>
             </div>
           </div>
@@ -316,7 +317,7 @@ export default function AdminNotificationsPage() {
             {/* Tenant Selection */}
           <div>
               <label htmlFor="tenantSelect" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                {t.selectTenant || 'Select Tenant'} <span className="text-red-500">*</span>
+                {t.selectTenant} <span className="text-red-500">*</span>
               </label>
             <select
               id="tenantSelect"
@@ -353,7 +354,7 @@ export default function AdminNotificationsPage() {
             {/* Notification Type */}
           <div>
               <label htmlFor="notificationType" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                {t.notificationType || 'Notification Type'} <span className="text-red-500">*</span>
+                {t.notificationType} <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <button
@@ -371,7 +372,7 @@ export default function AdminNotificationsPage() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="font-medium">{t.paymentReminder || 'Payment Reminder'}</span>
+                    <span className="font-medium">{t.paymentReminder}</span>
                   </div>
                 </button>
                 <button
@@ -389,7 +390,7 @@ export default function AdminNotificationsPage() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                    <span className="font-medium">{t.overdueNotice || 'Overdue Notice'}</span>
+                    <span className="font-medium">{t.overdueNotice}</span>
                   </div>
                 </button>
           </div>
@@ -398,7 +399,7 @@ export default function AdminNotificationsPage() {
             {/* Image Upload */}
             <div>
               <label htmlFor="imageUpload" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                {t.attachImage || 'Attach Image'} <span className="text-gray-400 text-xs">({t.optional || 'Optional'})</span>
+                {t.attachImage} <span className="text-gray-400 text-xs">({t.optional})</span>
               </label>
               {!selectedImage ? (
                 <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
@@ -411,9 +412,9 @@ export default function AdminNotificationsPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                      <span className="font-semibold">{t.clickToUpload || 'Click to upload'}</span> {t.dragAndDrop || 'or drag and drop'}
+                      <span className="font-semibold">{t.clickToUpload}</span> {t.dragAndDrop}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{t.imageFormats || 'PNG, JPG, GIF up to 10MB'}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t.imageFormats}</p>
                   </div>
                   <input
                     id="imageUpload"
@@ -472,7 +473,7 @@ export default function AdminNotificationsPage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
-                  <span>{t.sendTestNotification || 'Send Test Notification'}</span>
+                  <span>{t.sendTestNotification}</span>
                 </>
               )}
         </button>
@@ -494,16 +495,16 @@ export default function AdminNotificationsPage() {
                 <h2 className="text-xl font-bold text-white">
                   {t.sendCustomTelegram || 'Send Custom Telegram Message'}
                 </h2>
-                <p className="text-sm text-purple-100">Direct message to tenant</p>
+                <p className="text-sm text-purple-100">{t.message} {t.to.toLowerCase()} {t.tenant.toLowerCase()}</p>
               </div>
             </div>
-      </div>
+          </div>
 
           <div className="p-6 space-y-6">
             {/* Tenant Selection */}
           <div>
               <label htmlFor="tenantSelectTelegram" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                {t.selectTenant || 'Select Tenant'} <span className="text-red-500">*</span>
+                {t.selectTenant} <span className="text-red-500">*</span>
               </label>
             <select
               id="tenantSelectTelegram"
@@ -524,26 +525,26 @@ export default function AdminNotificationsPage() {
             {/* Message Input */}
           <div>
               <label htmlFor="telegramMessage" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                {t.message || 'Message'} <span className="text-red-500">*</span>
+                {t.message} <span className="text-red-500">*</span>
               </label>
             <textarea
               id="telegramMessage"
               value={telegramMessage}
               onChange={(e) => setTelegramMessage(e.target.value)}
                 rows={6}
-                placeholder={t.enterTelegramMessage || 'Enter your custom message here...'}
+                placeholder={t.enterTelegramMessage}
                 className="w-full rounded-lg border-gray-300 shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors resize-none"
               />
               <div className="mt-2 flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
-                <span>{t.supportsHtmlFormatting || 'Supports HTML formatting'}</span>
-                <span>{telegramMessage.length} {t.characters || 'characters'}</span>
+                <span>{t.supportsHtmlFormatting}</span>
+                <span>{telegramMessage.length} {t.characters}</span>
           </div>
         </div>
 
             {/* Image Upload */}
             <div>
               <label htmlFor="imageUploadTelegram" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                {t.attachImage || 'Attach Image'} <span className="text-gray-400 text-xs">(Optional)</span>
+                {t.attachImage} <span className="text-gray-400 text-xs">({t.optional})</span>
               </label>
               {!selectedImage ? (
                 <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
@@ -556,9 +557,9 @@ export default function AdminNotificationsPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                      <span className="font-semibold">{t.clickToUpload || 'Click to upload'}</span> {t.dragAndDrop || 'or drag and drop'}
+                      <span className="font-semibold">{t.clickToUpload}</span> {t.dragAndDrop}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{t.imageFormats || 'PNG, JPG, GIF up to 10MB'}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{t.imageFormats}</p>
                   </div>
                   <input
                     id="imageUploadTelegram"
@@ -617,7 +618,7 @@ export default function AdminNotificationsPage() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                   </svg>
-                  <span>{t.sendTelegramMessage || 'Send Telegram Message'}</span>
+                  <span>{t.sendTelegramMessage}</span>
                 </>
               )}
         </button>
@@ -635,24 +636,25 @@ export default function AdminNotificationsPage() {
           </div>
           <div className="flex-1">
             <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-              {t.howItWorks || 'How it works'}
+              {t.howItWorks}
             </h3>
             <ul className={`space-y-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               <li className="flex items-start gap-2">
                 <span className={`${darkMode ? 'text-blue-400' : 'text-blue-600'} mt-1`}>•</span>
-                <span><strong>{t.paymentReminder || 'Payment Reminder'}:</strong> {t.testNotificationsDesc || 'Sends pre-formatted payment reminders or overdue notices via Email and Telegram (if tenant has Telegram linked)'}</span>
+                <span><strong>{t.paymentReminder}:</strong> {t.testNotificationsDesc}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className={`${darkMode ? 'text-blue-400' : 'text-blue-600'} mt-1`}>•</span>
-                <span><strong>{t.sendCustomTelegram || 'Custom Telegram'}:</strong> {t.customTelegramDesc || 'Send personalized messages directly to tenants via Telegram. Requires tenant to have Telegram account linked.'}</span>
+                <span><strong>{t.sendCustomTelegram}:</strong> {t.customTelegramDesc}</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className={`${darkMode ? 'text-blue-400' : 'text-blue-600'} mt-1`}>•</span>
-                <span>{t.notificationsRespectPreferences || 'All notifications respect tenant notification preferences and will only be sent through enabled channels.'}</span>
+                <span>{t.notificationsRespectPreferences}</span>
               </li>
             </ul>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

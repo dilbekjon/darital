@@ -11,10 +11,12 @@ dist/
 build/
 .next/
 out/
+apps/api/dist/
 
 # Misc
 .DS_Store
 *.pem
+*.log
 
 # Debug
 npm-debug.log*
@@ -26,6 +28,12 @@ lerna-debug.log*
 # Local env files
 .env
 .env*.local
+
+# App-specific
+apps/api/uploads/
+apps/api/*.tsbuildinfo
+apps/*/.expo/
+apps/*/node_modules/
 
 # Vercel
 .vercel

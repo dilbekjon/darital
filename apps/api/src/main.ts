@@ -3,12 +3,10 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { join } from 'path';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './filters/all-exceptions.filter';
-import { SentryService } from './sentry/sentry.service';
 import * as fs from 'fs';
 
 async function bootstrap() {
-  // Handle unhandled promise rejections (like Telegram polling conflicts)
+  // Handle unhandled promise rejections (like Telegram polling conflicts and database connection errors)
   process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
     if (reason?.response?.error_code === 409 && reason?.on?.method === 'getUpdates') {
       console.error('⚠️ Telegram bot polling conflict detected. Another instance may be running.');
@@ -16,10 +14,25 @@ async function bootstrap() {
       // Don't crash the app, just log the error
       return;
     }
+    
+    // Handle Prisma database connection errors
+    if (reason?.code === 'P1001' || reason?.name === 'PrismaClientInitializationError') {
+      console.error('\n❌ Database Connection Error:');
+      console.error(`   ${reason?.message || 'Cannot connect to database'}`);
+      console.error('\n📋 To fix this:');
+      console.error('   1. Make sure Docker is running');
+      console.error('   2. Start the database: docker compose up -d postgres');
+      console.error('   3. Wait a few seconds for the database to be ready');
+      console.error('   4. Try starting the backend again\n');
+      process.exit(1);
+    }
+    
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   });
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+  });
   
   // Ensure uploads directory exists
   const uploadsDir = join(__dirname, '..', 'uploads', 'chat');
@@ -32,11 +45,8 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
   
-  // Get SentryService from the app context
-  const sentryService = app.get(SentryService, { strict: false });
-  
-  // Enable global exception filter with SentryService
-  app.useGlobalFilters(new AllExceptionsFilter(sentryService));
+  // AllExceptionsFilter is now registered via APP_FILTER in AppModule
+  // No need to manually register it here
   
   // Enable CORS - supports both development and production
   const corsOrigins = process.env.CORS_ORIGINS
@@ -84,11 +94,34 @@ async function bootstrap() {
   });
   
   const port = process.env.PORT || 3001;
-  await app.listen(port);
   
-  console.log(`🚀 API is running on: http://localhost:${port}`);
-  console.log(`📚 Swagger docs available at: http://localhost:${port}/docs`);
-  console.log(`✅ Chat routes registered: /api/conversations`);
+  try {
+    await app.listen(port);
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('🚀 API SERVER STARTED SUCCESSFULLY');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log(`📍 API URL: http://localhost:${port}`);
+    console.log(`📚 Swagger docs: http://localhost:${port}/docs`);
+    console.log(`💬 Chat routes: /api/conversations`);
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('');
+  } catch (error: any) {
+    console.error('');
+    console.error('═══════════════════════════════════════════════════════════');
+    console.error('❌ FAILED TO START API SERVER');
+    console.error('═══════════════════════════════════════════════════════════');
+    console.error(`Error: ${error?.message || 'Unknown error'}`);
+    if (error?.code === 'EADDRINUSE') {
+      console.error('');
+      console.error('Port 3001 is already in use. Either:');
+      console.error('  1. Stop the existing process using port 3001');
+      console.error('  2. Use a different PORT: PORT=3002 pnpm dev');
+    }
+    console.error('═══════════════════════════════════════════════════════════');
+    console.error('');
+    process.exit(1);
+  }
 }
 
 bootstrap();

@@ -8,6 +8,7 @@ import { Language, languageNames, languageFlags } from '../lib/i18n';
 import { clearToken } from '../lib/auth';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import GlobalSearch from './GlobalSearch';
 
 // Helper to get current section name from pathname
 function getSectionName(pathname: string, t: any): string {
@@ -15,11 +16,16 @@ function getSectionName(pathname: string, t: any): string {
   if (pathname.startsWith('/admin/contracts')) return t.contracts || 'Contracts';
   if (pathname.startsWith('/admin/tenants')) return t.tenants || 'Tenants';
   if (pathname.startsWith('/admin/units')) return t.units || 'Units';
+  if (pathname.startsWith('/admin/buildings')) return t.buildings || 'Buildings';
   if (pathname.startsWith('/admin/payments')) return t.payments || 'Payments';
+  if (pathname.startsWith('/admin/invoices')) return t.invoices || 'Invoices';
   if (pathname.startsWith('/admin/reports')) return t.reports || 'Reports';
   if (pathname.startsWith('/admin/chat')) return t.chat || 'Chat';
   if (pathname.startsWith('/admin/notifications')) return t.notifications || 'Notifications';
+  if (pathname.startsWith('/admin/telegram')) return 'Telegram Chat';
   if (pathname.startsWith('/admin/users')) return t.adminUsers || 'Admin Users';
+  if (pathname.startsWith('/admin/activity')) return t.activityLogs || 'Activity Logs';
+  if (pathname.startsWith('/admin/email-templates')) return t.emailTemplates || 'Email Templates';
   return 'Admin';
 }
 
@@ -58,11 +64,24 @@ export default function GlobalHeader() {
           <div className="flex items-center gap-3">
             <Link 
               href={isAdminPage ? '/dashboard' : '/'} 
-              className={`text-xl font-bold hover:opacity-80 transition-opacity ${
-                darkMode ? 'text-blue-400' : 'text-blue-600'
-              }`}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
-              Darital
+              <img
+                src="/logo.png"
+                alt="Darital Logo"
+                width={28}
+                height={28}
+                className="object-contain"
+                onError={(e) => {
+                  // Hide image if it fails to load (file doesn't exist)
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+              <span className={`text-xl font-bold ${
+                darkMode ? 'text-blue-400' : 'text-blue-600'
+              }`}>
+                Darital
+              </span>
             </Link>
             {isAdminPage && currentSection && (
               <>
@@ -78,6 +97,9 @@ export default function GlobalHeader() {
 
           {/* Right: Controls */}
           <div className="flex items-center gap-2">
+            {/* Global Search - only on admin pages */}
+            {isAdminPage && !isLoginPage && <GlobalSearch />}
+
             {/* Mobile: More menu (Language + Theme) */}
             <div className="md:hidden relative">
               <button

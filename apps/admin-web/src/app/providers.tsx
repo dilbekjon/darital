@@ -6,6 +6,8 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import GlobalHeader from '../components/GlobalHeader';
 import { AdminSidebar } from '../components/AdminSidebar';
+import CommandPalette from '../components/CommandPalette';
+import HelpModal from '../components/HelpModal';
 import { usePathname } from 'next/navigation';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -32,14 +34,21 @@ function ThemeWrapper({ children }: { children: React.ReactNode }) {
       <ToastProvider>
         <GlobalHeader />
         {showAdminSidebar ? (
-          <div className={`flex min-h-screen ${
+          <div className={`flex h-[calc(100vh-56px)] ${
             darkMode ? 'bg-black' : 'bg-gray-100'
           }`}>
             <AdminSidebar />
-            <main className="flex-1">{children}</main>
+            <main className="flex-1 overflow-y-auto">{children}</main>
           </div>
         ) : (
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 overflow-y-auto">{children}</main>
+        )}
+        {/* Global keyboard shortcuts */}
+        {showAdminSidebar && (
+          <>
+            <CommandPalette />
+            <HelpModal />
+          </>
         )}
       </ToastProvider>
     </LanguageProvider>

@@ -2,9 +2,12 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Message } from '../lib/chatApi';
-import Constants from 'expo-constants';
+import { getApiUrl } from '../lib/constants-fallback';
 
-const SOCKET_URL = Constants.expoConfig?.extra?.apiUrl?.replace('/api', '') || 'http://localhost:3001';
+// Lazy load SOCKET_URL to avoid calling getApiUrl() at module load time
+function getSocketUrl(): string {
+  return getApiUrl().replace('/api', '');
+}
 
 interface UseChatSocketOptions {
   conversationId?: string;
@@ -35,7 +38,7 @@ export function useChatSocket(options: UseChatSocketOptions = {}) {
 
         console.log('🔌 Connecting to chat socket...');
 
-        const socketInstance = io(`${SOCKET_URL}/chat`, {
+        const socketInstance = io(`${getSocketUrl()}/chat`, {
           auth: {
             token,
           },
@@ -65,12 +68,16 @@ export function useChatSocket(options: UseChatSocketOptions = {}) {
           }
         });
 
-        socketInstance.on('message_received', (message: Message) => {
+        // Listen for both message_created (new) and message_received (backward compat)
+        const handleNewMessage = (message: Message) => {
           if (isMounted) {
             console.log('📨 Message received:', message);
             onMessageReceived?.(message);
           }
-        });
+        };
+
+        socketInstance.on('message_created', handleNewMessage);
+        socketInstance.on('message_received', handleNewMessage);
 
         socketInstance.on('messages_read', (data) => {
           if (isMounted) {
@@ -109,9 +116,17 @@ export function useChatSocket(options: UseChatSocketOptions = {}) {
       
       socket.emit('join_conversation', { conversationId });
 
-      socket.on('joined_conversation', (data) => {
+      const handleJoined = (data: any) => {
         console.log('✅ Joined conversation:', data);
-      });
+      };
+      socket.on('joined_conversation', handleJoined);
+
+      // Cleanup: leave room when conversationId changes or component unmounts
+      return () => {
+        console.log('📤 Leaving conversation:', conversationId);
+        socket.emit('leave_conversation', { conversationId });
+        socket.off('joined_conversation', handleJoined);
+      };
     }
   }, [socket, connected, conversationId]);
 

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../prisma.service';
@@ -10,8 +10,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'dev_change_me',
+      secretOrKey: JwtStrategy.getJwtSecret(),
     });
+  }
+
+  private static getJwtSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret || secret.trim().length === 0) {
+      // Crash fast on startup with a clear message instead of using an unsafe default
+      throw new InternalServerErrorException(
+        'JWT_SECRET is not set. Please configure a strong secret in the environment.',
+      );
+    }
+    return secret;
   }
 
   async validate(payload: any) {

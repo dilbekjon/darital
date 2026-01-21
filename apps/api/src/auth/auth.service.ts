@@ -26,7 +26,7 @@ export class AuthService {
     }
     
     // First, try to find in User table (for admins)
-    let user = await this.usersService.findByEmail(trimmedEmail);
+    const user = await this.usersService.findByEmail(trimmedEmail);
     
     // If not found in User table, try Tenant table
     if (!user) {

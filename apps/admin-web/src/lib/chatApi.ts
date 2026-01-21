@@ -36,6 +36,7 @@ export interface Conversation {
     content: string;
     createdAt: string;
     status: string;
+    senderRole: 'TENANT' | 'ADMIN';
   }>;
 }
 
@@ -118,16 +119,54 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
 export async function assignConversation(conversationId: string): Promise<Conversation> {
   const token = getToken();
   if (!token) throw new Error('Not authenticated');
-  
+
   console.log('[ChatAPI] Assigning conversation:', conversationId);
-  
+  console.log('[ChatAPI] API_BASE:', API_BASE);
+  console.log('[ChatAPI] Full URL:', `${API_BASE}/conversations/${conversationId}/assign`);
+
   const response = await fetch(`${API_BASE}/conversations/${conversationId}/assign`, {
     method: 'PATCH',
     headers: {
       'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
       'Accept': 'application/json',
     },
   });
+
+  console.log('[ChatAPI] Assign response status:', response.status, response.statusText);
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    console.error('[ChatAPI] Assign failed:', response.status, errorText);
+  }
+
+  return handleResponse<Conversation>(response);
+}
+
+/**
+ * Unassign admin from conversation
+ */
+export async function unassignConversation(conversationId: string): Promise<Conversation> {
+  const token = getToken();
+  if (!token) throw new Error('Not authenticated');
+
+  console.log('[ChatAPI] Unassigning conversation:', conversationId);
+
+  const response = await fetch(`${API_BASE}/conversations/${conversationId}/unassign`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+  });
+
+  console.log('[ChatAPI] Unassign response status:', response.status, response.statusText);
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    console.error('[ChatAPI] Unassign failed:', response.status, errorText);
+  }
 
   return handleResponse<Conversation>(response);
 }
@@ -176,5 +215,23 @@ export async function createConversation(topic?: string, initialMessage?: string
   });
 
   return handleResponse<Conversation>(response);
+}
+
+/**
+ * Get unread conversations count (for admins)
+ */
+export async function getUnreadCount(): Promise<number> {
+  const token = getToken();
+  if (!token) throw new Error('Not authenticated');
+  
+  const response = await fetch(`${API_BASE}/conversations/unread/count`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    },
+  });
+
+  const data = await handleResponse<{ count: number }>(response);
+  return data.count;
 }
 

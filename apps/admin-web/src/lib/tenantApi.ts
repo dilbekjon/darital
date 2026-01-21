@@ -1,4 +1,4 @@
-import { fetchApi, ApiError } from './api';
+import { fetchApi, ApiError, normalizeListResponse } from './api';
 
 interface TenantProfile {
   fullName: string;
@@ -46,11 +46,13 @@ export async function getTenantProfile(): Promise<TenantProfile> {
 }
 
 export async function getTenantInvoices(): Promise<Invoice[]> {
-  return fetchApi<Invoice[]>('/tenant/invoices');
+  const response = await fetchApi<any>('/tenant/invoices');
+  return normalizeListResponse<Invoice>(response).items;
 }
 
 export async function getTenantPayments(): Promise<Payment[]> {
-  return fetchApi<Payment[]>('/tenant/payments');
+  const response = await fetchApi<any>('/tenant/payments');
+  return normalizeListResponse<Payment>(response).items;
 }
 
 export async function getTenantBalance(): Promise<Balance> {

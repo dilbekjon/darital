@@ -18,6 +18,10 @@
     "prisma:generate": "prisma generate",
     "rbac:seed": "ts-node src/rbac/seed.ts",
     "admin:make:super": "ts-node prisma/make-super-admin.ts",
+    "seed": "tsx prisma/seed.ts",
+    "test:webhook": "tsx scripts/test-payment-webhook.ts"
+  },
+  "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {

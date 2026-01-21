@@ -60,6 +60,22 @@ export async function fetchApi<T>(
   return data
 }
 
+export interface ListResult<T> {
+  items: T[]
+  meta?: any
+  raw: any
+}
+
+export function normalizeListResponse<T>(data: any): ListResult<T> {
+  if (Array.isArray(data)) {
+    return { items: data, raw: data }
+  }
+  if (data && Array.isArray((data as any).data)) {
+    return { items: (data as any).data, meta: (data as any).meta, raw: data }
+  }
+  return { items: [], meta: (data as any)?.meta, raw: data }
+}
+
 export interface LoginResponse {
   accessToken: string
 }

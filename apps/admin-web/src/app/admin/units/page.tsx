@@ -10,6 +10,11 @@ import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { EmptyState } from '../../../components/EmptyState';
 import { fetchApi, ApiError } from '../../../lib/api';
 
+interface Building {
+  id: string;
+  name: string;
+}
+
 interface Unit {
   id: string;
   name: string;
@@ -17,6 +22,8 @@ interface Unit {
   area?: number;
   floor?: number;
   status: 'FREE' | 'BUSY' | 'MAINTENANCE';
+  buildingId?: string | null;
+  building?: Building | null;
   createdAt: string;
 }
 
@@ -40,6 +47,7 @@ export default function AdminUnitsPage() {
   const router = useRouter();
   const [units, setUnits] = useState<Unit[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [buildings, setBuildings] = useState<Building[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -52,6 +60,7 @@ export default function AdminUnitsPage() {
     area: '',
     floor: '',
     status: 'FREE' as 'FREE' | 'BUSY' | 'MAINTENANCE',
+    buildingId: '',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -89,12 +98,14 @@ export default function AdminUnitsPage() {
 
       const loadData = async () => {
         try {
-          const [unitsData, contractsData] = await Promise.all([
+          const [unitsData, contractsData, buildingsData] = await Promise.all([
             fetchApi<Unit[]>('/units'),
             fetchApi<Contract[]>('/contracts'),
+            fetchApi<Building[]>('/buildings'),
           ]);
           setUnits(unitsData);
           setContracts(contractsData);
+          setBuildings(buildingsData);
         } catch (err) {
           console.error('Failed to load data:', err);
           if (err instanceof ApiError) {
@@ -139,7 +150,7 @@ export default function AdminUnitsPage() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', price: '', area: '', floor: '', status: 'FREE' });
+    setFormData({ name: '', price: '', area: '', floor: '', status: 'FREE', buildingId: '' });
     setEditingUnit(null);
   };
 
@@ -158,6 +169,7 @@ export default function AdminUnitsPage() {
       area: unit.area ? String(unit.area) : '',
       floor: unit.floor ? String(unit.floor) : '',
       status: unit.status,
+      buildingId: unit.buildingId || '',
     });
     setError(null);
     setIsModalOpen(true);
@@ -179,6 +191,11 @@ export default function AdminUnitsPage() {
       if (formData.area) payload.area = parseFloat(formData.area);
       if (formData.floor) payload.floor = parseInt(formData.floor);
       if (editingUnit) payload.status = formData.status;
+      if (formData.buildingId) {
+        payload.buildingId = formData.buildingId;
+      } else {
+        payload.buildingId = null; // Allow unlinking by selecting empty
+      }
 
       if (editingUnit) {
         const response = await fetchApi<any>(`/units/${editingUnit.id}`, {
@@ -316,7 +333,7 @@ export default function AdminUnitsPage() {
             </div>
             <input
               type="text"
-              placeholder="Search units by name, price, area, floor, status..."
+              placeholder={t.searchUnits}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`block w-full pl-10 pr-3 py-2 border rounded-lg ${
@@ -336,10 +353,10 @@ export default function AdminUnitsPage() {
                   : 'bg-white border-gray-300 text-gray-900'
               } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
             >
-              <option value="ALL">{t.allStatus || 'All Status'}</option>
-              <option value="FREE">Free</option>
-              <option value="BUSY">Busy</option>
-              <option value="MAINTENANCE">Maintenance</option>
+              <option value="ALL">{t.allStatus}</option>
+              <option value="FREE">{t.free}</option>
+              <option value="BUSY">{t.busy}</option>
+              <option value="MAINTENANCE">{t.maintenance}</option>
             </select>
           </div>
         </div>
@@ -358,11 +375,11 @@ export default function AdminUnitsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             }
-            title={units.length === 0 ? (t.noUnits || 'No units found') : 'No results found'}
+            title={units.length === 0 ? t.noUnits : t.noResultsFound}
             description={
               units.length === 0
-                ? 'Get started by creating your first unit.'
-                : 'Try adjusting your search query or filter.'
+                ? t.getStartedByCreatingUnit
+                : t.tryAdjustingFilters
             }
             actionLabel={units.length === 0 && canManageUnits ? (t.createUnit || 'Create Unit') : undefined}
             onAction={units.length === 0 && canManageUnits ? openCreateModal : undefined}
@@ -393,6 +410,11 @@ export default function AdminUnitsPage() {
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
                     {t.floor || 'Floor'}
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    darkMode ? 'text-gray-300' : 'text-gray-500'
+                  }`}>
+                    {t.building || 'Building'}
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -452,11 +474,24 @@ export default function AdminUnitsPage() {
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
-                        {unit.floor !== undefined && unit.floor !== null ? `Floor ${unit.floor}` : '-'}
+                        {unit.floor !== undefined && unit.floor !== null ? `${t.floor} ${unit.floor}` : '-'}
+                      </td>
+                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                        darkMode ? 'text-gray-300' : 'text-gray-500'
+                      }`}>
+                        {unit.building ? (
+                          <span className={`font-medium ${
+                            darkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{unit.building.name}</span>
+                        ) : (
+                          <span className={darkMode ? 'text-gray-400' : 'text-gray-400'}>-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(unit.status)}`}>
-                          {unit.status}
+                          {unit.status === 'FREE' ? t.free :
+                           unit.status === 'BUSY' ? t.busy :
+                           unit.status === 'MAINTENANCE' ? t.maintenance : unit.status}
                         </span>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
@@ -483,7 +518,7 @@ export default function AdminUnitsPage() {
                           <span className={`text-xs ${
                             darkMode ? 'text-gray-400' : 'text-gray-400'
                           }`}>
-                            {unitContracts.filter(c => c.status === 'ACTIVE').length} active
+                            {unitContracts.filter(c => c.status === 'ACTIVE').length} {t.active.toLowerCase()}
                           </span>
                         </div>
                       </td>
@@ -533,7 +568,7 @@ export default function AdminUnitsPage() {
             <h2 className={`text-xl font-bold mb-4 ${
               darkMode ? 'text-white' : 'text-gray-900'
             }`}>
-              {editingUnit ? (t.editUnit || 'Edit Unit') : (t.createUnit || 'Create Unit')}
+              {editingUnit ? t.editUnit : t.createUnit}
             </h2>
             {error && (
               <div className={`px-4 py-3 rounded-lg mb-4 border ${
@@ -549,7 +584,7 @@ export default function AdminUnitsPage() {
                 <label htmlFor="name" className={`block text-sm font-medium mb-1 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  {t.unitName || 'Unit Name'} *
+                  {t.unitName} *
                 </label>
                 <input
                   type="text"
@@ -567,7 +602,7 @@ export default function AdminUnitsPage() {
                 <label htmlFor="price" className={`block text-sm font-medium mb-1 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  {t.price || 'Price'} (UZS) *
+                  {t.price} (UZS) *
                 </label>
                 <input
                   type="number"
@@ -588,7 +623,7 @@ export default function AdminUnitsPage() {
                   <label htmlFor="area" className={`block text-sm font-medium mb-1 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    {t.area || 'Area'} (m²)
+                    {t.area} (m²)
                   </label>
                   <input
                     type="number"
@@ -622,12 +657,39 @@ export default function AdminUnitsPage() {
                   />
                 </div>
               </div>
+              <div className="mb-4">
+                <label htmlFor="buildingId" className={`block text-sm font-medium mb-1 ${
+                  darkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  {t.building || 'Building'}
+                </label>
+                <select
+                  id="buildingId"
+                  value={formData.buildingId}
+                  onChange={(e) => setFormData({ ...formData, buildingId: e.target.value })}
+                  className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${
+                    darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="">{t.noBuilding || 'No Building'}</option>
+                  {buildings.map((building) => (
+                    <option key={building.id} value={building.id}>
+                      {building.name}
+                    </option>
+                  ))}
+                </select>
+                <p className={`text-xs mt-1 ${
+                  darkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>
+                  {t.selectBuildingToAssign || 'Select a building to assign this unit to'}
+                </p>
+              </div>
               {editingUnit && (
                 <div className="mb-4">
                   <label htmlFor="status" className={`block text-sm font-medium mb-1 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    {t.status || 'Status'} *
+                    {t.status} *
                   </label>
                   <select
                     id="status"
@@ -638,9 +700,9 @@ export default function AdminUnitsPage() {
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
                   >
-                    <option value="FREE">FREE</option>
-                    <option value="BUSY">BUSY</option>
-                    <option value="MAINTENANCE">MAINTENANCE</option>
+                    <option value="FREE">{t.free}</option>
+                    <option value="BUSY">{t.busy}</option>
+                    <option value="MAINTENANCE">{t.maintenance}</option>
                   </select>
                 </div>
               )}
@@ -656,14 +718,14 @@ export default function AdminUnitsPage() {
                     darkMode ? 'bg-blue-600/20 text-white hover:bg-blue-600/30' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   }`}
                 >
-                  {t.cancel || 'Cancel'}
+                  {t.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
                 >
-                  {submitting ? (t.loading || 'Loading...') : (t.save || 'Save')}
+                  {submitting ? t.loading : t.save}
                 </button>
               </div>
             </form>

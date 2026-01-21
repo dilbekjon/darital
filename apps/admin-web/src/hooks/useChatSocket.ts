@@ -12,10 +12,12 @@ interface UseChatSocketOptions {
   onMessageReceived?: (message: Message) => void;
   onMessagesRead?: (data: { conversationId: string; readBy: string }) => void;
   onUserTyping?: (data: { userId: string; email: string }) => void;
+  onConversationUpdated?: (data: { conversation: any }) => void;
+  onUnreadCountUpdated?: () => void;
 }
 
 export function useChatSocket(options: UseChatSocketOptions = {}) {
-  const { conversationId, onMessageReceived, onMessagesRead, onUserTyping } = options;
+  const { conversationId, onMessageReceived, onMessagesRead, onUserTyping, onConversationUpdated, onUnreadCountUpdated } = options;
   
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
@@ -57,10 +59,14 @@ export function useChatSocket(options: UseChatSocketOptions = {}) {
       setConnected(false);
     });
 
-    socketInstance.on('message_received', (message: Message) => {
+    // Listen for both message_created (new) and message_received (backward compat)
+    const handleNewMessage = (message: Message) => {
       console.log('📨 Message received:', message);
       onMessageReceived?.(message);
-    });
+    };
+
+    socketInstance.on('message_created', handleNewMessage);
+    socketInstance.on('message_received', handleNewMessage);
 
     socketInstance.on('messages_read', (data) => {
       console.log('👁️ Messages read:', data);
@@ -69,6 +75,16 @@ export function useChatSocket(options: UseChatSocketOptions = {}) {
 
     socketInstance.on('user_typing', (data) => {
       onUserTyping?.(data);
+    });
+
+    socketInstance.on('conversation_updated', (data) => {
+      console.log('🔄 Conversation updated:', data);
+      onConversationUpdated?.(data);
+    });
+
+    socketInstance.on('unread_count_updated', () => {
+      console.log('📊 Unread count updated');
+      onUnreadCountUpdated?.();
     });
 
     socketRef.current = socketInstance;
@@ -87,9 +103,17 @@ export function useChatSocket(options: UseChatSocketOptions = {}) {
       
       socket.emit('join_conversation', { conversationId });
 
-      socket.on('joined_conversation', (data) => {
+      const handleJoined = (data: any) => {
         console.log('✅ Joined conversation:', data);
-      });
+      };
+      socket.on('joined_conversation', handleJoined);
+
+      // Cleanup: leave room when conversationId changes or component unmounts
+      return () => {
+        console.log('📤 Leaving conversation:', conversationId);
+        socket.emit('leave_conversation', { conversationId });
+        socket.off('joined_conversation', handleJoined);
+      };
     }
   }, [socket, connected, conversationId]);
 

@@ -1,10 +1,14 @@
 import { Module, Logger } from '@nestjs/common';
 import { TelegrafModule } from 'nestjs-telegraf';
 import { TelegramService } from './telegram.service';
-import { PrismaService } from '../prisma.service';
+import { TelegramController } from './telegram.controller';
+import { MinioModule } from '../minio/minio.module';
+import { ChatModule } from '../chat/chat.module';
 
 @Module({
   imports: [
+    MinioModule,
+    ChatModule, // Import ChatModule to access ChatGateway
     TelegrafModule.forRootAsync({
       useFactory: async () => {
         const logger = new Logger('TelegramModule');
@@ -51,8 +55,9 @@ import { PrismaService } from '../prisma.service';
       },
     }),
   ],
-  providers: [TelegramService, PrismaService],
-  exports: [TelegrafModule],
+  controllers: [TelegramController],
+  providers: [TelegramService],
+  exports: [TelegrafModule, TelegramService],
 })
 export class TelegramModule {}
 

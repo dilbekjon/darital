@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateContractDto } from './dto/create-contract.dto';
 import { UpdateContractDto } from './dto/update-contract.dto';
@@ -6,17 +6,27 @@ import { UpdateContractStatusDto } from './dto/update-contract-status.dto';
 import { Decimal } from '@prisma/client/runtime/library';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ContractStatus, UnitStatus } from '@prisma/client';
+import { InvoicesService } from '../invoices/invoices.service';
 
 @Injectable()
 export class ContractsService {
+  private readonly logger = new Logger(ContractsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly invoicesService: InvoicesService,
   ) {}
 
-  async findAll() {
+  async findAll(includeArchived = false) {
     const contracts = await this.prisma.contract.findMany({
-      include: { tenant: true, unit: true },
+      where: includeArchived ? {} : { isArchived: false },
+      include: {
+        tenant: true,
+        unit: {
+          include: { building: true }
+        }
+      },
       orderBy: { createdAt: 'desc' },
     });
     
@@ -48,6 +58,44 @@ export class ContractsService {
     });
     if (!contract) throw new NotFoundException('Contract not found');
     return contract;
+  }
+
+  async findArchived() {
+    const contracts = await this.prisma.contract.findMany({
+      where: { isArchived: true },
+      include: {
+        tenant: true,
+        unit: {
+          include: { building: true }
+        }
+      },
+      orderBy: { archivedAt: 'desc' },
+    });
+
+    return contracts.map((contract) => ({
+      id: contract.id,
+      tenantId: contract.tenantId,
+      unitId: contract.unitId,
+      startDate: contract.startDate.toISOString(),
+      endDate: contract.endDate.toISOString(),
+      amount: contract.amount.toNumber(),
+      status: contract.status,
+      pdfUrl: contract.pdfUrl,
+      notes: contract.notes || null,
+      createdAt: contract.createdAt.toISOString(),
+      isArchived: contract.isArchived,
+      archivedAt: contract.archivedAt?.toISOString() || '',
+      archivedBy: contract.archivedBy,
+      archiveReason: contract.archiveReason,
+      tenant: {
+        fullName: contract.tenant.fullName,
+        email: contract.tenant.email,
+      },
+      unit: {
+        name: contract.unit.name,
+        building: contract.unit.building,
+      },
+    }));
   }
 
   async create(dto: CreateContractDto, pdfUrl: string) {
@@ -142,9 +190,9 @@ export class ContractsService {
     }
 
     // Execute status change with unit status update in a transaction
-    return this.prisma.$transaction(async (tx) => {
+    const updatedContract = await this.prisma.$transaction(async (tx) => {
       // Update contract status
-      const updatedContract = await tx.contract.update({
+      const updated = await tx.contract.update({
         where: { id },
         data: { status: newStatus },
         include: { tenant: true, unit: true },
@@ -173,12 +221,97 @@ export class ContractsService {
         });
       }
 
-      return updatedContract;
+      return updated;
+    });
+
+    // Automatically create invoice when contract is activated
+    if (currentStatus === ContractStatus.DRAFT && newStatus === ContractStatus.ACTIVE) {
+      try {
+        // Check if invoice already exists for this contract
+        const existingInvoices = await this.prisma.invoice.findMany({
+          where: { contractId: id },
+        });
+
+        // Only create invoice if none exists
+        if (existingInvoices.length === 0) {
+          // Create invoice automatically using helper method
+          await this.invoicesService.createForContract(
+            id,
+            updatedContract.amount,
+            updatedContract.startDate,
+            updatedContract.endDate
+          );
+
+          this.logger.log(
+            `✅ Auto-created invoice for contract ${id} (tenant: ${updatedContract.tenant.fullName})`
+          );
+        }
+      } catch (error: any) {
+        // Log error but don't fail contract activation
+        console.error(`Failed to auto-create invoice for contract ${id}:`, error?.message || error);
+      }
+    }
+
+    return updatedContract;
+  }
+
+  async archive(id: string, adminId: string, reason?: string) {
+    const contract = await this.prisma.contract.findUnique({
+      where: { id },
+      include: { tenant: true, unit: true },
+    });
+
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    if (contract.isArchived) {
+      throw new ConflictException('Contract is already archived');
+    }
+
+    const archivedAt = new Date();
+    return this.prisma.contract.update({
+      where: { id },
+      data: {
+        isArchived: true,
+        archivedAt,
+        archivedBy: adminId,
+        archiveReason: reason,
+      },
+    });
+  }
+
+  async unarchive(id: string) {
+    const contract = await this.prisma.contract.findUnique({
+      where: { id },
+    });
+
+    if (!contract) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    if (!contract.isArchived) {
+      throw new ConflictException('Contract is not archived');
+    }
+
+    return this.prisma.contract.update({
+      where: { id },
+      data: {
+        isArchived: false,
+        archivedAt: null,
+        archivedBy: null,
+        archiveReason: null,
+      },
     });
   }
 
   async remove(id: string) {
     const contract = await this.findOne(id);
+
+    // Check if contract is archived first
+    if (!contract.isArchived) {
+      throw new ConflictException('Cannot permanently delete non-archived contract. Archive it first.');
+    }
 
     // Check if contract has invoices
     const invoices = await this.prisma.invoice.findMany({
@@ -204,7 +337,7 @@ export class ContractsService {
         });
       }
 
-      return { message: 'Contract deleted successfully' };
+      return { message: 'Contract permanently deleted successfully' };
     });
   }
 }

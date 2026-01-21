@@ -183,6 +183,12 @@ export default function TenantChatPage() {
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedConversation || !currentUserId || sending) return;
 
+    // Check if conversation is closed - tenants cannot send messages to closed conversations
+    if (selectedConversation.status === 'CLOSED') {
+      alert('This conversation is closed. You cannot send messages to closed conversations.');
+      return;
+    }
+
     setSending(true);
     const content = messageInput.trim();
     setMessageInput('');
@@ -412,6 +418,11 @@ export default function TenantChatPage() {
               {error && (
                 <div className="mb-2 text-sm text-red-600 dark:text-red-400">{t.error}: {error}</div>
               )}
+              {selectedConversation.status === 'CLOSED' && (
+                <div className="mb-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg">
+                  This conversation is closed. You cannot send messages to closed conversations.
+                </div>
+              )}
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -423,13 +434,13 @@ export default function TenantChatPage() {
                       handleSendMessage();
                     }
                   }}
-                  placeholder={t.typeMessage}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  disabled={sending || !connected}
+                  placeholder={selectedConversation.status === 'CLOSED' ? 'Conversation is closed' : t.typeMessage}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
+                  disabled={sending || !connected || selectedConversation.status === 'CLOSED'}
                 />
                 <button
                   onClick={handleSendMessage}
-                  disabled={!messageInput.trim() || sending || !connected}
+                  disabled={!messageInput.trim() || sending || !connected || selectedConversation.status === 'CLOSED'}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 >
                   {sending ? t.sending : t.send}

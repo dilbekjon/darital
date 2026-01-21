@@ -47,6 +47,13 @@ enum PaymentStatus {
   CANCELLED
 }
 
+enum PaymentProvider {
+  CLICK
+  PAYME
+  UZUM
+  NONE
+}
+
 enum ConversationStatus {
   OPEN
   PENDING
@@ -73,6 +80,16 @@ enum AdminRole {
   TENANT_USER // For distinguishing between internal admin roles and external tenant users
 }
 
+// Document type enum
+enum DocumentType {
+  LEASE_AGREEMENT
+  ID_COPY
+  PASSPORT
+  PAYMENT_RECEIPT
+  CONTRACT_ATTACHMENT
+  OTHER
+}
+
 // Models
 model User {
   id            String         @id @default(cuid())
@@ -88,18 +105,34 @@ model User {
   @@map("users")
 }
 
+model Building {
+  id          String   @id @default(cuid())
+  name        String
+  address     String?
+  description String?
+  totalUnits  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  units       Unit[]
+
+  @@map("buildings")
+}
+
 model Unit {
-  id        String     @id @default(cuid())
-  name      String
-  price     Decimal
-  area      Float?
-  floor     Int?
-  status    UnitStatus @default(FREE)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id         String     @id @default(cuid())
+  name       String
+  buildingId String?
+  building   Building?  @relation(fields: [buildingId], references: [id])
+  price      Decimal
+  area       Float?
+  floor      Int?
+  status     UnitStatus @default(FREE)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   contracts Contract[]
 
+  @@index([buildingId])
   @@map("units")
 }
 
@@ -110,10 +143,41 @@ model Tenant {
   email         String?        @unique
   password      String
   contracts     Contract[]
+  documents     Document[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   balance       Balance?
   conversations Conversation[]
+  notifications InAppNotification[]
+  // Archive fields
+  isArchived    Boolean        @default(false)
+  archivedAt    DateTime?
+  archivedBy    String?        // Admin user ID who archived
+  archiveReason String?        // Reason for archiving
+
+  @@index([phone])
+  @@index([createdAt])
+  @@index([isArchived])
+}
+
+model Document {
+  id          String       @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contractId  String?
+  paymentId   String?
+  type        DocumentType
+  name        String
+  fileUrl     String
+  fileSize    Int?
+  mimeType    String?
+  uploadedBy  String?      // Admin or tenant ID who uploaded
+  createdAt   DateTime     @default(now())
+
+  @@index([tenantId])
+  @@index([contractId])
+  @@index([paymentId])
+  @@map("documents")
 }
 
 model Contract {
@@ -132,6 +196,19 @@ model Contract {
   updatedAt   DateTime        @updatedAt
 
   invoices    Invoice[]
+
+  // Archive fields
+  isArchived    Boolean        @default(false)
+  archivedAt    DateTime?
+  archivedBy    String?        // Admin user ID who archived
+  archiveReason String?        // Reason for archiving
+
+  @@index([tenantId])
+  @@index([unitId])
+  @@index([status])
+  @@index([endDate])
+  @@index([createdAt])
+  @@index([isArchived])
 }
 
 model Invoice {
@@ -144,6 +221,18 @@ model Invoice {
   payments    Payment[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+
+  // Archive fields
+  isArchived    Boolean        @default(false)
+  archivedAt    DateTime?
+  archivedBy    String?        // Admin user ID who archived
+  archiveReason String?        // Reason for archiving
+
+  @@index([contractId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([createdAt])
+  @@index([isArchived])
 }
 
 model Payment {
@@ -151,10 +240,26 @@ model Payment {
   invoiceId   String
   invoice     Invoice        @relation(fields: [invoiceId], references: [id])
   method      PaymentMethod
+  provider    PaymentProvider @default(NONE)
+  providerPaymentId String?   @unique
+  externalRef String?
+  rawPayload  Json?
   amount      Decimal
   status      PaymentStatus  @default(PENDING)
   paidAt      DateTime?
   createdAt   DateTime       @default(now())
+
+  // Archive fields
+  isArchived    Boolean        @default(false)
+  archivedAt    DateTime?
+  archivedBy    String?        // Admin user ID who archived
+  archiveReason String?        // Reason for archiving
+
+  @@index([invoiceId])
+  @@index([status])
+  @@index([paidAt])
+  @@index([createdAt])
+  @@index([isArchived])
 }
 
 model Balance {
@@ -279,3 +384,107 @@ model NotificationLog {
   @@map("notification_logs")
 }
 
+// In-app notifications for real-time notification center
+model InAppNotification {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type      String   // PAYMENT_DUE | PAYMENT_CONFIRMED | CONTRACT_EXPIRING | MESSAGE | SYSTEM
+  title     String
+  message   String   @db.Text
+  data      Json?    // Additional data (invoiceId, paymentId, etc.)
+  read      Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, read])
+  @@index([createdAt])
+  @@map("in_app_notifications")
+}
+
+// Email templates for customizable notifications
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  code        String   @unique // PAYMENT_REMINDER, PAYMENT_CONFIRMED, CONTRACT_EXPIRING, WELCOME, etc.
+  name        String
+  description String?
+  subjectUz   String
+  subjectRu   String
+  subjectEn   String
+  bodyUz      String   @db.Text
+  bodyRu      String   @db.Text
+  bodyEn      String   @db.Text
+  variables   Json?    // Available variables: {tenant_name}, {amount}, {due_date}, etc.
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
+// Archive Tables for Operational Data
+
+model ArchivedMessage {
+  id             String        @id @default(cuid())
+  originalId     String        // Original message ID
+  conversationId String
+  senderRole     SenderRole
+  senderId       String
+  content        String?       @db.Text
+  fileUrl        String?
+  status         MessageStatus
+  createdAt      DateTime
+  archivedAt     DateTime      @default(now())
+
+  @@index([conversationId])
+  @@index([archivedAt])
+  @@map("archived_messages")
+}
+
+model ArchivedConversation {
+  id        String             @id @default(cuid())
+  originalId String            // Original conversation ID
+  tenantId  String
+  adminId   String?
+  topic     String?
+  status    ConversationStatus
+  createdAt DateTime
+  updatedAt DateTime
+  archivedAt DateTime          @default(now())
+
+  @@index([tenantId])
+  @@index([archivedAt])
+  @@map("archived_conversations")
+}
+
+model ArchivedAuditLog {
+  id        String   @id @default(cuid())
+  originalId String  // Original audit log ID
+  actorId   String
+  action    String
+  subject   String?
+  meta      Json?
+  createdAt DateTime
+  archivedAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([archivedAt])
+  @@map("archived_audit_logs")
+}
+
+model ArchivedNotification {
+  id        String   @id @default(cuid())
+  originalId String  // Original notification ID
+  tenantId  String
+  type      String
+  title     String
+  message   String   @db.Text
+  data      Json?
+  createdAt DateTime
+  archivedAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([archivedAt])
+  @@map("archived_notifications")
+}

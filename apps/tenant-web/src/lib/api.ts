@@ -60,6 +60,14 @@ export async function fetchApi<T>(
   return data
 }
 
+// Fetch API for tenant portal (alias for fetchApi, uses accessToken)
+export async function fetchTenantApi<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  return fetchApi<T>(endpoint, options);
+}
+
 export interface LoginResponse {
   accessToken: string
 }

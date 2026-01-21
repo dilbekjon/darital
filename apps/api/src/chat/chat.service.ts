@@ -1,12 +1,35 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { PrismaService } from '../prisma.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { AdminRole, SenderRole } from '@prisma/client'; // Import AdminRole and SenderRole
+import { ChatGateway } from './chat.gateway';
+import { TelegramService } from '../telegram/telegram.service';
 
 @Injectable()
 export class ChatService {
-  constructor(private prisma: PrismaService) {}
+  private chatGateway: ChatGateway | null = null;
+
+  constructor(
+    private prisma: PrismaService,
+    private moduleRef: ModuleRef,
+  ) {}
+
+  /**
+   * Get ChatGateway instance lazily to avoid circular dependency
+   */
+  private getChatGateway(): ChatGateway | null {
+    if (!this.chatGateway) {
+      try {
+        this.chatGateway = this.moduleRef.get(ChatGateway, { strict: false });
+      } catch {
+        // Gateway not available yet (during module initialization)
+        return null;
+      }
+    }
+    return this.chatGateway;
+  }
 
   /**
    * Helper: Resolve Tenant record from authenticated User
@@ -104,7 +127,7 @@ export class ChatService {
         
         // If initial message provided, add it to existing conversation
         if (dto.content) {
-          await this.prisma.message.create({
+          const message = await this.prisma.message.create({
             data: {
               conversationId: existingConversation.id,
               senderRole: SenderRole.TENANT, // Use SenderRole enum
@@ -119,6 +142,16 @@ export class ChatService {
             where: { id: existingConversation.id },
             data: { updatedAt: new Date() },
           });
+
+          // Emit real-time event if gateway is available
+          const gateway = this.getChatGateway();
+          if (gateway) {
+            const tenant = await this.prisma.tenant.findUnique({
+              where: { id: tenantId },
+              select: { email: true },
+            });
+            gateway.emitMessageCreated(existingConversation.id, message, tenant?.email);
+          }
         }
         
         return existingConversation;
@@ -150,7 +183,7 @@ export class ChatService {
 
       // If initial message provided, create it
       if (dto.content) {
-        await this.prisma.message.create({
+        const message = await this.prisma.message.create({
           data: {
             conversationId: conversation.id,
             senderRole: SenderRole.TENANT, // Use SenderRole enum
@@ -159,6 +192,16 @@ export class ChatService {
             status: 'SENT',
           },
         });
+
+        // Emit real-time event if gateway is available
+        const gateway = this.getChatGateway();
+        if (gateway) {
+          const tenant = await this.prisma.tenant.findUnique({
+            where: { id: tenantId },
+            select: { email: true },
+          });
+          gateway.emitMessageCreated(conversation.id, message, tenant?.email);
+        }
       }
 
       return conversation;
@@ -289,25 +332,14 @@ export class ChatService {
 
   /**
    * Get messages for a conversation (with access control)
-   * Auto-transitions PENDING → OPEN when admin views
+   * No auto-assignment - admin must explicitly assign conversation
    */
   async findMessagesByConversationIdForUser(conversationId: string, user: any) {
-    const role = user.role; // Use AdminRole directly
-    
     // First check access (throws if user doesn't have permission)
-    const conversation = await this.findConversationByIdForUser(conversationId, user);
+    await this.findConversationByIdForUser(conversationId, user);
 
-    // Auto-transition to OPEN when admin first views
-    if ((role === AdminRole.ADMIN || role === AdminRole.SUPER_ADMIN || role === AdminRole.SUPPORT) && conversation.status === 'PENDING') {
-      console.log(`[ChatService] Admin viewing PENDING conversation ${conversationId} - transitioning to OPEN`);
-      await this.prisma.conversation.update({
-        where: { id: conversationId },
-        data: { 
-          status: 'OPEN',
-          adminId: user.id, // Assign admin who opened it (using user.id from JwtStrategy payload)
-        },
-      });
-    }
+    // Don't auto-assign - admin must explicitly click "Assign to me"
+    // Conversation remains unassigned until admin explicitly assigns it
 
     return this.prisma.message.findMany({
       where: { conversationId },
@@ -344,12 +376,106 @@ export class ChatService {
     });
 
     // Update conversation timestamp
-    await this.prisma.conversation.update({
+    const updatedConversation = await this.prisma.conversation.update({
       where: { id: dto.conversationId },
       data: { updatedAt: new Date() },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        admin: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
     });
 
+    // If admin is replying to a Telegram conversation, send via Telegram too
+    if (senderRole === SenderRole.ADMIN && dto.content) {
+      await this.sendTelegramReplyIfNeeded(dto.conversationId, dto.content);
+    }
+
+    // Emit real-time events (works for both WebSocket and REST calls)
+    const gateway = this.getChatGateway();
+    if (gateway) {
+      // Emit message_created event
+      gateway.emitMessageCreated(dto.conversationId, message);
+      
+      // Emit conversation_updated to update last message in lists
+      gateway.emitConversationUpdated(updatedConversation);
+    }
+
     return message;
+  }
+
+  /**
+   * Send admin reply via Telegram if conversation originated from Telegram
+   */
+  private async sendTelegramReplyIfNeeded(conversationId: string, messageContent: string) {
+    try {
+      // First, try to find a message with telegram: prefix (text messages or messages without files)
+      let telegramMessage = await this.prisma.message.findFirst({
+        where: {
+          conversationId,
+          fileUrl: { startsWith: 'telegram:' },
+        },
+      });
+
+      let chatId: string | null = null;
+
+      if (telegramMessage) {
+        // Extract chatId from fileUrl (format: "telegram:chatId")
+        chatId = telegramMessage.fileUrl?.replace('telegram:', '') || null;
+      } else {
+        // No telegram: prefix found - might be a voice/media message first
+        // Look up chatId by finding the tenant's TelegramUser
+        const conversation = await this.prisma.conversation.findUnique({
+          where: { id: conversationId },
+          select: { tenantId: true },
+        });
+
+        if (conversation?.tenantId) {
+          // Find TelegramUser by tenantId
+          const telegramUser = await this.prisma.telegramUser.findFirst({
+            where: { tenantId: conversation.tenantId },
+            select: { chatId: true },
+          });
+
+          if (telegramUser) {
+            chatId = telegramUser.chatId;
+            console.log(`[ChatService] Found Telegram chatId via tenant lookup: ${chatId} for conversation ${conversationId}`);
+          }
+        }
+      }
+
+      if (!chatId) {
+        // Not a Telegram conversation, skip
+        console.debug(`[ChatService] No Telegram chatId found for conversation ${conversationId}, skipping Telegram reply`);
+        return;
+      }
+
+      // Get TelegramService lazily to avoid circular dependency
+      try {
+        const telegramService = this.moduleRef.get(TelegramService, { strict: false });
+        if (telegramService) {
+          await telegramService.sendMessage(chatId, messageContent);
+          console.log(`[ChatService] Sent admin reply via Telegram to chatId=${chatId} for conversation ${conversationId}`);
+        }
+      } catch (error) {
+        // TelegramService not available, skip silently
+        console.debug('[ChatService] TelegramService not available for sending reply:', error);
+      }
+    } catch (error: any) {
+      // Don't fail message sending if Telegram reply fails
+      console.error(`[ChatService] Error sending Telegram reply: ${error.message}`);
+    }
   }
 
   /**
@@ -382,20 +508,124 @@ export class ChatService {
    * Assign admin to conversation
    */
   async assignAdmin(conversationId: string, adminId: string) {
-    return this.prisma.conversation.update({
+    const conversation = await this.prisma.conversation.update({
       where: { id: conversationId },
       data: { adminId },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        admin: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            status: true,
+          },
+        },
+      },
     });
+
+    // Broadcast conversation_updated event
+    const gateway = this.getChatGateway();
+    if (gateway) {
+      gateway.emitConversationUpdated(conversation);
+    }
+
+    return conversation;
+  }
+
+  /**
+   * Unassign admin from conversation
+   */
+  async unassignAdmin(conversationId: string) {
+    const conversation = await this.prisma.conversation.update({
+      where: { id: conversationId },
+      data: { adminId: null },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        admin: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    // Broadcast conversation_updated event
+    const gateway = this.getChatGateway();
+    if (gateway) {
+      gateway.emitConversationUpdated(conversation);
+    }
+
+    return conversation;
   }
 
   /**
    * Close conversation
    */
   async closeConversation(conversationId: string) {
-    return this.prisma.conversation.update({
+    const conversation = await this.prisma.conversation.update({
       where: { id: conversationId },
-      data: { status: 'CLOSED' },
+      data: { 
+        status: 'CLOSED',
+      },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+        admin: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
     });
+
+    // Broadcast conversation_updated event
+    const gateway = this.getChatGateway();
+    if (gateway) {
+      gateway.emitConversationUpdated(conversation);
+    }
+
+    return conversation;
   }
 
   /**
@@ -425,6 +655,37 @@ export class ChatService {
     }
 
     return false;
+  }
+
+  /**
+   * Get count of conversations with unread messages for admin
+   * Unread = conversations that have messages from TENANT with status SENT or DELIVERED
+   */
+  async getUnreadConversationsCount(user: any): Promise<number> {
+    const role = user.role;
+    
+    // Only admins and support can see unread counts
+    if (role !== AdminRole.ADMIN && role !== AdminRole.SUPER_ADMIN && role !== AdminRole.SUPPORT) {
+      return 0;
+    }
+
+    // Find distinct conversation IDs that have unread messages from tenants
+    // More efficient: use a single query with distinct
+    const unreadConversations = await this.prisma.message.findMany({
+      where: {
+        senderRole: SenderRole.TENANT, // Messages from tenants
+        status: { in: ['SENT', 'DELIVERED'] }, // Not read yet
+        conversation: {
+          status: { in: ['OPEN', 'PENDING'] }, // Only active conversations
+        },
+      },
+      select: {
+        conversationId: true,
+      },
+      distinct: ['conversationId'], // Get unique conversation IDs
+    });
+
+    return unreadConversations.length;
   }
 }
 

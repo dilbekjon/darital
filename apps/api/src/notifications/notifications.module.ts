@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { NotificationsController } from './notifications.controller';
 import { TenantNotificationsController } from './tenant-notifications.controller';
 import { NotificationsService } from './notifications.service';
-import { PrismaService } from '../prisma.service';
 import { MailModule } from '../mail/mail.module';
 // TelegramModule is imported in AppModule, no need to import here to avoid duplicate initialization
 import { FcmModule } from '../fcm/fcm.module';
@@ -19,7 +18,7 @@ import { ReminderScheduler } from '../queues/reminder.scheduler';
     MinioModule,
   ],
   controllers: [NotificationsController, TenantNotificationsController],
-  providers: [NotificationsService, PrismaService, ReminderScheduler],
+  providers: [NotificationsService, ReminderScheduler],
   exports: [NotificationsService],
 })
 export class NotificationsModule {}

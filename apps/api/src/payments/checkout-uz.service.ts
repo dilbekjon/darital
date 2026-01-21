@@ -47,6 +47,7 @@ export class CheckoutUzService {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
+      this.logger.log(`Calling CheckoutUz ${path} with payload:`, JSON.stringify(payload));
       const res = await fetch(`${this.baseUrl}${path}`, {
         method: 'POST',
         headers: {
@@ -55,11 +56,29 @@ export class CheckoutUzService {
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
-      const data = (await res.json().catch(() => ({}))) as T;
-      if (!res.ok) {
-        this.logger.warn(`CheckoutUz ${path} failed: ${res.status}`);
+      
+      const responseText = await res.text();
+      let data: T;
+      try {
+        data = JSON.parse(responseText) as T;
+      } catch {
+        this.logger.error(`CheckoutUz ${path} returned invalid JSON: ${responseText}`);
+        throw new Error(`Invalid JSON response from CheckoutUz: ${responseText}`);
       }
+      
+      if (!res.ok) {
+        this.logger.error(`CheckoutUz ${path} failed: ${res.status} - ${JSON.stringify(data)}`);
+        throw new Error(`CheckoutUz API error: ${res.status} - ${JSON.stringify(data)}`);
+      }
+      
+      this.logger.log(`CheckoutUz ${path} success:`, JSON.stringify(data));
       return data;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        this.logger.error(`CheckoutUz ${path} timeout after ${this.timeoutMs}ms`);
+        throw new Error(`CheckoutUz API timeout: Request took longer than ${this.timeoutMs}ms`);
+      }
+      throw error;
     } finally {
       clearTimeout(timeout);
     }

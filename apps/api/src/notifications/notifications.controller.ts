@@ -1,10 +1,8 @@
-import { BadRequestException, Body, Controller, Post, UploadedFile, UseGuards, UseInterceptors, UsePipes, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Updated path
 import { Permissions } from '../rbac/permissions.decorator'; // New import
-import { TestNotificationDto } from './dto/test-notification.dto';
-import { SendTelegramTestDto } from './dto/send-telegram-test.dto';
 import { PrismaService } from '../prisma.service';
 import { NotificationsService } from './notifications.service';
 import { MinioService } from '../minio/minio.service';

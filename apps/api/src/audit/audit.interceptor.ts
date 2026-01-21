@@ -26,16 +26,31 @@ export class AuditInterceptor implements NestInterceptor {
         try {
           // Extract resource and resourceId from URL
           const pathSegments = url.split('?')[0].split('/').filter(Boolean);
-          // const resource = pathSegments[0]; // Removed unused 'resource'
+          const resource = pathSegments[0] || 'unknown';
           const resourceId = pathSegments[1] && pathSegments[1] !== '' ? pathSegments[1] : null;
+
+          // Generate more descriptive action names
+          let actionName = method;
+          if (resource && method) {
+            actionName = `${method.toLowerCase()}.${resource}`;
+            if (resourceId) {
+              actionName += resourceId.startsWith('cl') ? '.update' : '.create';
+            }
+          }
 
           // Create audit log entry
           await this.prisma.adminAuditLog.create({
             data: {
-              actorId: user?.id || null, // Using actorId for AdminAuditLog
-              action: method,
-              subject: resourceId, // Using resourceId as subject
-              meta: body || null, // Using payload as meta
+              actorId: user?.id || null,
+              action: actionName,
+              subject: resourceId,
+              meta: {
+                method,
+                resource,
+                resourceId,
+                url,
+                body: body || null,
+              },
             },
           });
         } catch (error) {

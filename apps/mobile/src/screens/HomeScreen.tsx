@@ -98,7 +98,7 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
       setLoading(true);
 
       // Try to load from API
-      const [me, bal, inv] = await Promise.all([
+      const [me, bal, invResult] = await Promise.all([
         apiGet('/tenant/me'),
         apiGet('/tenant/balance'),
         apiGet('/tenant/invoices'),
@@ -106,13 +106,23 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
 
       setProfile(me);
       setBalance(bal);
-      setInvoices(inv);
+      
+      // Handle paginated invoices response: { data, meta } or legacy array format
+      let invoiceList: any[];
+      if (invResult && typeof invResult === 'object' && 'data' in invResult && Array.isArray(invResult.data)) {
+        invoiceList = invResult.data;
+      } else if (Array.isArray(invResult)) {
+        invoiceList = invResult;
+      } else {
+        invoiceList = [];
+      }
+      setInvoices(invoiceList);
 
-      // Cache the data
+      // Cache the data (store invoices as array for backward compatibility)
       await Promise.all([
         AsyncStorage.setItem('lastFetchedTenant', JSON.stringify(me)),
         AsyncStorage.setItem('lastFetchedBalance', JSON.stringify(bal)),
-        AsyncStorage.setItem('lastFetchedInvoices', JSON.stringify(inv)),
+        AsyncStorage.setItem('lastFetchedInvoices', JSON.stringify(invoiceList)),
       ]);
     } catch (e: any) {
       // If network fails, try to load cached data

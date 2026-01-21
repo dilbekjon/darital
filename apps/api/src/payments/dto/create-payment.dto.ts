@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsString } from 'class-validator';
+import { IsEnum, IsNumberString, IsString } from 'class-validator';
 import { PaymentMethod } from '@prisma/client';
 
 export class CreatePaymentDto {
@@ -12,7 +12,7 @@ export class CreatePaymentDto {
   method!: PaymentMethod;
 
   @ApiProperty({ description: 'Decimal amount as string, e.g., 100.00' })
-  @IsString()
+  @IsNumberString({}, { message: 'amount must be a numeric string (e.g., 100.00)' })
   amount!: string;
 }
 
