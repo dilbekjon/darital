@@ -93,6 +93,7 @@ export interface Translations {
   preferencesSaved: string;
   saveError: string;
   settings: string;
+  managePreferences: string;
   documentsDescription: string;
   
   // Contracts

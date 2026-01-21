@@ -142,6 +142,7 @@ export interface Translations {
   exportError: string;
   exporting: string;
   exportCSV: string;
+  poweredByDarital: string;
   reportSummary: string;
   selectDatesAndGenerate: string;
   captureOffline: string;
@@ -598,6 +599,7 @@ const translations: Record<Language, Translations> = {
     exportError: 'Failed to export data',
     exporting: 'Exporting...',
     exportCSV: 'Export CSV',
+    poweredByDarital: 'Darital Search',
     reportSummary: 'Report Summary',
     selectDatesAndGenerate: 'Select dates and generate a report',
     captureOffline: 'Capture Offline',
@@ -1052,6 +1054,7 @@ const translations: Record<Language, Translations> = {
     exportError: 'Не удалось экспортировать данные',
     exporting: 'Экспорт...',
     exportCSV: 'Экспорт CSV',
+    poweredByDarital: 'Поиск Darital',
     reportSummary: 'Сводка отчета',
     selectDatesAndGenerate: 'Выберите даты и сгенерируйте отчет',
     captureOffline: 'Захватить офлайн',
