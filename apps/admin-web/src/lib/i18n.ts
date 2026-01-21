@@ -99,6 +99,7 @@ export interface Translations {
   tenantName: string;
   actions: string;
   createContract: string;
+  addContract: string;
   selectTenant: string;
   selectUnit: string;
   
@@ -537,6 +538,7 @@ const translations: Record<Language, Translations> = {
     tenantName: 'Tenant Name',
     actions: 'Actions',
     createContract: 'Create Contract',
+    addContract: 'Add New Contract',
     selectTenant: 'Select Tenant',
     selectUnit: 'Select Unit',
     
@@ -973,6 +975,7 @@ const translations: Record<Language, Translations> = {
     tenantName: 'Имя арендатора',
     actions: 'Действия',
     createContract: 'Создать контракт',
+    addContract: 'Добавить новый контракт',
     selectTenant: 'Выберите арендатора',
     selectUnit: 'Выберите квартиру',
     
@@ -1409,6 +1412,7 @@ const translations: Record<Language, Translations> = {
     tenantName: 'Ijara oluvchi nomi',
     actions: 'Amallar',
     createContract: 'Shartnoma yaratish',
+    addContract: 'Yangi shartnoma qo\'shish',
     selectTenant: 'Ijara oluvchini tanlang',
     selectUnit: 'Xonani tanlang',
     

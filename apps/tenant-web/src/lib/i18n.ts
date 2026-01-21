@@ -73,6 +73,7 @@ export interface Translations {
   method: string;
   paidAt: string;
   confirmed: string;
+  paymentAccepted: string;
   noPayments: string;
   
   // Contracts
@@ -258,6 +259,7 @@ const translations: Record<Language, Translations> = {
     method: 'Method',
     paidAt: 'Paid At',
     confirmed: 'Confirmed',
+    paymentAccepted: 'Payment Accepted',
     noPayments: 'No payments found',
     
     // Contracts
@@ -441,6 +443,7 @@ const translations: Record<Language, Translations> = {
     method: 'Метод',
     paidAt: 'Оплачено',
     confirmed: 'Подтверждено',
+    paymentAccepted: 'Платеж принят',
     noPayments: 'Платежи не найдены',
     
     // Contracts
@@ -624,6 +627,7 @@ const translations: Record<Language, Translations> = {
     method: 'Usul',
     paidAt: 'To\'langan',
     confirmed: 'Tasdiqlangan',
+    paymentAccepted: 'To\'lov qabul qilindi',
     noPayments: 'To\'lovlar topilmadi',
     
     // Contracts
