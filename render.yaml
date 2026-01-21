@@ -19,7 +19,7 @@ services:
     name: darital-api
     runtime: node
     plan: free
-    buildCommand: corepack enable && corepack prepare pnpm@10.19.0 --activate && pnpm install && cd apps/api && pnpm run build
+    buildCommand: npm install -g pnpm@10.19.0 && pnpm install && cd apps/api && pnpm run build
     startCommand: cd apps/api && pnpm run start:prod
     envVars:
       - key: NODE_ENV
@@ -47,7 +47,7 @@ services:
     name: darital-admin-web
     runtime: node
     plan: free
-    buildCommand: corepack enable && corepack prepare pnpm@10.19.0 --activate && pnpm install && cd apps/admin-web && pnpm run build
+    buildCommand: npm install -g pnpm@10.19.0 && pnpm install && cd apps/admin-web && pnpm run build
     startCommand: cd apps/admin-web && pnpm run start
     envVars:
       - key: NODE_ENV
@@ -62,7 +62,7 @@ services:
     name: darital-tenant-web
     runtime: node
     plan: free
-    buildCommand: corepack enable && corepack prepare pnpm@10.19.0 --activate && pnpm install && cd apps/tenant-web && pnpm run build
+    buildCommand: npm install -g pnpm@10.19.0 && pnpm install && cd apps/tenant-web && pnpm run build
     startCommand: cd apps/tenant-web && pnpm run start
     envVars:
       - key: NODE_ENV
