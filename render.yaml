@@ -10,6 +10,9 @@ services:
     name: darital-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: Allow all IPs (for Render services)
 
   # NestJS API Backend
   - type: web
