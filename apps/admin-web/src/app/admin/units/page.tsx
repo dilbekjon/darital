@@ -414,7 +414,7 @@ export default function AdminUnitsPage() {
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    {t.building || 'Building'}
+                    {(t as any).building || 'Building'}
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -661,7 +661,7 @@ export default function AdminUnitsPage() {
                 <label htmlFor="buildingId" className={`block text-sm font-medium mb-1 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  {t.building || 'Building'}
+                  {(t as any).building || 'Building'}
                 </label>
                 <select
                   id="buildingId"

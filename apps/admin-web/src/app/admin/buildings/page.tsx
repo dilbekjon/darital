@@ -354,7 +354,7 @@ export default function BuildingsPage() {
                       ? 'bg-gray-800 border-gray-700 text-white' 
                       : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder={t.buildingName || 'Building name'}
+                  placeholder={(t as any).buildingName || 'Building name'}
                 />
               </div>
               <div>

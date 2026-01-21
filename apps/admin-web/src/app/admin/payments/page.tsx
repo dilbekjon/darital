@@ -1057,7 +1057,7 @@ export default function AdminPaymentsPage() {
                 <h2 className={`text-xl font-bold ${
                   darkMode ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {t.editPayment || 'Edit Payment'}
+                  {(t as any).editPayment || 'Edit Payment'}
                 </h2>
                 <button
                   onClick={() => !savingEdit && setEditModalOpen(false)}
