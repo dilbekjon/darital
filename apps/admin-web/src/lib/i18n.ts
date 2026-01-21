@@ -252,6 +252,7 @@ export interface Translations {
   noResultsFound: string;
   getStartedByCreating: string;
   selected: string;
+  clearSelection: string;
 
   // Status Labels
   statusDraft: string;
@@ -688,6 +689,7 @@ const translations: Record<Language, Translations> = {
     noResultsFound: 'No results found',
     getStartedByCreating: 'Get started by creating your first contract',
     selected: 'selected',
+    clearSelection: 'Clear selection',
     
     // Status Labels
     statusDraft: 'Draft',
@@ -1122,6 +1124,7 @@ const translations: Record<Language, Translations> = {
     noResultsFound: 'Результаты не найдены',
     getStartedByCreating: 'Начните с создания вашего первого контракта',
     selected: 'выбрано',
+    clearSelection: 'Очистить выбор',
     
     // Status Labels
     statusDraft: 'Черновик',
@@ -1556,6 +1559,7 @@ const translations: Record<Language, Translations> = {
     noResultsFound: 'Natijalar topilmadi',
     getStartedByCreating: 'Birinchi shartnomani yaratishdan boshlang',
     selected: 'tanlangan',
+    clearSelection: 'Tanlovni tozalash',
     
     // Status Labels
     statusDraft: 'Qoralama',

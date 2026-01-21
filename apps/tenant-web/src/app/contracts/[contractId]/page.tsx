@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { getContractById } from '../../../../lib/tenantApi';
-import { ApiError } from '../../../../lib/api';
-import { useLanguage } from '../../../../contexts/LanguageContext';
-import { useTheme } from '../../../../contexts/ThemeContext';
+import { getContractById } from '../../../lib/tenantApi';
+import { ApiError } from '../../../lib/api';
+import { useLanguage } from '../../../contexts/LanguageContext';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 interface Contract {
   id: string;
