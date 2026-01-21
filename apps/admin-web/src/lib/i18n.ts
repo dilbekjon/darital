@@ -138,6 +138,8 @@ export interface Translations {
   generateReport: string;
   exportTenants: string;
   exportPayments: string;
+  exportError: string;
+  exporting: string;
   reportSummary: string;
   selectDatesAndGenerate: string;
   captureOffline: string;
@@ -590,6 +592,8 @@ const translations: Record<Language, Translations> = {
     generateReport: 'Generate Report',
     exportTenants: 'Export Tenants',
     exportPayments: 'Export Payments',
+    exportError: 'Failed to export data',
+    exporting: 'Exporting...',
     reportSummary: 'Report Summary',
     selectDatesAndGenerate: 'Select dates and generate a report',
     captureOffline: 'Capture Offline',
@@ -1040,6 +1044,8 @@ const translations: Record<Language, Translations> = {
     generateReport: 'Сгенерировать отчет',
     exportTenants: 'Экспорт арендаторов',
     exportPayments: 'Экспорт платежей',
+    exportError: 'Не удалось экспортировать данные',
+    exporting: 'Экспорт...',
     reportSummary: 'Сводка отчета',
     selectDatesAndGenerate: 'Выберите даты и сгенерируйте отчет',
     captureOffline: 'Захватить офлайн',
@@ -1490,6 +1496,8 @@ const translations: Record<Language, Translations> = {
     generateReport: 'Hisobot yaratish',
     exportTenants: 'Ijara oluvchilarni eksport qilish',
     exportPayments: 'To\'lovlarni eksport qilish',
+    exportError: 'Ma\'lumotlarni eksport qilishda xato',
+    exporting: 'Eksport qilinmoqda...',
     reportSummary: 'Hisobot xulosa',
     selectDatesAndGenerate: 'Sanani tanlang va hisobot yarating',
     captureOffline: 'Oflayn to\'lash',

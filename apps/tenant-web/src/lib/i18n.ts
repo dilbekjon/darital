@@ -88,7 +88,9 @@ export interface Translations {
   totalSize: string;
   receipts: string;
   viewDocuments: string;
+  receipt: string;
   receiptError: string;
+  preferencesSaved: string;
   documentsDescription: string;
   
   // Contracts
@@ -289,7 +291,9 @@ const translations: Record<Language, Translations> = {
     totalSize: 'Total Size',
     receipts: 'Receipts',
     viewDocuments: 'View Documents',
+    receipt: 'Receipt',
     receiptError: 'Failed to load receipt',
+    preferencesSaved: 'Preferences saved successfully!',
     documentsDescription: 'View and download your lease agreements, receipts, and other documents',
     
     // Contracts
@@ -488,7 +492,9 @@ const translations: Record<Language, Translations> = {
     totalSize: 'Общий размер',
     receipts: 'Квитанции',
     viewDocuments: 'Просмотр документов',
+    receipt: 'Квитанция',
     receiptError: 'Не удалось загрузить квитанцию',
+    preferencesSaved: 'Настройки успешно сохранены!',
     documentsDescription: 'Просмотр и загрузка договоров аренды, квитанций и других документов',
     
     // Contracts
@@ -687,7 +693,9 @@ const translations: Record<Language, Translations> = {
     totalSize: 'Jami hajmi',
     receipts: 'Kvitansiyalar',
     viewDocuments: 'Hujjatlarni ko\'rish',
+    receipt: 'Kvitansiya',
     receiptError: 'Kvitansiyani yuklab bo\'lmadi',
+    preferencesSaved: 'Sozlamalar muvaffaqiyatli saqlandi!',
     documentsDescription: 'Ijara shartnomalari, kvitansiyalar va boshqa hujjatlarni ko\'rish va yuklab olish',
     
     // Contracts
