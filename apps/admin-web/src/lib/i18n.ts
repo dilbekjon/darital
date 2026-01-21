@@ -252,6 +252,7 @@ export interface Translations {
   // Search & Filters
   searchContracts: string;
   searchPlaceholder: string;
+  searchCommands: string;
   noResultsFound: string;
   getStartedByCreating: string;
   selected: string;
@@ -693,6 +694,7 @@ const translations: Record<Language, Translations> = {
     // Search & Filters
     searchContracts: 'Search contracts',
     searchPlaceholder: 'Search contracts by tenant, unit, status, amount...',
+    searchCommands: 'Search commands...',
     noResultsFound: 'No results found',
     getStartedByCreating: 'Get started by creating your first contract',
     selected: 'selected',
@@ -1132,6 +1134,7 @@ const translations: Record<Language, Translations> = {
     // Search & Filters
     searchContracts: 'Поиск контрактов',
     searchPlaceholder: 'Поиск контрактов по арендатору, квартире, статусу, сумме...',
+    searchCommands: 'Поиск команд...',
     noResultsFound: 'Результаты не найдены',
     getStartedByCreating: 'Начните с создания вашего первого контракта',
     selected: 'выбрано',

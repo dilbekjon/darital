@@ -77,6 +77,10 @@ export interface Translations {
   awaitingPayment: string;
   noPayments: string;
   
+  // Documents
+  documents: string;
+  documentsDescription: string;
+  
   // Contracts
   contracts: string;
   contractsList: string;
@@ -264,6 +268,10 @@ const translations: Record<Language, Translations> = {
     awaitingPayment: 'Awaiting Payment',
     noPayments: 'No payments found',
     
+    // Documents
+    documents: 'Documents',
+    documentsDescription: 'View and download your lease agreements, receipts, and other documents',
+    
     // Contracts
     contracts: 'Contracts',
     contractsList: 'Contracts List',
@@ -449,6 +457,10 @@ const translations: Record<Language, Translations> = {
     awaitingPayment: 'Ожидание платежа',
     noPayments: 'Платежи не найдены',
     
+    // Documents
+    documents: 'Документы',
+    documentsDescription: 'Просмотр и загрузка договоров аренды, квитанций и других документов',
+    
     // Contracts
     contracts: 'Контракты',
     contractsList: 'Список контрактов',
@@ -633,6 +645,10 @@ const translations: Record<Language, Translations> = {
     paymentAccepted: 'To\'lov qabul qilindi',
     awaitingPayment: 'To\'lov kutilmoqda',
     noPayments: 'To\'lovlar topilmadi',
+    
+    // Documents
+    documents: 'Hujjatlar',
+    documentsDescription: 'Ijara shartnomalari, kvitansiyalar va boshqa hujjatlarni ko\'rish va yuklab olish',
     
     // Contracts
     contracts: 'Shartnomalar',
