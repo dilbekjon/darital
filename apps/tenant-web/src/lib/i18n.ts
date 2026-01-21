@@ -74,6 +74,7 @@ export interface Translations {
   paidAt: string;
   confirmed: string;
   paymentAccepted: string;
+  awaitingPayment: string;
   noPayments: string;
   
   // Contracts
@@ -260,6 +261,7 @@ const translations: Record<Language, Translations> = {
     paidAt: 'Paid At',
     confirmed: 'Confirmed',
     paymentAccepted: 'Payment Accepted',
+    awaitingPayment: 'Awaiting Payment',
     noPayments: 'No payments found',
     
     // Contracts
@@ -444,6 +446,7 @@ const translations: Record<Language, Translations> = {
     paidAt: 'Оплачено',
     confirmed: 'Подтверждено',
     paymentAccepted: 'Платеж принят',
+    awaitingPayment: 'Ожидание платежа',
     noPayments: 'Платежи не найдены',
     
     // Contracts
@@ -628,6 +631,7 @@ const translations: Record<Language, Translations> = {
     paidAt: 'To\'langan',
     confirmed: 'Tasdiqlangan',
     paymentAccepted: 'To\'lov qabul qilindi',
+    awaitingPayment: 'To\'lov kutilmoqda',
     noPayments: 'To\'lovlar topilmadi',
     
     // Contracts
