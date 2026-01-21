@@ -82,6 +82,8 @@ export interface Translations {
   myDocuments: string;
   noDocuments: string;
   noDocumentsYet: string;
+  download: string;
+  documentSummary: string;
   documentsDescription: string;
   
   // Contracts
@@ -276,6 +278,8 @@ const translations: Record<Language, Translations> = {
     myDocuments: 'My Documents',
     noDocuments: 'No Documents',
     noDocumentsYet: 'Your documents will appear here once uploaded',
+    download: 'Download',
+    documentSummary: 'Document Summary',
     documentsDescription: 'View and download your lease agreements, receipts, and other documents',
     
     // Contracts
@@ -468,6 +472,8 @@ const translations: Record<Language, Translations> = {
     myDocuments: 'Мои документы',
     noDocuments: 'Нет документов',
     noDocumentsYet: 'Ваши документы появятся здесь после загрузки',
+    download: 'Скачать',
+    documentSummary: 'Сводка документов',
     documentsDescription: 'Просмотр и загрузка договоров аренды, квитанций и других документов',
     
     // Contracts
@@ -660,6 +666,8 @@ const translations: Record<Language, Translations> = {
     myDocuments: 'Mening hujjatlarim',
     noDocuments: 'Hujjatlar yo\'q',
     noDocumentsYet: 'Hujjatlar yuklangandan keyin ular bu yerda paydo bo\'ladi',
+    download: 'Yuklab olish',
+    documentSummary: 'Hujjatlar xulosa',
     documentsDescription: 'Ijara shartnomalari, kvitansiyalar va boshqa hujjatlarni ko\'rish va yuklab olish',
     
     // Contracts

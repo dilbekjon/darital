@@ -254,6 +254,8 @@ export interface Translations {
   searchPlaceholder: string;
   searchCommands: string;
   toNavigate: string;
+  toSelect: string;
+  toOpenCommands: string;
   noResults: string;
   noResultsFound: string;
   getStartedByCreating: string;
@@ -698,6 +700,8 @@ const translations: Record<Language, Translations> = {
     searchPlaceholder: 'Search contracts by tenant, unit, status, amount...',
     searchCommands: 'Search commands...',
     toNavigate: 'to navigate',
+    toSelect: 'to select',
+    toOpenCommands: 'for commands',
     noResults: 'No results found',
     noResultsFound: 'No results found',
     getStartedByCreating: 'Get started by creating your first contract',
@@ -1139,6 +1143,9 @@ const translations: Record<Language, Translations> = {
     searchContracts: 'Поиск контрактов',
     searchPlaceholder: 'Поиск контрактов по арендатору, квартире, статусу, сумме...',
     searchCommands: 'Поиск команд...',
+    toNavigate: 'для навигации',
+    toSelect: 'для выбора',
+    toOpenCommands: 'для команд',
     noResults: 'Результаты не найдены',
     noResultsFound: 'Результаты не найдены',
     getStartedByCreating: 'Начните с создания вашего первого контракта',
@@ -1579,6 +1586,10 @@ const translations: Record<Language, Translations> = {
     // Search & Filters
     searchContracts: 'Shartnomalarni qidirish',
     searchPlaceholder: 'Ijara oluvchi, xona, holat, summa bo\'yicha qidirish...',
+    searchCommands: 'Buyruqlarni qidirish...',
+    toNavigate: 'navigatsiya qilish',
+    toSelect: 'tanlash',
+    toOpenCommands: 'buyruqlar uchun',
     noResults: 'Natijalar topilmadi',
     noResultsFound: 'Natijalar topilmadi',
     getStartedByCreating: 'Birinchi shartnomani yaratishdan boshlang',
