@@ -234,6 +234,7 @@ export interface Translations {
   topicRequired: string;
   topicMinLength: string;
   cancel: string;
+  closeModal: string;
   untitledConversation: string;
   noConversations: string;
   selectConversation: string;
@@ -698,6 +699,7 @@ const translations: Record<Language, Translations> = {
     topicRequired: 'Topic is required',
     topicMinLength: 'Topic must be at least 3 characters',
     cancel: 'Cancel',
+    closeModal: 'Close modal / Cancel',
     untitledConversation: 'Untitled Conversation',
     noConversations: 'No conversations yet',
     selectConversation: 'Select a conversation to start chatting',
@@ -1162,6 +1164,7 @@ const translations: Record<Language, Translations> = {
     topicRequired: 'Тема обязательна',
     topicMinLength: 'Тема должна содержать минимум 3 символа',
     cancel: 'Отмена',
+    closeModal: 'Закрыть модальное окно / Отмена',
     untitledConversation: 'Разговор без названия',
     noConversations: 'Пока нет разговоров',
     selectConversation: 'Выберите разговор, чтобы начать общение',
@@ -1175,6 +1178,7 @@ const translations: Record<Language, Translations> = {
     // Section Titles
     insights: 'Аналитика',
     operations: 'Операции',
+    showHelp: 'Показать эту справку',
     communication: 'Коммуникация',
     administration: 'Администрирование',
     adminPanel: 'Панель администратора',
@@ -1622,6 +1626,7 @@ const translations: Record<Language, Translations> = {
     topicRequired: 'Mavzu majburiy',
     topicMinLength: 'Mavzu kamida 3 ta belgidan iborat bo\'lishi kerak',
     cancel: 'Bekor qilish',
+    closeModal: 'Modalni yopish / Bekor qilish',
     untitledConversation: 'Nomsiz suhbat',
     noConversations: 'Hali suhbatlar yo\'q',
     selectConversation: 'Suhbatlashishni boshlash uchun suhbatni tanlang',
@@ -1635,6 +1640,7 @@ const translations: Record<Language, Translations> = {
     // Section Titles
     insights: 'Tahlillar',
     operations: 'Operatsiyalar',
+    showHelp: 'Yordamni ko\'rsatish',
     communication: 'Aloqa',
     administration: 'Ma\'muriyat',
     adminPanel: 'Admin panel',
