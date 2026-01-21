@@ -79,6 +79,7 @@ export interface Translations {
   
   // Documents
   documents: string;
+  myDocuments: string;
   documentsDescription: string;
   
   // Contracts
@@ -270,6 +271,7 @@ const translations: Record<Language, Translations> = {
     
     // Documents
     documents: 'Documents',
+    myDocuments: 'My Documents',
     documentsDescription: 'View and download your lease agreements, receipts, and other documents',
     
     // Contracts
@@ -459,6 +461,7 @@ const translations: Record<Language, Translations> = {
     
     // Documents
     documents: 'Документы',
+    myDocuments: 'Мои документы',
     documentsDescription: 'Просмотр и загрузка договоров аренды, квитанций и других документов',
     
     // Contracts
@@ -648,6 +651,7 @@ const translations: Record<Language, Translations> = {
     
     // Documents
     documents: 'Hujjatlar',
+    myDocuments: 'Mening hujjatlarim',
     documentsDescription: 'Ijara shartnomalari, kvitansiyalar va boshqa hujjatlarni ko\'rish va yuklab olish',
     
     // Contracts
