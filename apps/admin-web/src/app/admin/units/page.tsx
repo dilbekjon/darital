@@ -671,7 +671,7 @@ export default function AdminUnitsPage() {
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
                 >
-                  <option value="">{t.noBuilding || 'No Building'}</option>
+                  <option value="">{(t as any).noBuilding || 'No Building'}</option>
                   {buildings.map((building) => (
                     <option key={building.id} value={building.id}>
                       {building.name}
