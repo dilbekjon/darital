@@ -91,6 +91,7 @@ export interface Translations {
   receipt: string;
   receiptError: string;
   preferencesSaved: string;
+  saveError: string;
   documentsDescription: string;
   
   // Contracts
@@ -294,6 +295,7 @@ const translations: Record<Language, Translations> = {
     receipt: 'Receipt',
     receiptError: 'Failed to load receipt',
     preferencesSaved: 'Preferences saved successfully!',
+    saveError: 'Failed to save preferences',
     documentsDescription: 'View and download your lease agreements, receipts, and other documents',
     
     // Contracts
@@ -495,6 +497,7 @@ const translations: Record<Language, Translations> = {
     receipt: 'Квитанция',
     receiptError: 'Не удалось загрузить квитанцию',
     preferencesSaved: 'Настройки успешно сохранены!',
+    saveError: 'Не удалось сохранить настройки',
     documentsDescription: 'Просмотр и загрузка договоров аренды, квитанций и других документов',
     
     // Contracts
@@ -696,6 +699,7 @@ const translations: Record<Language, Translations> = {
     receipt: 'Kvitansiya',
     receiptError: 'Kvitansiyani yuklab bo\'lmadi',
     preferencesSaved: 'Sozlamalar muvaffaqiyatli saqlandi!',
+    saveError: 'Sozlamalarni saqlab bo\'lmadi',
     documentsDescription: 'Ijara shartnomalari, kvitansiyalar va boshqa hujjatlarni ko\'rish va yuklab olish',
     
     // Contracts
