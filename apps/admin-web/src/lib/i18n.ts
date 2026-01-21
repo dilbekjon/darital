@@ -240,6 +240,8 @@ export interface Translations {
   
   // Error Messages
   authenticationRequired: string;
+  accessDenied: string;
+  noPermissionMessage: string;
   unexpectedError: string;
   failedToDeleteContract: string;
   failedToUpdateContract: string;
@@ -686,6 +688,8 @@ const translations: Record<Language, Translations> = {
     
     // Error Messages
     authenticationRequired: 'Authentication required',
+    accessDenied: 'Access Denied',
+    noPermissionMessage: 'You do not have permission to access this resource.',
     unexpectedError: 'An unexpected error occurred',
     failedToDeleteContract: 'Failed to delete contract',
     failedToUpdateContract: 'Failed to update contract',
@@ -1130,6 +1134,8 @@ const translations: Record<Language, Translations> = {
     
     // Error Messages
     authenticationRequired: 'Требуется аутентификация',
+    accessDenied: 'Доступ запрещен',
+    noPermissionMessage: 'У вас нет разрешения на доступ к этому ресурсу.',
     unexpectedError: 'Произошла неожиданная ошибка',
     failedToDeleteContract: 'Не удалось удалить контракт',
     failedToUpdateContract: 'Не удалось обновить контракт',
@@ -1574,6 +1580,8 @@ const translations: Record<Language, Translations> = {
     
     // Error Messages
     authenticationRequired: 'Autentifikatsiya talab qilinadi',
+    accessDenied: 'Kirish rad etildi',
+    noPermissionMessage: 'Sizda bu resursga kirish ruxsati yo\'q.',
     unexpectedError: 'Kutilmagan xato yuz berdi',
     failedToDeleteContract: 'Shartnomani o\'chirishda xato',
     failedToUpdateContract: 'Shartnomani yangilashda xato',
