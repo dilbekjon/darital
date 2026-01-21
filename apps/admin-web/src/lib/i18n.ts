@@ -253,6 +253,7 @@ export interface Translations {
   getStartedByCreating: string;
   selected: string;
   clearSelection: string;
+  createNew: string;
 
   // Status Labels
   statusDraft: string;
@@ -690,6 +691,7 @@ const translations: Record<Language, Translations> = {
     getStartedByCreating: 'Get started by creating your first contract',
     selected: 'selected',
     clearSelection: 'Clear selection',
+    createNew: 'Create new',
     
     // Status Labels
     statusDraft: 'Draft',
@@ -1125,6 +1127,7 @@ const translations: Record<Language, Translations> = {
     getStartedByCreating: 'Начните с создания вашего первого контракта',
     selected: 'выбрано',
     clearSelection: 'Очистить выбор',
+    createNew: 'Создать новый',
     
     // Status Labels
     statusDraft: 'Черновик',
@@ -1560,6 +1563,7 @@ const translations: Record<Language, Translations> = {
     getStartedByCreating: 'Birinchi shartnomani yaratishdan boshlang',
     selected: 'tanlangan',
     clearSelection: 'Tanlovni tozalash',
+    createNew: 'Yangi yaratish',
     
     // Status Labels
     statusDraft: 'Qoralama',

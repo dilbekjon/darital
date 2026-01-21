@@ -1,10 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getTenantContracts } from '../../../lib/tenantApi';
-import { ApiError } from '../../../lib/api';
-import { useLanguage } from '../../../contexts/LanguageContext';
-import { useTheme } from '../../../contexts/ThemeContext';
+import { getTenantContracts } from '../../lib/tenantApi';
+import { ApiError } from '../../lib/api';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { useTheme } from '../../contexts/ThemeContext';
 // Removed local Navbar; using global header
 
 interface Contract {

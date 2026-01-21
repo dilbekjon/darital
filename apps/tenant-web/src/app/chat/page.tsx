@@ -2,16 +2,16 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useChatSocket } from '../../../hooks/useChatSocket';
+import { useChatSocket } from '../../hooks/useChatSocket';
 import {
   getConversations,
   getMessages,
   createConversation,
   type Conversation,
   type Message,
-} from '../../../lib/chatApi';
-import { StartChatModal } from '../../../components/StartChatModal';
-import { useLanguage } from '../../../contexts/LanguageContext';
+} from '../../lib/chatApi';
+import { StartChatModal } from '../../components/StartChatModal';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 export default function TenantChatPage() {
   const { t } = useLanguage();

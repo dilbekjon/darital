@@ -1,11 +1,11 @@
 'use client';
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { getTenantPayments, refreshTenantPayment } from '../../../lib/tenantApi';
-import { ApiError } from '../../../lib/api';
-import { useLanguage } from '../../../contexts/LanguageContext';
-import { useTheme } from '../../../contexts/ThemeContext';
-import DaritalLoader from '../../../components/DaritalLoader';
+import { getTenantPayments, refreshTenantPayment } from '../../lib/tenantApi';
+import { ApiError } from '../../lib/api';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import DaritalLoader from '../../components/DaritalLoader';
 // Removed local Navbar; using global header
 
 const PaymentsPage = () => {
