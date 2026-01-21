@@ -127,6 +127,8 @@ export interface Translations {
   edit: string;
   delete: string;
   save: string;
+  submit: string;
+  interface: string;
   role: string;
   adminUsers: string;
   createUser: string;
@@ -589,6 +591,7 @@ const translations: Record<Language, Translations> = {
     edit: 'Edit',
     delete: 'Delete',
     save: 'Save',
+    submit: 'Submit form',
     role: 'Role',
     adminUsers: 'Admin Users',
     createUser: 'Create User',
@@ -1050,6 +1053,8 @@ const translations: Record<Language, Translations> = {
     edit: 'Редактировать',
     delete: 'Удалить',
     save: 'Сохранить',
+    submit: 'Отправить форму',
+    interface: 'Интерфейс',
     role: 'Роль',
     adminUsers: 'Администраторы',
     createUser: 'Создать пользователя',
@@ -1508,6 +1513,8 @@ const translations: Record<Language, Translations> = {
     edit: 'Tahrirlash',
     delete: 'O\'chirish',
     save: 'Saqlash',
+    submit: 'Formani yuborish',
+    interface: 'Interfeys',
     role: 'Rol',
     adminUsers: 'Admin foydalanuvchilar',
     createUser: 'Foydalanuvchi yaratish',
