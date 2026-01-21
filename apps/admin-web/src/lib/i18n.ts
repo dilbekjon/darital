@@ -271,6 +271,7 @@ export interface Translations {
   searchContracts: string;
   searchPlaceholder: string;
   searchCommands: string;
+  focusSearch: string;
   toNavigate: string;
   toSelect: string;
   toOpenCommands: string;
