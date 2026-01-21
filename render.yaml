@@ -1,13 +1,12 @@
-services:
-  # PostgreSQL Database
-  - type: pspg
-    name: darital-database
+databases:
+  - name: darital-database
     plan: free
     databaseName: darital
     user: darital_user
 
-  # Redis for queues (optional - can use Upstash free tier as alternative)
-  - type: redis
+services:
+  # Redis for queues
+  - type: keyvalue
     name: darital-redis
     plan: free
     maxmemoryPolicy: allkeys-lru
@@ -15,7 +14,7 @@ services:
   # NestJS API Backend
   - type: web
     name: darital-api
-    env: node
+    runtime: node
     plan: free
     buildCommand: corepack enable && corepack prepare pnpm@10.19.0 --activate && pnpm install && cd apps/api && pnpm run build
     startCommand: cd apps/api && pnpm run start:prod
@@ -30,7 +29,7 @@ services:
           property: connectionString
       - key: REDIS_URL
         fromService:
-          type: redis
+          type: keyvalue
           name: darital-redis
           property: connectionString
       - key: CORS_ORIGINS
@@ -39,13 +38,11 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 7d
-      # Add other environment variables in Render dashboard
-      # MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, etc.
 
   # Admin Web (Next.js)
   - type: web
     name: darital-admin-web
-    env: node
+    runtime: node
     plan: free
     buildCommand: corepack enable && corepack prepare pnpm@10.19.0 --activate && pnpm install && cd apps/admin-web && pnpm run build
     startCommand: cd apps/admin-web && pnpm run start
@@ -56,12 +53,11 @@ services:
         value: 10000
       - key: NEXT_PUBLIC_API_URL
         value: https://darital-api.onrender.com/api
-      # Update this after setting custom domain
 
   # Tenant Web (Next.js)
   - type: web
     name: darital-tenant-web
-    env: node
+    runtime: node
     plan: free
     buildCommand: corepack enable && corepack prepare pnpm@10.19.0 --activate && pnpm install && cd apps/tenant-web && pnpm run build
     startCommand: cd apps/tenant-web && pnpm run start
@@ -72,4 +68,3 @@ services:
         value: 10000
       - key: NEXT_PUBLIC_API_URL
         value: https://darital-api.onrender.com/api
-      # Update this after setting custom domain
