@@ -119,6 +119,8 @@ export class ArchiveService {
           status: conversation.status,
           createdAt: conversation.createdAt,
           updatedAt: conversation.updatedAt,
+          archivedBy: 'system', // System auto-archive
+          archiveReason: 'Automatic archive after retention period',
         },
       });
 

@@ -452,6 +452,8 @@ model ArchivedConversation {
   createdAt DateTime
   updatedAt DateTime
   archivedAt DateTime          @default(now())
+  archivedBy String            // Admin user ID who archived
+  archiveReason String?        // Reason for archiving
 
   @@index([tenantId])
   @@index([archivedAt])
