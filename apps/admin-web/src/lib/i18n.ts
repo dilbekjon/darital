@@ -40,6 +40,7 @@ export interface Translations {
   attachImage: string;
   
   // Dashboard
+  goToDashboard: string;
   welcomeBack: string;
   premiumOverview: string;
   propertyOverview: string;
@@ -454,6 +455,7 @@ const translations: Record<Language, Translations> = {
     // Navigation & Common
     home: 'Home',
     dashboard: 'Home',
+    goToDashboard: 'Go to Dashboard',
     invoices: 'Invoices',
     payments: 'Payments',
     balance: 'Balance',
@@ -900,6 +902,7 @@ const translations: Record<Language, Translations> = {
     // Navigation & Common
     home: 'Главная',
     dashboard: 'Главная',
+    goToDashboard: 'Перейти на главную',
     invoices: 'Счета',
     payments: 'Платежи',
     balance: 'Баланс',
@@ -1346,6 +1349,7 @@ const translations: Record<Language, Translations> = {
     // Navigation & Common
     home: 'Bosh sahifa',
     dashboard: 'Bosh sahifa',
+    goToDashboard: 'Bosh sahifaga o\'tish',
     invoices: 'Hisob-fakturalar',
     payments: 'To\'lovlar',
     balance: 'Balans',
