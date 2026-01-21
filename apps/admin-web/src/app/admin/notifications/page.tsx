@@ -125,7 +125,7 @@ export default function AdminNotificationsPage() {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Request failed' }));
-        throw new ApiError(errorData.message || 'Request failed', response.status, errorData);
+        throw new ApiError(response.status, errorData.message || 'Request failed', errorData);
       }
       
       const data = await response.json();
@@ -180,7 +180,7 @@ export default function AdminNotificationsPage() {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Request failed' }));
-        throw new ApiError(errorData.message || 'Request failed', response.status, errorData);
+        throw new ApiError(response.status, errorData.message || 'Request failed', errorData);
       }
       
       const data = await response.json();
