@@ -39,7 +39,7 @@ interface Invoice {
     providerPaymentId?: string | null;
     rawPayload?: any;
     createdAt?: string;
-  }>;
+  }> | undefined;
 }
 
 interface QrCodeData {
@@ -382,7 +382,8 @@ export default function AdminInvoicesPage() {
     return Number(amount);
   };
 
-  const isPaymentReceived = (payment: Invoice['payments'][number]): boolean => {
+  type Payment = NonNullable<Invoice['payments']>[number];
+  const isPaymentReceived = (payment: Payment | undefined): boolean => {
     if (!payment) return false;
     if (payment.status === 'CONFIRMED' || payment.status === 'CANCELLED') return true;
     if (payment.method === 'OFFLINE') {
@@ -525,7 +526,7 @@ export default function AdminInvoicesPage() {
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
           >
-            + {t.createInvoice || 'Create Invoice'}
+            + {(t as any).createInvoice || 'Create Invoice'}
           </button>
         )}
       </div>
@@ -576,7 +577,7 @@ export default function AdminInvoicesPage() {
         <div className="flex-1 min-w-[200px]">
           <input
             type="text"
-            placeholder={t.contractIdOptional}
+            placeholder={(t as any).contractIdOptional || 'Contract ID (optional)'}
             value={contractIdFilter}
             onChange={(e) => {
               setContractIdFilter(e.target.value);
@@ -942,7 +943,7 @@ export default function AdminInvoicesPage() {
                 <h2 className={`text-xl font-bold ${
                   darkMode ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {t.createInvoice || 'Create Invoice'}
+                  {(t as any).createInvoice || 'Create Invoice'}
                 </h2>
                 <button
                   onClick={() => !creatingInvoice && setCreateModalOpen(false)}
@@ -961,7 +962,7 @@ export default function AdminInvoicesPage() {
                   <label className={`block text-sm font-medium mb-2 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    {t.contract || 'Contract'} *
+                     {(t as any).contract || 'Contract'} *
                   </label>
                   <select
                     value={createForm.contractId}
@@ -973,7 +974,7 @@ export default function AdminInvoicesPage() {
                         : 'bg-white border-gray-300 text-gray-900'
                     } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50`}
                   >
-                    <option value="">{t.selectContract || 'Select a contract'}</option>
+                    <option value="">{(t as any).selectContract || 'Select a contract'}</option>
                     {contracts.map((contract) => (
                       <option key={contract.id} value={contract.id}>
                         {contract.tenant?.fullName || 'Unknown'} - {contract.unit?.name || 'No Unit'} ({contract.id.slice(0, 8)}...)
@@ -1080,7 +1081,7 @@ export default function AdminInvoicesPage() {
                 <h2 className={`text-xl font-bold ${
                   darkMode ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {t.editInvoice || 'Edit Invoice'}
+                  {(t as any).editInvoice || 'Edit Invoice'}
                 </h2>
                 <button
                   onClick={() => !savingEdit && setEditModalOpen(false)}
@@ -1193,7 +1194,7 @@ export default function AdminInvoicesPage() {
                 <h2 className={`text-xl font-bold ${
                   darkMode ? 'text-red-400' : 'text-red-600'
                 }`}>
-                  {t.deleteInvoice || 'Delete Invoice'}
+                  {(t as any).deleteInvoice || 'Delete Invoice'}
                 </h2>
                 <button
                   onClick={() => !deletingInvoiceId && setDeleteConfirmOpen(null)}
@@ -1211,7 +1212,7 @@ export default function AdminInvoicesPage() {
                   darkMode ? 'bg-red-900/20 border-red-600/30' : 'bg-red-50 border-red-200'
                 }`}>
                   <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    {t.deleteInvoiceWarning || 'Are you sure you want to delete this invoice? This action cannot be undone. Any pending payments associated with this invoice will also be deleted.'}
+                    {(t as any).deleteInvoiceWarning || 'Are you sure you want to delete this invoice? This action cannot be undone. Any pending payments associated with this invoice will also be deleted.'}
                   </p>
                 </div>
 
