@@ -263,6 +263,7 @@ export interface Translations {
   noResults: string;
   noResultsFound: string;
   results: string;
+  noData: string;
   getStartedByCreating: string;
   selected: string;
   clearSelection: string;
@@ -714,6 +715,7 @@ const translations: Record<Language, Translations> = {
     noResults: 'No results found',
     noResultsFound: 'No results found',
     results: 'results',
+    noData: 'No data available',
     getStartedByCreating: 'Get started by creating your first contract',
     selected: 'selected',
     clearSelection: 'Clear selection',
@@ -1163,6 +1165,7 @@ const translations: Record<Language, Translations> = {
     noResults: 'Результаты не найдены',
     noResultsFound: 'Результаты не найдены',
     results: 'результатов',
+    noData: 'Нет данных',
     getStartedByCreating: 'Начните с создания вашего первого контракта',
     selected: 'выбрано',
     clearSelection: 'Очистить выбор',
@@ -1612,6 +1615,7 @@ const translations: Record<Language, Translations> = {
     noResults: 'Natijalar topilmadi',
     noResultsFound: 'Natijalar topilmadi',
     results: 'natijalar',
+    noData: 'Ma\'lumotlar mavjud emas',
     getStartedByCreating: 'Birinchi shartnomani yaratishdan boshlang',
     selected: 'tanlangan',
     clearSelection: 'Tanlovni tozalash',
