@@ -102,7 +102,7 @@ const GlobalSearch: React.FC = () => {
       });
 
       // Search contracts
-      const contractsRes = await fetchApi('/contracts').catch(() => ({ data: [] }));
+      const contractsRes = await fetchApi<{ data?: any[] } | any[]>('/contracts').catch(() => ({ data: [] }));
       const contracts = Array.isArray(contractsRes) ? contractsRes : (contractsRes.data || []);
       const filteredContracts = contracts
         .filter((c: any) =>
