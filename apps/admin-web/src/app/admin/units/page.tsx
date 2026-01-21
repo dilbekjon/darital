@@ -681,7 +681,7 @@ export default function AdminUnitsPage() {
                 <p className={`text-xs mt-1 ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
                 }`}>
-                  {t.selectBuildingToAssign || 'Select a building to assign this unit to'}
+                   {(t as any).selectBuildingToAssign || 'Select a building to assign this unit to'}
                 </p>
               </div>
               {editingUnit && (
