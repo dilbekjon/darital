@@ -87,6 +87,7 @@ export interface Translations {
   totalDocuments: string;
   totalSize: string;
   receipts: string;
+  viewDocuments: string;
   documentsDescription: string;
   
   // Contracts
@@ -286,6 +287,7 @@ const translations: Record<Language, Translations> = {
     totalDocuments: 'Total Documents',
     totalSize: 'Total Size',
     receipts: 'Receipts',
+    viewDocuments: 'View Documents',
     documentsDescription: 'View and download your lease agreements, receipts, and other documents',
     
     // Contracts
@@ -483,6 +485,7 @@ const translations: Record<Language, Translations> = {
     totalDocuments: 'Всего документов',
     totalSize: 'Общий размер',
     receipts: 'Квитанции',
+    viewDocuments: 'Просмотр документов',
     documentsDescription: 'Просмотр и загрузка договоров аренды, квитанций и других документов',
     
     // Contracts
@@ -680,6 +683,7 @@ const translations: Record<Language, Translations> = {
     totalDocuments: 'Jami hujjatlar',
     totalSize: 'Jami hajmi',
     receipts: 'Kvitansiyalar',
+    viewDocuments: 'Hujjatlarni ko\'rish',
     documentsDescription: 'Ijara shartnomalari, kvitansiyalar va boshqa hujjatlarni ko\'rish va yuklab olish',
     
     // Contracts

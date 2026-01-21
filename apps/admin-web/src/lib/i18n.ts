@@ -262,6 +262,7 @@ export interface Translations {
   toOpenCommands: string;
   noResults: string;
   noResultsFound: string;
+  results: string;
   getStartedByCreating: string;
   selected: string;
   clearSelection: string;
@@ -712,6 +713,7 @@ const translations: Record<Language, Translations> = {
     toOpenCommands: 'for commands',
     noResults: 'No results found',
     noResultsFound: 'No results found',
+    results: 'results',
     getStartedByCreating: 'Get started by creating your first contract',
     selected: 'selected',
     clearSelection: 'Clear selection',
@@ -1160,6 +1162,7 @@ const translations: Record<Language, Translations> = {
     toOpenCommands: 'для команд',
     noResults: 'Результаты не найдены',
     noResultsFound: 'Результаты не найдены',
+    results: 'результатов',
     getStartedByCreating: 'Начните с создания вашего первого контракта',
     selected: 'выбрано',
     clearSelection: 'Очистить выбор',
@@ -1608,6 +1611,7 @@ const translations: Record<Language, Translations> = {
     toOpenCommands: 'buyruqlar uchun',
     noResults: 'Natijalar topilmadi',
     noResultsFound: 'Natijalar topilmadi',
+    results: 'natijalar',
     getStartedByCreating: 'Birinchi shartnomani yaratishdan boshlang',
     selected: 'tanlangan',
     clearSelection: 'Tanlovni tozalash',
