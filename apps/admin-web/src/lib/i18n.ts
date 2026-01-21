@@ -136,6 +136,7 @@ export interface Translations {
   dateRange: string;
   generateReport: string;
   exportTenants: string;
+  exportPayments: string;
   reportSummary: string;
   selectDatesAndGenerate: string;
   captureOffline: string;
@@ -576,6 +577,7 @@ const translations: Record<Language, Translations> = {
     dateRange: 'Date Range',
     generateReport: 'Generate Report',
     exportTenants: 'Export Tenants',
+    exportPayments: 'Export Payments',
     reportSummary: 'Report Summary',
     selectDatesAndGenerate: 'Select dates and generate a report',
     captureOffline: 'Capture Offline',
@@ -1014,6 +1016,7 @@ const translations: Record<Language, Translations> = {
     dateRange: 'Диапазон дат',
     generateReport: 'Сгенерировать отчет',
     exportTenants: 'Экспорт арендаторов',
+    exportPayments: 'Экспорт платежей',
     reportSummary: 'Сводка отчета',
     selectDatesAndGenerate: 'Выберите даты и сгенерируйте отчет',
     captureOffline: 'Захватить офлайн',
@@ -1452,6 +1455,7 @@ const translations: Record<Language, Translations> = {
     dateRange: 'Sana oralig\'i',
     generateReport: 'Hisobot yaratish',
     exportTenants: 'Ijara oluvchilarni eksport qilish',
+    exportPayments: 'To\'lovlarni eksport qilish',
     reportSummary: 'Hisobot xulosa',
     selectDatesAndGenerate: 'Sanani tanlang va hisobot yarating',
     captureOffline: 'Oflayn to\'lash',

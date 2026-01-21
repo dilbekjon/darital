@@ -46,7 +46,7 @@ const DocumentsPage = () => {
         }
         
         // Get documents directly from tenant portal endpoint
-        const docs = await fetchTenantApi('/tenant/documents');
+        const docs = await fetchTenantApi<Document[]>('/tenant/documents');
         setDocuments(docs);
       } catch (err) {
         console.error(err);
