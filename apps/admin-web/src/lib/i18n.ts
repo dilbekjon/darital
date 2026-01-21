@@ -247,6 +247,7 @@ export interface Translations {
   // Section Titles
   insights: string;
   operations: string;
+  showHelp: string;
   communication: string;
   administration: string;
   adminPanel: string;
@@ -710,6 +711,7 @@ const translations: Record<Language, Translations> = {
     // Section Titles
     insights: 'Insights',
     operations: 'Operations',
+    showHelp: 'Show this help',
     communication: 'Communication',
     administration: 'Administration',
     adminPanel: 'Admin Panel',

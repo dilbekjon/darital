@@ -13,7 +13,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('uz'); // Default to Uzbek
-  const [t, setT] = useState<Translations>(getTranslations('uz'));
+  const [t, setT] = useState<Record<string, string>>(getTranslations('uz') as unknown as Record<string, string>);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const savedLanguage = localStorage.getItem('language') as Language;
     if (savedLanguage && ['en', 'ru', 'uz'].includes(savedLanguage)) {
       setLanguageState(savedLanguage);
-      setT(getTranslations(savedLanguage));
+      setT(getTranslations(savedLanguage) as unknown as Record<string, string>);
     } else {
       // Set default to Uzbek if nothing saved
       localStorage.setItem('language', 'uz');
@@ -31,12 +31,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    setT(getTranslations(lang));
+    setT(getTranslations(lang) as unknown as Record<string, string>);
     localStorage.setItem('language', lang);
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t: t as unknown as Record<string, string> }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
       {children}
     </LanguageContext.Provider>
   );
