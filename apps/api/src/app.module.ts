@@ -28,6 +28,7 @@ import { ExportsModule } from './exports/exports.module';
 import { BulkActionsModule } from './bulk-actions/bulk-actions.module';
 import { EmailTemplatesModule } from './email-templates/email-templates.module';
 import { ArchiveModule } from './archive/archive.module';
+import { AdminModule } from './admin/admin.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './rbac/permissions.guard';
 import { CustomThrottlerGuard } from './telegram/custom-throttler.guard';
@@ -70,6 +71,7 @@ import { PrismaModule } from './prisma.module';
     BulkActionsModule,
     EmailTemplatesModule,
     ArchiveModule,
+    AdminModule, // Temporary admin creation module - can be removed after use
   ],
   controllers: [AppController],
   providers: [
