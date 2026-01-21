@@ -298,6 +298,7 @@ const translations: Record<Language, Translations> = {
     preferencesSaved: 'Preferences saved successfully!',
     saveError: 'Failed to save preferences',
     settings: 'Settings',
+    managePreferences: 'Manage Preferences',
     documentsDescription: 'View and download your lease agreements, receipts, and other documents',
     
     // Contracts
@@ -501,6 +502,7 @@ const translations: Record<Language, Translations> = {
     preferencesSaved: 'Настройки успешно сохранены!',
     saveError: 'Не удалось сохранить настройки',
     settings: 'Настройки',
+    managePreferences: 'Управление настройками',
     documentsDescription: 'Просмотр и загрузка договоров аренды, квитанций и других документов',
     
     // Contracts
@@ -704,6 +706,7 @@ const translations: Record<Language, Translations> = {
     preferencesSaved: 'Sozlamalar muvaffaqiyatli saqlandi!',
     saveError: 'Sozlamalarni saqlab bo\'lmadi',
     settings: 'Sozlamalar',
+    managePreferences: 'Sozlamalarni boshqarish',
     documentsDescription: 'Ijara shartnomalari, kvitansiyalar va boshqa hujjatlarni ko\'rish va yuklab olish',
     
     // Contracts

@@ -48,6 +48,7 @@ export interface Translations {
   yourActiveUnit: string;
   phoneNumber: string;
   quickActions: string;
+  quickLinks: string;
   viewInvoices: string;
   checkYourBills: string;
   paymentHistory: string;
@@ -503,6 +504,7 @@ const translations: Record<Language, Translations> = {
     yourActiveUnit: 'Your active unit',
     phoneNumber: 'Phone number',
     quickActions: 'Quick Actions',
+    quickLinks: 'Quick Links',
     viewInvoices: 'View Invoices',
     checkYourBills: 'Check your bills',
     paymentHistory: 'Payment History',
@@ -956,6 +958,7 @@ const translations: Record<Language, Translations> = {
     yourActiveUnit: 'Ваша активная квартира',
     phoneNumber: 'Номер телефона',
     quickActions: 'Быстрые действия',
+    quickLinks: 'Быстрые ссылки',
     viewInvoices: 'Просмотр счетов',
     checkYourBills: 'Проверьте свои счета',
     paymentHistory: 'История платежей',
