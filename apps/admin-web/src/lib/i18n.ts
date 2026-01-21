@@ -5,6 +5,7 @@ export type Language = 'en' | 'ru' | 'uz';
 export interface Translations {
   // Navigation & Common
   home: string;
+  navigation: string;
   dashboard: string;
   invoices: string;
   payments: string;
@@ -462,6 +463,7 @@ const translations: Record<Language, Translations> = {
   en: {
     // Navigation & Common
     home: 'Home',
+    navigation: 'Navigation',
     dashboard: 'Home',
     goToDashboard: 'Go to Dashboard',
     invoices: 'Invoices',
@@ -917,6 +919,7 @@ const translations: Record<Language, Translations> = {
   ru: {
     // Navigation & Common
     home: 'Главная',
+    navigation: 'Навигация',
     dashboard: 'Главная',
     goToDashboard: 'Перейти на главную',
     invoices: 'Счета',
@@ -1372,6 +1375,7 @@ const translations: Record<Language, Translations> = {
   uz: {
     // Navigation & Common
     home: 'Bosh sahifa',
+    navigation: 'Navigatsiya',
     dashboard: 'Bosh sahifa',
     goToDashboard: 'Bosh sahifaga o\'tish',
     invoices: 'Hisob-fakturalar',
@@ -1508,6 +1512,7 @@ const translations: Record<Language, Translations> = {
     exportError: 'Ma\'lumotlarni eksport qilishda xato',
     exporting: 'Eksport qilinmoqda...',
     exportCSV: 'CSV ni eksport qilish',
+    poweredByDarital: 'Darital qidiruv',
     reportSummary: 'Hisobot xulosa',
     selectDatesAndGenerate: 'Sanani tanlang va hisobot yarating',
     captureOffline: 'Oflayn to\'lash',

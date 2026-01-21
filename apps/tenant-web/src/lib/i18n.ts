@@ -15,6 +15,7 @@ export interface Translations {
   error: string;
   tenants: string;
   notifications: string;
+  notificationPreferences: string;
   notificationsManagement: string;
   sendTestNotifications: string;
   sendCustomTelegram: string;
@@ -221,6 +222,7 @@ const translations: Record<Language, Translations> = {
     error: 'Error',
     tenants: 'Tenants',
     notifications: 'Notifications',
+    notificationPreferences: 'Notification Preferences',
     notificationsManagement: 'Notifications Management',
     sendTestNotifications: 'Send Test Notifications',
     sendCustomTelegram: 'Send Custom Telegram Message',
@@ -425,6 +427,7 @@ const translations: Record<Language, Translations> = {
     error: 'Ошибка',
     tenants: 'Арендаторы',
     notifications: 'Уведомления',
+    notificationPreferences: 'Настройки уведомлений',
     notificationsManagement: 'Управление уведомлениями',
     sendTestNotifications: 'Отправить тестовые уведомления',
     sendCustomTelegram: 'Отправить пользовательское сообщение Telegram',
@@ -629,6 +632,7 @@ const translations: Record<Language, Translations> = {
     error: 'Xato',
     tenants: 'Ijara oluvchilar',
     notifications: 'Xabarnomalar',
+    notificationPreferences: 'Xabarnoma sozlamalari',
     notificationsManagement: 'Xabarnomalarni boshqarish',
     sendTestNotifications: 'Test xabarnomalarini yuborish',
     sendCustomTelegram: 'Maxsus Telegram xabari yuborish',
