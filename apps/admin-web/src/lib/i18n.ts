@@ -253,6 +253,7 @@ export interface Translations {
   searchContracts: string;
   searchPlaceholder: string;
   searchCommands: string;
+  toNavigate: string;
   noResults: string;
   noResultsFound: string;
   getStartedByCreating: string;
@@ -696,6 +697,7 @@ const translations: Record<Language, Translations> = {
     searchContracts: 'Search contracts',
     searchPlaceholder: 'Search contracts by tenant, unit, status, amount...',
     searchCommands: 'Search commands...',
+    toNavigate: 'to navigate',
     noResults: 'No results found',
     noResultsFound: 'No results found',
     getStartedByCreating: 'Get started by creating your first contract',
