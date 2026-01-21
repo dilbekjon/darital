@@ -253,6 +253,7 @@ export interface Translations {
   actionCannotBeUndone: string;
   
   // Search & Filters
+  search: string;
   searchContracts: string;
   searchPlaceholder: string;
   searchCommands: string;
@@ -702,6 +703,7 @@ const translations: Record<Language, Translations> = {
     actionCannotBeUndone: 'This action cannot be undone',
     
     // Search & Filters
+    search: 'Search',
     searchContracts: 'Search contracts',
     searchPlaceholder: 'Search contracts by tenant, unit, status, amount...',
     searchCommands: 'Search commands...',
@@ -1149,6 +1151,7 @@ const translations: Record<Language, Translations> = {
     actionCannotBeUndone: 'Это действие нельзя отменить',
     
     // Search & Filters
+    search: 'Поиск',
     searchContracts: 'Поиск контрактов',
     searchPlaceholder: 'Поиск контрактов по арендатору, квартире, статусу, сумме...',
     searchCommands: 'Поиск команд...',
@@ -1596,6 +1599,7 @@ const translations: Record<Language, Translations> = {
     actionCannotBeUndone: 'Bu amalni bekor qilib bo\'lmaydi',
     
     // Search & Filters
+    search: 'Qidirish',
     searchContracts: 'Shartnomalarni qidirish',
     searchPlaceholder: 'Ijara oluvchi, xona, holat, summa bo\'yicha qidirish...',
     searchCommands: 'Buyruqlarni qidirish...',

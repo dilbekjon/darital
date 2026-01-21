@@ -40,7 +40,7 @@ const TenantDashboard = () => {
         ]);
         setProfile(profileData);
         setBalance(balanceData);
-        setChartData(chartDataResult);
+        setChartData(chartDataResult as ChartData | null);
       } catch (err) {
         console.error(err);
         if (typeof window !== 'undefined' && err instanceof ApiError && err.status === 401) {
