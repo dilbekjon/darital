@@ -32,7 +32,8 @@ export class MinioService {
 
     const strictConfig = () => {
       if (!MINIO_ENDPOINT) throw new InternalServerErrorException('MINIO_ENDPOINT is not set');
-      if (!MINIO_PORT) throw new InternalServerErrorException('MINIO_PORT is not set');
+      // Default port to 9000 if not set (MinIO Play uses 9000)
+      const port = MINIO_PORT ? parseInt(MINIO_PORT, 10) : 9000;
       const accessKeyStrict = MINIO_ACCESS_KEY || MINIO_ROOT_USER;
       const secretKeyStrict = MINIO_SECRET_KEY || MINIO_ROOT_PASSWORD;
       if (!accessKeyStrict) throw new InternalServerErrorException('MINIO_ACCESS_KEY (or MINIO_ROOT_USER) is not set');
@@ -40,7 +41,7 @@ export class MinioService {
       if (!MINIO_BUCKET) throw new InternalServerErrorException('MINIO_BUCKET is not set');
       return {
         endpoint: MINIO_ENDPOINT,
-        port: parseInt(MINIO_PORT, 10),
+        port: port,
         accessKey: accessKeyStrict,
         secretKey: secretKeyStrict,
         bucket: MINIO_BUCKET,
@@ -60,10 +61,12 @@ export class MinioService {
       this.endpoint = cfg.endpoint;
       this.port = cfg.port;
       this.bucket = cfg.bucket;
+      // MinIO Play uses HTTPS, detect by endpoint or explicit SSL setting
+      const useSSL = process.env.MINIO_USE_SSL === 'true' || cfg.endpoint.includes('play.min.io') || cfg.endpoint.includes('min.io');
       this.client = new MinioClient({
         endPoint: this.endpoint,
         port: this.port,
-        useSSL: false,
+        useSSL: useSSL,
         accessKey: cfg.accessKey,
         secretKey: cfg.secretKey,
       });
@@ -88,10 +91,12 @@ export class MinioService {
       this.endpoint = endpoint;
       this.port = port;
       this.bucket = bucket;
+      // MinIO Play uses HTTPS, detect by endpoint or explicit SSL setting
+      const useSSL = process.env.MINIO_USE_SSL === 'true' || endpoint.includes('play.min.io') || endpoint.includes('min.io');
       this.client = new MinioClient({
         endPoint: this.endpoint,
         port: this.port,
-        useSSL: false,
+        useSSL: useSSL,
         accessKey,
         secretKey,
       });
