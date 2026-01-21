@@ -266,6 +266,7 @@ export interface Translations {
   toNavigate: string;
   toSelect: string;
   toOpenCommands: string;
+  openCommandPalette: string;
   noResults: string;
   noResultsFound: string;
   results: string;
@@ -724,6 +725,7 @@ const translations: Record<Language, Translations> = {
     toNavigate: 'to navigate',
     toSelect: 'to select',
     toOpenCommands: 'for commands',
+    openCommandPalette: 'Open command palette',
     noResults: 'No results found',
     noResultsFound: 'No results found',
     results: 'results',
@@ -1180,6 +1182,7 @@ const translations: Record<Language, Translations> = {
     toNavigate: 'для навигации',
     toSelect: 'для выбора',
     toOpenCommands: 'для команд',
+    openCommandPalette: 'Открыть палитру команд',
     noResults: 'Результаты не найдены',
     noResultsFound: 'Результаты не найдены',
     results: 'результатов',
@@ -1635,6 +1638,7 @@ const translations: Record<Language, Translations> = {
     toNavigate: 'navigatsiya qilish',
     toSelect: 'tanlash',
     toOpenCommands: 'buyruqlar uchun',
+    openCommandPalette: 'Buyruq palitrasini ochish',
     noResults: 'Natijalar topilmadi',
     noResultsFound: 'Natijalar topilmadi',
     results: 'natijalar',
