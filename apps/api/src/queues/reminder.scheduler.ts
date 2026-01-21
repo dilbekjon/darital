@@ -24,15 +24,42 @@ function addDays(d: Date, days: number): Date {
 @Injectable()
 export class ReminderScheduler {
   private readonly logger = new Logger(ReminderScheduler.name);
+  private dbReady = false;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {
+    // Check database readiness on initialization
+    this.checkDatabaseReady();
+  }
+
+  async checkDatabaseReady(): Promise<void> {
+    try {
+      this.dbReady = await this.prisma.areCronTablesReady();
+      if (this.dbReady) {
+        this.logger.log('✅ Database tables ready for reminder scheduler');
+      }
+    } catch (error: any) {
+      this.logger.warn(`Database readiness check failed: ${error?.message || error}`);
+      this.dbReady = false;
+    }
+  }
 
   // Runs every day at 09:00
   @Cron('0 9 * * *')
   async scheduleReminders() {
-    const now = new Date();
-    const todayStart = startOfDay(now);
-    const todayEnd = endOfDay(now);
+    // Check database readiness before running
+    if (!this.dbReady) {
+      this.logger.warn('⏸️ Skipping reminder scheduling - database tables not ready. Run migrations: npx prisma migrate deploy');
+      // Re-check in case migrations were applied
+      await this.checkDatabaseReady();
+      if (!this.dbReady) {
+        return;
+      }
+    }
+
+    try {
+      const now = new Date();
+      const todayStart = startOfDay(now);
+      const todayEnd = endOfDay(now);
 
     const threeDays = addDays(todayStart, 3);
     const threeDaysStart = startOfDay(threeDays);
@@ -111,11 +138,22 @@ export class ReminderScheduler {
       return;
     }
 
-    // Enqueue in bulk
-    await notificationQueue.addBulk(
-      jobs.map((data) => ({ name: 'reminder', data }))
-    );
+      // Enqueue in bulk
+      await notificationQueue.addBulk(
+        jobs.map((data) => ({ name: 'reminder', data }))
+      );
 
-    this.logger.log(`Enqueued ${jobs.length} reminder job(s)`);
+      this.logger.log(`Enqueued ${jobs.length} reminder job(s)`);
+    } catch (error: any) {
+      // Handle table not found errors gracefully
+      if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+        this.logger.error(`❌ Database table missing: ${error?.message}`);
+        this.logger.error('   Run migrations: npx prisma migrate deploy');
+        this.dbReady = false;
+        return;
+      }
+      this.logger.error(`Error scheduling reminders: ${error?.message || error}`);
+      throw error;
+    }
   }
 }

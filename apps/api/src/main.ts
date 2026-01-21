@@ -6,6 +6,19 @@ import { AppModule } from './app.module';
 import * as fs from 'fs';
 
 async function bootstrap() {
+  // Run Prisma migrations in production before starting the server
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      console.log('🔄 Running Prisma migrations...');
+      const { execSync } = require('child_process');
+      execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+      console.log('✅ Prisma migrations completed');
+    } catch (error: any) {
+      console.error('❌ Prisma migration failed:', error?.message || error);
+      console.error('   Continuing anyway - migrations may have already been applied');
+    }
+  }
+
   // Handle unhandled promise rejections (like Telegram polling conflicts and database connection errors)
   process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
     if (reason?.response?.error_code === 409 && reason?.on?.method === 'getUpdates') {
@@ -57,8 +70,27 @@ async function bootstrap() {
         'http://localhost:3002',  // Tenant portal (dev)
       ];
   
+  // Log CORS configuration for debugging
+  console.log('🌐 CORS Origins configured:', corsOrigins);
+  
   app.enableCors({
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or Postman)
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      // Check if origin is in allowed list
+      if (corsOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      
+      // Log blocked origins for debugging
+      console.warn(`🚫 CORS blocked origin: ${origin}`);
+      console.warn(`   Allowed origins: ${corsOrigins.join(', ')}`);
+      
+      return callback(new Error('Not allowed by CORS'), false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],

@@ -113,7 +113,7 @@ MINIO_USE_SSL=false
 # MINIO_USE_SSL=true
 
 # Email Configuration (SMTP)
-MAIL_HOST=smtp.gmail.com
+=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USER=your-email@gmail.com
 MAIL_PASS=your-app-password

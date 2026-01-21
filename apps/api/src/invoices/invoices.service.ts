@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -8,6 +8,8 @@ import { ListInvoicesQueryDto } from './dto/list-invoices-query.dto';
 
 @Injectable()
 export class InvoicesService {
+  private readonly logger = new Logger(InvoicesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: ListInvoicesQueryDto) {
@@ -167,15 +169,32 @@ export class InvoicesService {
   // Mark overdue invoices every minute
   @Cron(CronExpression.EVERY_MINUTE)
   async markOverdueInvoices(): Promise<void> {
-    const now = new Date();
-    await this.prisma.invoice.updateMany({
-      where: {
-        dueDate: { lt: now },
-        NOT: { status: InvoiceStatus.PAID },
-        status: { not: InvoiceStatus.OVERDUE },
-      },
-      data: { status: InvoiceStatus.OVERDUE },
-    });
+    try {
+      const now = new Date();
+      await this.prisma.invoice.updateMany({
+        where: {
+          dueDate: { lt: now },
+          NOT: { status: InvoiceStatus.PAID },
+          status: { not: InvoiceStatus.OVERDUE },
+        },
+        data: { status: InvoiceStatus.OVERDUE },
+      });
+    } catch (error: any) {
+      // Handle table not found errors gracefully - don't spam logs
+      if (error?.code === 'P2021' || error?.message?.includes('does not exist')) {
+        // Only log once per minute to avoid spam
+        const lastLogTime = (this as any).__lastTableErrorLog || 0;
+        const now = Date.now();
+        if (now - lastLogTime > 60000) { // Log at most once per minute
+          this.logger.warn(`⚠️ Invoice table not ready: ${error?.message}`);
+          this.logger.warn('   Run migrations: npx prisma migrate deploy');
+          (this as any).__lastTableErrorLog = now;
+        }
+        return;
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   /**

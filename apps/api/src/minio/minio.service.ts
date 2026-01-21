@@ -14,6 +14,7 @@ export class MinioService {
   private bucket: string;
   private endpoint: string;
   private port: number;
+  private useSSL: boolean;
   private readonly enabled: boolean;
 
   constructor() {
@@ -30,21 +31,65 @@ export class MinioService {
     const nodeEnv = process.env.NODE_ENV;
     const isProd = nodeEnv === 'production';
 
+    // Helper to parse endpoint URL (handles full URLs like https://host.com/path)
+    const parseEndpoint = (endpoint: string): { host: string; port: number; useSSL: boolean; bucketFromPath?: string } => {
+      try {
+        // If endpoint is a full URL, parse it
+        if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+          const url = new URL(endpoint);
+          const host = url.hostname;
+          const protocol = url.protocol;
+          const pathname = url.pathname;
+          
+          // Extract bucket from path if present (e.g., /darital)
+          const bucketFromPath = pathname && pathname !== '/' ? pathname.replace(/^\//, '') : undefined;
+          
+          // Determine port from URL or use provided MINIO_PORT
+          let port = MINIO_PORT ? parseInt(MINIO_PORT, 10) : (url.port ? parseInt(url.port, 10) : undefined);
+          
+          // Default ports based on protocol
+          if (!port) {
+            port = protocol === 'https:' ? 443 : 80;
+          }
+          
+          const useSSL = protocol === 'https:' || process.env.MINIO_USE_SSL === 'true';
+          
+          return { host, port, useSSL, bucketFromPath };
+        } else {
+          // Plain hostname, use provided port or default
+          const port = MINIO_PORT ? parseInt(MINIO_PORT, 10) : 9000;
+          const useSSL = process.env.MINIO_USE_SSL === 'true' || endpoint.includes('play.min.io') || endpoint.includes('r2.cloudflarestorage.com');
+          return { host: endpoint, port, useSSL };
+        }
+      } catch (error) {
+        // If parsing fails, treat as plain hostname
+        const port = MINIO_PORT ? parseInt(MINIO_PORT, 10) : 9000;
+        const useSSL = process.env.MINIO_USE_SSL === 'true';
+        return { host: endpoint, port, useSSL };
+      }
+    };
+
     const strictConfig = () => {
       if (!MINIO_ENDPOINT) throw new InternalServerErrorException('MINIO_ENDPOINT is not set');
-      // Default port to 9000 if not set (MinIO Play uses 9000)
-      const port = MINIO_PORT ? parseInt(MINIO_PORT, 10) : 9000;
+      
+      const parsed = parseEndpoint(MINIO_ENDPOINT);
       const accessKeyStrict = MINIO_ACCESS_KEY || MINIO_ROOT_USER;
       const secretKeyStrict = MINIO_SECRET_KEY || MINIO_ROOT_PASSWORD;
+      
       if (!accessKeyStrict) throw new InternalServerErrorException('MINIO_ACCESS_KEY (or MINIO_ROOT_USER) is not set');
       if (!secretKeyStrict) throw new InternalServerErrorException('MINIO_SECRET_KEY (or MINIO_ROOT_PASSWORD) is not set');
-      if (!MINIO_BUCKET) throw new InternalServerErrorException('MINIO_BUCKET is not set');
+      
+      // Use bucket from env, or from URL path, or throw error
+      const bucket = MINIO_BUCKET || parsed.bucketFromPath;
+      if (!bucket) throw new InternalServerErrorException('MINIO_BUCKET is not set and could not be extracted from endpoint URL');
+      
       return {
-        endpoint: MINIO_ENDPOINT,
-        port: port,
+        endpoint: parsed.host,
+        port: parsed.port,
+        useSSL: parsed.useSSL,
         accessKey: accessKeyStrict,
         secretKey: secretKeyStrict,
-        bucket: MINIO_BUCKET,
+        bucket: bucket,
       };
     };
 
@@ -61,22 +106,23 @@ export class MinioService {
       this.endpoint = cfg.endpoint;
       this.port = cfg.port;
       this.bucket = cfg.bucket;
-      // MinIO Play uses HTTPS, detect by endpoint or explicit SSL setting
-      const useSSL = process.env.MINIO_USE_SSL === 'true' || cfg.endpoint.includes('play.min.io') || cfg.endpoint.includes('min.io');
+      this.useSSL = cfg.useSSL;
       this.client = new MinioClient({
         endPoint: this.endpoint,
         port: this.port,
-        useSSL: useSSL,
+        useSSL: cfg.useSSL,
         accessKey: cfg.accessKey,
         secretKey: cfg.secretKey,
       });
       this.enabled = true;
     } else {
-      const endpoint = MINIO_ENDPOINT || devDefaults.endpoint;
-      const port = parseInt(MINIO_PORT || `${devDefaults.port}`, 10);
+      const endpointRaw = MINIO_ENDPOINT || devDefaults.endpoint;
+      const parsed = parseEndpoint(endpointRaw);
+      const endpoint = parsed.host;
+      const port = parsed.port;
       const accessKey = MINIO_ACCESS_KEY || MINIO_ROOT_USER || devDefaults.accessKey;
       const secretKey = MINIO_SECRET_KEY || MINIO_ROOT_PASSWORD || devDefaults.secretKey;
-      const bucket = MINIO_BUCKET || devDefaults.bucket;
+      const bucket = MINIO_BUCKET || parsed.bucketFromPath || devDefaults.bucket;
 
       if (!endpoint || !port || !accessKey || !secretKey || !bucket) {
         this.logger.warn('MinIO env not set and defaults unavailable; MinIO is disabled for dev. Uploads will fail.');
@@ -91,12 +137,11 @@ export class MinioService {
       this.endpoint = endpoint;
       this.port = port;
       this.bucket = bucket;
-      // MinIO Play uses HTTPS, detect by endpoint or explicit SSL setting
-      const useSSL = process.env.MINIO_USE_SSL === 'true' || endpoint.includes('play.min.io') || endpoint.includes('min.io');
+      this.useSSL = parsed.useSSL;
       this.client = new MinioClient({
         endPoint: this.endpoint,
         port: this.port,
-        useSSL: useSSL,
+        useSSL: parsed.useSSL,
         accessKey,
         secretKey,
       });
@@ -157,7 +202,10 @@ export class MinioService {
     await this.ensureBucket();
     const meta = { 'Content-Type': contentType || 'application/octet-stream' } as any;
     await this.client.putObject(this.bucket, objectName, buffer, undefined, meta);
-    const url = `http://${this.endpoint}:${this.port}/${this.bucket}/${encodeURIComponent(objectName)}`;
+    const protocol = this.useSSL ? 'https' : 'http';
+    // Don't include port in URL if it's standard (80 for HTTP, 443 for HTTPS)
+    const portPart = (this.useSSL && this.port === 443) || (!this.useSSL && this.port === 80) ? '' : `:${this.port}`;
+    const url = `${protocol}://${this.endpoint}${portPart}/${this.bucket}/${encodeURIComponent(objectName)}`;
     return { bucket: this.bucket, objectName, url };
   }
 
@@ -182,7 +230,10 @@ export class MinioService {
       const objectName = `${Date.now()}-${safeName}`;
       const meta = { 'Content-Type': file.mimetype || 'application/pdf' } as any;
       await this.client.putObject(useBucket, objectName, file.buffer, undefined, meta);
-      return `http://${this.endpoint}:${this.port}/${useBucket}/${encodeURIComponent(objectName)}`;
+      const protocol = this.useSSL ? 'https' : 'http';
+      // Don't include port in URL if it's standard (80 for HTTP, 443 for HTTPS)
+      const portPart = (this.useSSL && this.port === 443) || (!this.useSSL && this.port === 80) ? '' : `:${this.port}`;
+      return `${protocol}://${this.endpoint}${portPart}/${useBucket}/${encodeURIComponent(objectName)}`;
     } catch (err: any) {
       this.logger.error(`MinIO upload failed: ${err?.message || err}`);
       throw err;

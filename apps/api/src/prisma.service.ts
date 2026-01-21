@@ -64,6 +64,43 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await app.close();
     });
   }
+
+  /**
+   * Check if required database tables exist
+   * Returns true if all tables exist, false otherwise
+   */
+  async checkTablesExist(tables: string[]): Promise<boolean> {
+    try {
+      // Use raw query to check table existence
+      const existingTables = await this.$queryRaw<Array<{ tablename: string }>>`
+        SELECT tablename 
+        FROM pg_tables 
+        WHERE schemaname = 'public' 
+        AND tablename = ANY(${tables})
+      `;
+      
+      const existingTableNames = existingTables.map(t => t.tablename.toLowerCase());
+      const missingTables = tables.filter(t => !existingTableNames.includes(t.toLowerCase()));
+      
+      if (missingTables.length > 0) {
+        this.logger.warn(`⚠️ Missing database tables: ${missingTables.join(', ')}`);
+        this.logger.warn(`   Run migrations: npx prisma migrate deploy`);
+        return false;
+      }
+      
+      return true;
+    } catch (error: any) {
+      this.logger.error(`Error checking tables: ${error?.message || error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Check if Invoice and Payment tables exist (most critical for cron jobs)
+   */
+  async areCronTablesReady(): Promise<boolean> {
+    return this.checkTablesExist(['Invoice', 'Payment']);
+  }
 }
 
 

@@ -36,13 +36,15 @@ Add these in your Render dashboard for the API service:
 # Port (Render sets this automatically)
 PORT=10000
 
-# MinIO Play (Free Public MinIO Server)
-MINIO_ENDPOINT=play.min.io
-MINIO_PORT=9000
-MINIO_USE_SSL=true
-MINIO_ACCESS_KEY=Q3AM3UQ867SPQQA43P2F
+# Cloudflare R2 Storage (Production)
+MINIO_ENDPOINT=https://3221035d27000c87b4eecb27c53050dd.r2.cloudflarestorage.com/darital
+MINIO_PORT=443
+MINIO_ACCESS_KEY=shepqoyov@gmail.com
 MINIO_SECRET_KEY=zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG
-MINIO_BUCKET=contracts
+MINIO_BUCKET=darital
+
+# Note: The endpoint URL includes the bucket path (/darital), but MINIO_BUCKET should still be set.
+# The service will automatically extract the hostname and detect SSL from the https:// protocol.
 
 # Database (REQUIRED - set your own)
 DATABASE_URL=your_database_url_here
