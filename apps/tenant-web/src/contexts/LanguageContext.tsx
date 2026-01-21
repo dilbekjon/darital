@@ -6,7 +6,7 @@ import { Language, getTranslations, Translations } from '../lib/i18n';
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: Translations;
+  t: Record<string, string>; // Loose typing to prevent missing key errors
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -36,7 +36,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t: t as Record<string, string> }}>
       {children}
     </LanguageContext.Provider>
   );

@@ -42,6 +42,10 @@ export interface Translations {
   
   // Dashboard
   goToDashboard: string;
+  goToTenants: string;
+  goToUnits: string;
+  goToContracts: string;
+  goToPayments: string;
   welcomeBack: string;
   premiumOverview: string;
   propertyOverview: string;
@@ -467,6 +471,9 @@ const translations: Record<Language, Translations> = {
     navigation: 'Navigation',
     dashboard: 'Home',
     goToDashboard: 'Go to Dashboard',
+    goToTenants: 'Go to Tenants',
+    goToUnits: 'Go to Units',
+    goToContracts: 'Go to Contracts',
     invoices: 'Invoices',
     payments: 'Payments',
     balance: 'Balance',
@@ -924,6 +931,10 @@ const translations: Record<Language, Translations> = {
     navigation: 'Навигация',
     dashboard: 'Главная',
     goToDashboard: 'Перейти на главную',
+    goToTenants: 'Перейти к арендаторам',
+    goToUnits: 'Перейти к квартирам',
+    goToContracts: 'Перейти к контрактам',
+    goToPayments: 'Перейти к платежам',
     invoices: 'Счета',
     payments: 'Платежи',
     balance: 'Баланс',
@@ -1381,6 +1392,8 @@ const translations: Record<Language, Translations> = {
     navigation: 'Navigatsiya',
     dashboard: 'Bosh sahifa',
     goToDashboard: 'Bosh sahifaga o\'tish',
+    goToTenants: 'Ijara oluvchilarga o\'tish',
+    goToUnits: 'Xonalarga o\'tish',
     invoices: 'Hisob-fakturalar',
     payments: 'To\'lovlar',
     balance: 'Balans',

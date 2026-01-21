@@ -15,6 +15,7 @@ export interface Translations {
   error: string;
   tenants: string;
   notifications: string;
+  markAllRead: string;
   notificationPreferences: string;
   chooseChannels: string;
   notificationsManagement: string;
@@ -44,6 +45,7 @@ export interface Translations {
   paymentHistory: string;
   viewTransactions: string;
   getSupport: string;
+  support: string;
   contactUs: string;
   
   // Invoices
@@ -94,6 +96,9 @@ export interface Translations {
   receiptError: string;
   preferencesSaved: string;
   saveError: string;
+  saving: string;
+  saveChanges: string;
+  quickLinks: string;
   settings: string;
   managePreferences: string;
   documentsDescription: string;
@@ -252,6 +257,7 @@ const translations: Record<Language, Translations> = {
     paymentHistory: 'Payment History',
     viewTransactions: 'View transactions',
     getSupport: 'Get Support',
+    support: 'Contact Support',
     contactUs: 'Contact us',
     
     // Invoices
@@ -302,6 +308,9 @@ const translations: Record<Language, Translations> = {
     receiptError: 'Failed to load receipt',
     preferencesSaved: 'Preferences saved successfully!',
     saveError: 'Failed to save preferences',
+    saving: 'Saving...',
+    saveChanges: 'Save Changes',
+    quickLinks: 'Quick Links',
     settings: 'Settings',
     managePreferences: 'Manage Preferences',
     documentsDescription: 'View and download your lease agreements, receipts, and other documents',
@@ -458,6 +467,7 @@ const translations: Record<Language, Translations> = {
     paymentHistory: 'История платежей',
     viewTransactions: 'Просмотр транзакций',
     getSupport: 'Получить поддержку',
+    support: 'Связаться с поддержкой',
     contactUs: 'Свяжитесь с нами',
     
     // Invoices
@@ -508,6 +518,9 @@ const translations: Record<Language, Translations> = {
     receiptError: 'Не удалось загрузить квитанцию',
     preferencesSaved: 'Настройки успешно сохранены!',
     saveError: 'Не удалось сохранить настройки',
+    saving: 'Сохранение...',
+    saveChanges: 'Сохранить изменения',
+    quickLinks: 'Быстрые ссылки',
     settings: 'Настройки',
     managePreferences: 'Управление настройками',
     documentsDescription: 'Просмотр и загрузка договоров аренды, квитанций и других документов',
@@ -664,6 +677,7 @@ const translations: Record<Language, Translations> = {
     paymentHistory: 'To\'lovlar tarixi',
     viewTransactions: 'Tranzaksiyalarni ko\'rish',
     getSupport: 'Yordam olish',
+    support: 'Yordam bilan bog\'lanish',
     contactUs: 'Biz bilan bog\'laning',
     
     // Invoices
@@ -714,6 +728,9 @@ const translations: Record<Language, Translations> = {
     receiptError: 'Kvitansiyani yuklab bo\'lmadi',
     preferencesSaved: 'Sozlamalar muvaffaqiyatli saqlandi!',
     saveError: 'Sozlamalarni saqlab bo\'lmadi',
+    saving: 'Saqlanmoqda...',
+    saveChanges: 'O\'zgarishlarni saqlash',
+    quickLinks: 'Tezkor havolalar',
     settings: 'Sozlamalar',
     managePreferences: 'Sozlamalarni boshqarish',
     documentsDescription: 'Ijara shartnomalari, kvitansiyalar va boshqa hujjatlarni ko\'rish va yuklab olish',
