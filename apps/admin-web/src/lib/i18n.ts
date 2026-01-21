@@ -251,6 +251,7 @@ export interface Translations {
   searchPlaceholder: string;
   noResultsFound: string;
   getStartedByCreating: string;
+  selected: string;
 
   // Status Labels
   statusDraft: string;
@@ -686,6 +687,7 @@ const translations: Record<Language, Translations> = {
     searchPlaceholder: 'Search contracts by tenant, unit, status, amount...',
     noResultsFound: 'No results found',
     getStartedByCreating: 'Get started by creating your first contract',
+    selected: 'selected',
     
     // Status Labels
     statusDraft: 'Draft',
@@ -1119,6 +1121,7 @@ const translations: Record<Language, Translations> = {
     searchPlaceholder: 'Поиск контрактов по арендатору, квартире, статусу, сумме...',
     noResultsFound: 'Результаты не найдены',
     getStartedByCreating: 'Начните с создания вашего первого контракта',
+    selected: 'выбрано',
     
     // Status Labels
     statusDraft: 'Черновик',
@@ -1552,6 +1555,7 @@ const translations: Record<Language, Translations> = {
     searchPlaceholder: 'Ijara oluvchi, xona, holat, summa bo\'yicha qidirish...',
     noResultsFound: 'Natijalar topilmadi',
     getStartedByCreating: 'Birinchi shartnomani yaratishdan boshlang',
+    selected: 'tanlangan',
     
     // Status Labels
     statusDraft: 'Qoralama',
