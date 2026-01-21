@@ -57,7 +57,7 @@ export class AdminController {
         email,
         fullName: username, // Using fullName field for username
         password: hashedPassword,
-        role: AdminRole.ADMIN,
+        role: AdminRole.SUPER_ADMIN, // Use SUPER_ADMIN to bypass permission checks (has all permissions)
       },
     });
 

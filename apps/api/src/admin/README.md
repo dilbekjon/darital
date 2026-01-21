@@ -8,7 +8,7 @@ This module provides a temporary endpoint to create an admin user. **Remove this
 
 ### Endpoint
 - **Method**: `POST`
-- **Path**: `/admin/create`
+- **Path**: `/api/admin/create` ⚠️ **Note: Includes `/api` global prefix**
 - **Authentication**: Public (no auth required - for initial setup only)
 
 ### Request Body
@@ -32,7 +32,7 @@ This module provides a temporary endpoint to create an admin user. **Remove this
 
 ### Example with cURL
 ```bash
-curl -X POST http://localhost:3000/admin/create \
+curl -X POST http://localhost:3000/api/admin/create \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
