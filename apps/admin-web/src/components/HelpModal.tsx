@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 
 interface ShortcutGroup {
   title: string;
@@ -12,7 +12,7 @@ interface ShortcutGroup {
 const HelpModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { darkMode } = useTheme();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
 
   const shortcutGroups: ShortcutGroup[] = [
     {

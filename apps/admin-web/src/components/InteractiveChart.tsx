@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 
 export interface ChartDataPoint {
   label: string;
@@ -36,7 +36,7 @@ const InteractiveChart: React.FC<InteractiveChartProps> = ({
   formatValue = (v) => v.toLocaleString(),
 }) => {
   const { darkMode } = useTheme();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showDrillDown, setShowDrillDown] = useState(false);

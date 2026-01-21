@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createTenantPaymentIntent, getTenantInvoices } from '../../lib/tenantApi';
 import { ApiError } from '../../lib/api';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../i18n/useUntypedTranslations';
 import { useTheme } from '../../contexts/ThemeContext';
 // Removed local Navbar; using global header
 
@@ -13,7 +13,7 @@ const InvoicePage = () => {
   const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const router = useRouter();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
 
   // Helper to calculate days until/after due date

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 
 interface ReceiptData {
   receipt: {
@@ -57,7 +57,7 @@ interface ReceiptDownloadProps {
 
 const ReceiptDownload: React.FC<ReceiptDownloadProps> = ({ receiptData, onClose }) => {
   const { darkMode } = useTheme();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const [downloading, setDownloading] = useState(false);
 
   const formatCurrency = (value: number) => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, KeyboardEvent } from 'react';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 
 interface StartChatModalProps {
   open: boolean;
@@ -10,7 +10,7 @@ interface StartChatModalProps {
 }
 
 export function StartChatModal({ open, onClose, onSubmit }: StartChatModalProps) {
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const [topic, setTopic] = useState('');
   const [error, setError] = useState('');
 

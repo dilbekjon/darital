@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 import { fetchApi } from '../lib/api';
 
 interface ExportButtonProps {
@@ -19,7 +19,7 @@ const ExportButton: React.FC<ExportButtonProps> = ({
   label,
 }) => {
   const { darkMode } = useTheme();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {

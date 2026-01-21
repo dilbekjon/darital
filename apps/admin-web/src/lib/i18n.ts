@@ -469,7 +469,7 @@ export interface Translations {
   templateReset: string;
 }
 
-const translations: Record<Language, Translations> = {
+const translations: Record<Language, Record<string, string>> = {
   en: {
     // Navigation & Common
     home: 'Home',
@@ -737,6 +737,7 @@ const translations: Record<Language, Translations> = {
     searchContracts: 'Search contracts',
     searchPlaceholder: 'Search contracts by tenant, unit, status, amount...',
     searchCommands: 'Search commands...',
+    focusSearch: 'Focus search',
     toNavigate: 'to navigate',
     toSelect: 'to select',
     toOpenCommands: 'for commands',
@@ -1202,6 +1203,7 @@ const translations: Record<Language, Translations> = {
     searchContracts: 'Поиск контрактов',
     searchPlaceholder: 'Поиск контрактов по арендатору, квартире, статусу, сумме...',
     searchCommands: 'Поиск команд...',
+    focusSearch: 'Фокус на поиске',
     toNavigate: 'для навигации',
     toSelect: 'для выбора',
     toOpenCommands: 'для команд',
@@ -1664,6 +1666,7 @@ const translations: Record<Language, Translations> = {
     searchContracts: 'Shartnomalarni qidirish',
     searchPlaceholder: 'Ijara oluvchi, xona, holat, summa bo\'yicha qidirish...',
     searchCommands: 'Buyruqlarni qidirish...',
+    focusSearch: 'Qidiruvga e\'tibor berish',
     toNavigate: 'navigatsiya qilish',
     toSelect: 'tanlash',
     toOpenCommands: 'buyruqlar uchun',
@@ -1862,7 +1865,7 @@ const translations: Record<Language, Translations> = {
   },
 };
 
-export function getTranslations(lang: Language): Translations {
+export function getTranslations(lang: Language): Record<string, string> {
   return translations[lang] || translations.uz;
 }
 

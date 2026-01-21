@@ -1,6 +1,6 @@
 'use client';
 
-import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface SystemStatusProps {
@@ -8,7 +8,7 @@ interface SystemStatusProps {
 }
 
 export default function SystemStatus({ className = '' }: SystemStatusProps) {
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
 
   return (

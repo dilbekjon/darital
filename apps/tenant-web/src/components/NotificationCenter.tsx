@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 import { fetchTenantApi } from '../lib/api';
 
 interface Notification {
@@ -17,7 +17,7 @@ interface Notification {
 
 const NotificationCenter: React.FC = () => {
   const { darkMode } = useTheme();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);

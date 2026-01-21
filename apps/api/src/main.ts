@@ -93,17 +93,19 @@ async function bootstrap() {
     res.redirect(302, '/docs');
   });
   
-  const port = process.env.PORT || 3001;
+  // Use Render-provided port or fallback to 3000
+  const port = process.env.PORT || 3000;
   
   try {
-    await app.listen(port);
+    await app.listen(port, '0.0.0.0');
     console.log('');
     console.log('═══════════════════════════════════════════════════════════');
     console.log('🚀 API SERVER STARTED SUCCESSFULLY');
     console.log('═══════════════════════════════════════════════════════════');
-    console.log(`📍 API URL: http://localhost:${port}`);
-    console.log(`📚 Swagger docs: http://localhost:${port}/docs`);
+    console.log(`📍 API URL: http://0.0.0.0:${port}`);
+    console.log(`📚 Swagger docs: http://0.0.0.0:${port}/docs`);
     console.log(`💬 Chat routes: /api/conversations`);
+    console.log(`🌐 Listening on port ${port}`);
     console.log('═══════════════════════════════════════════════════════════');
     console.log('');
   } catch (error: any) {

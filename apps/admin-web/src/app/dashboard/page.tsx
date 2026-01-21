@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../i18n/useUntypedTranslations';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../contexts/ToastContext';
 import { fetchApi, ApiError, normalizeListResponse } from '../../lib/api';
@@ -27,7 +27,7 @@ interface DashboardStats {
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading, hasPermission } = useAuth();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
   const { showToast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);

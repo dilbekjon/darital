@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTenantInvoices } from '../../../lib/tenantApi';
 import { ApiError } from '../../../lib/api';
-import { useLanguage } from '../../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
 // Removed local Navbar; using global header
 
@@ -11,7 +11,7 @@ const InvoicePage = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
 
   useEffect(() => {

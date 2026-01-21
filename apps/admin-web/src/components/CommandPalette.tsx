@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 import { useAuth } from '../contexts/AuthContext';
 
 interface CommandItem {
@@ -23,7 +24,8 @@ const CommandPalette: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { darkMode, toggleTheme } = useTheme();
-  const { t, language, setLanguage } = useLanguage();
+  const { language, setLanguage } = useLanguage();
+  const t = useUntypedTranslations();
   const { hasPermission } = useAuth();
 
   // Define all commands

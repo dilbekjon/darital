@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 
 interface ChartData {
   month: string;
@@ -26,7 +26,7 @@ interface PaymentChartProps {
 
 const PaymentChart: React.FC<PaymentChartProps> = ({ chartData, summary }) => {
   const { darkMode } = useTheme();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
 
   const maxValue = Math.max(...chartData.map(d => Math.max(d.paid, d.due)), 1);

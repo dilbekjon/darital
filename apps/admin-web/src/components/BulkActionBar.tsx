@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 
 interface BulkAction {
   label: string;
@@ -24,7 +24,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
   actions,
 }) => {
   const { darkMode } = useTheme();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
 
   if (selectedCount === 0) return null;
 

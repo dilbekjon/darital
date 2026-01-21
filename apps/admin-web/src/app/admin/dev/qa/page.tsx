@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../../contexts/AuthContext';
-import { useLanguage } from '../../../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../../contexts/ThemeContext';
 import { NoAccess } from '../../../../components/common/NoAccess';
 import { Breadcrumbs } from '../../../../components/Breadcrumbs';
@@ -27,7 +27,7 @@ interface PaymentFlowResult {
 
 export default function DevQAPage() {
   const { user, loading, hasPermission } = useAuth();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
   const router = useRouter();
   const [pageLoading, setPageLoading] = useState(true);

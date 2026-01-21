@@ -98,7 +98,7 @@ export interface ArchivedMessage {
  * Get archive summary and statistics
  */
 export async function getArchiveSummary(): Promise<ArchiveSummary> {
-  return fetchApi('/archive/summary');
+  return fetchApi('/archive/summary') as Promise<ArchiveSummary>;
 }
 
 /**
@@ -146,21 +146,21 @@ export async function restoreArchivedConversation(archivedId: string): Promise<a
  * Get archived tenants
  */
 export async function getArchivedTenants(): Promise<ArchivedTenant[]> {
-  return fetchApi('/tenants?includeArchived=true&onlyArchived=true');
+  return fetchApi('/tenants?includeArchived=true&onlyArchived=true') as Promise<ArchivedTenant[]>;
 }
 
 /**
  * Get archived contracts
  */
 export async function getArchivedContracts(): Promise<ArchivedContract[]> {
-  return fetchApi('/contracts?includeArchived=true&onlyArchived=true');
+  return fetchApi('/contracts?includeArchived=true&onlyArchived=true') as Promise<ArchivedContract[]>;
 }
 
 /**
  * Get archived invoices
  */
 export async function getArchivedInvoices(): Promise<ArchivedInvoice[]> {
-  const response = await fetchApi('/invoices?includeArchived=true&onlyArchived=true&page=1&limit=1000');
+  const response = await fetchApi('/invoices?includeArchived=true&onlyArchived=true&page=1&limit=1000') as any;
   return response.data || [];
 }
 
@@ -168,7 +168,7 @@ export async function getArchivedInvoices(): Promise<ArchivedInvoice[]> {
  * Get archived payments
  */
 export async function getArchivedPayments(): Promise<ArchivedPayment[]> {
-  const response = await fetchApi('/payments?includeArchived=true&onlyArchived=true&page=1&limit=1000');
+  const response = await fetchApi('/payments?includeArchived=true&onlyArchived=true&page=1&limit=1000') as any;
   return response.data || [];
 }
 

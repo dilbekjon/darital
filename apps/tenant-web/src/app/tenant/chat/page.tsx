@@ -11,11 +11,11 @@ import {
   type Message,
 } from '../../../lib/chatApi';
 import { StartChatModal } from '../../../components/StartChatModal';
-import { useLanguage } from '../../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import TenantNavbar from '../../../components/TenantNavbar';
 
 export default function TenantChatPage() {
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);

@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTenantPayments, refreshTenantPayment } from '../../../lib/tenantApi';
 import { ApiError, fetchTenantApi } from '../../../lib/api';
-import { useLanguage } from '../../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
 import TenantNavbar from '../../../components/TenantNavbar';
 import DaritalLoader from '../../../components/DaritalLoader';
@@ -17,7 +17,7 @@ const PaymentsPage = () => {
   const [receiptData, setReceiptData] = useState<any>(null);
   const [loadingReceipt, setLoadingReceipt] = useState<string | null>(null);
   const router = useRouter();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
 
   const handleDownloadReceipt = async (paymentId: string) => {

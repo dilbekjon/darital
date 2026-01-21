@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getContractById } from '../../../lib/tenantApi';
 import { ApiError } from '../../../lib/api';
-import { useLanguage } from '../../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
 
 interface Contract {
@@ -25,7 +25,7 @@ const ContractPdfPage = () => {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const params = useParams();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
   
   const contractId = params?.contractId as string;

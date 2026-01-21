@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Language, languageNames, languageFlags } from '../lib/i18n';
@@ -30,7 +31,8 @@ function getSectionName(pathname: string, t: any): string {
 }
 
 export default function GlobalHeader() {
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage } = useLanguage();
+  const t = useUntypedTranslations();
   const { theme, toggleTheme, darkMode } = useTheme();
   const { user } = useAuth();
   const pathname = usePathname();

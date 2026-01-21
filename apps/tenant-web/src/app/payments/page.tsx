@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTenantPayments, refreshTenantPayment } from '../../lib/tenantApi';
 import { ApiError } from '../../lib/api';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../i18n/useUntypedTranslations';
 import { useTheme } from '../../contexts/ThemeContext';
 import DaritalLoader from '../../components/DaritalLoader';
 // Removed local Navbar; using global header
@@ -12,7 +12,7 @@ const PaymentsPage = () => {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
 
   useEffect(() => {

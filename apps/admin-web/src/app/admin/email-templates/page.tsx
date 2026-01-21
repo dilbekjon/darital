@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useLanguage } from '../../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { Language } from '../../../lib/i18n';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { NoAccess } from '../../../components/common/NoAccess';
@@ -41,7 +42,8 @@ interface PreviewResult {
 
 export default function EmailTemplatesPage() {
   const { user, loading, hasPermission } = useAuth();
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);

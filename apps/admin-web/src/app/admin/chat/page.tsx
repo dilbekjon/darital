@@ -12,7 +12,7 @@ import {
   type Conversation,
   type Message,
 } from '../../../lib/chatApi';
-import { useLanguage } from '../../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { NoAccess } from '../../../components/common/NoAccess';
@@ -20,7 +20,7 @@ import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import DaritalLoader from '../../../components/DaritalLoader';
 
 export default function AdminChatPage() {
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
   const router = useRouter();
   const { user, loading: authLoading, hasPermission } = useAuth();

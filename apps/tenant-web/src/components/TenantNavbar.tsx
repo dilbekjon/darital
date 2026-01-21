@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 import { useTheme } from '../contexts/ThemeContext';
 import { useState } from 'react';
 import { Language, languageNames, languageFlags } from '../lib/i18n';
@@ -11,7 +12,8 @@ import NotificationCenter from './NotificationCenter';
 export default function TenantNavbar() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { language, setLanguage, t } = useLanguage();
+  const { language, setLanguage } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode, toggleTheme } = useTheme();
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);

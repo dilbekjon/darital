@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useLanguage } from '../../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { NoAccess } from '../../../components/common/NoAccess';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
@@ -31,7 +31,7 @@ import DaritalLoader from '../../../components/DaritalLoader';
 
 export default function ArchiveManagementPage() {
   const { user, loading, hasPermission } = useAuth();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
   const [summary, setSummary] = useState<ArchiveSummary | null>(null);
   const [pageLoading, setPageLoading] = useState(true);

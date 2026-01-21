@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 import { useTheme } from '../contexts/ThemeContext';
 import { useUnreadChatCount } from '../hooks/useUnreadChatCount';
 import { usePendingPaymentsCount } from '../hooks/usePendingPaymentsCount';
@@ -22,7 +22,7 @@ interface SidebarSection {
 
 export function AdminSidebar() {
   const { hasPermission, user, loading } = useAuth();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);

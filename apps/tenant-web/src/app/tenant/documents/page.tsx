@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLanguage } from '../../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
 import TenantNavbar from '../../../components/TenantNavbar';
 import Breadcrumbs from '../../../components/Breadcrumbs';
@@ -33,7 +33,7 @@ const DocumentsPage = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('ALL');
   const router = useRouter();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
 
   useEffect(() => {

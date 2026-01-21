@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTenantProfile, getTenantBalance } from '../../lib/tenantApi';
 import { ApiError, fetchTenantApi } from '../../lib/api';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../i18n/useUntypedTranslations';
 import { useTheme } from '../../contexts/ThemeContext';
 import TenantNavbar from '../../components/TenantNavbar';
 import DaritalLoader from '../../components/DaritalLoader';
@@ -27,7 +27,7 @@ const TenantDashboard = () => {
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
 
   useEffect(() => {

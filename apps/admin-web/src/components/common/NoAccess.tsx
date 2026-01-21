@@ -1,10 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { useUntypedTranslations } from '../../i18n/useUntypedTranslations';
 import { useTheme } from '../../contexts/ThemeContext';
 
 export function NoAccess() {
-  const { t } = useLanguage();
+  const t = useUntypedTranslations();
   const { darkMode } = useTheme();
 
   return (
