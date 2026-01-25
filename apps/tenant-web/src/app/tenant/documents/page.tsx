@@ -8,6 +8,7 @@ import TenantNavbar from '../../../components/TenantNavbar';
 import Breadcrumbs from '../../../components/Breadcrumbs';
 import DaritalLoader from '../../../components/DaritalLoader';
 import { fetchTenantApi, ApiError } from '../../../lib/api';
+import ReceiptDownload from '../../../components/ReceiptDownload';
 
 interface Document {
   id: string;
@@ -32,6 +33,8 @@ const DocumentsPage = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('ALL');
+  const [receiptData, setReceiptData] = useState<any>(null);
+  const [loadingReceipt, setLoadingReceipt] = useState<string | null>(null);
   const router = useRouter();
   const t = useUntypedTranslations();
   const { darkMode } = useTheme();
@@ -199,18 +202,59 @@ const DocumentsPage = () => {
                     </div>
 
                     {/* Download button */}
-                    <a
-                      href={doc.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`w-full py-2 px-4 rounded-lg font-medium text-center flex items-center justify-center gap-2 transition-all ${
-                        darkMode
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white'
-                      }`}
-                    >
-                      📥 {t.download || 'Download'}
-                    </a>
+                    {doc.type === 'PAYMENT_RECEIPT' ? (
+                      <button
+                        onClick={async () => {
+                          setLoadingReceipt(doc.id);
+                          try {
+                            // Extract payment ID from fileUrl (format: /api/receipts/payment/{paymentId})
+                            const paymentId = doc.fileUrl.split('/').pop();
+                            if (!paymentId) {
+                              throw new Error('Payment ID not found');
+                            }
+                            
+                            // Fetch receipt data using tenant API
+                            const data = await fetchTenantApi(`/tenant/receipts/payment/${paymentId}`);
+                            setReceiptData(data);
+                          } catch (err) {
+                            console.error('Failed to load receipt:', err);
+                            alert(t.receiptError || 'Kvitansiyani yuklab bo\'lmadi');
+                          } finally {
+                            setLoadingReceipt(null);
+                          }
+                        }}
+                        disabled={loadingReceipt === doc.id}
+                        className={`w-full py-2 px-4 rounded-lg font-medium text-center flex items-center justify-center gap-2 transition-all ${
+                          loadingReceipt === doc.id
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : darkMode
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                      >
+                        {loadingReceipt === doc.id ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            {t.loading || 'Yuklanmoqda...'}
+                          </>
+                        ) : (
+                          <>📥 {t.download || 'Yuklab olish'}</>
+                        )}
+                      </button>
+                    ) : (
+                      <a
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`w-full py-2 px-4 rounded-lg font-medium text-center flex items-center justify-center gap-2 transition-all ${
+                          darkMode
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                      >
+                        📥 {t.download || 'Yuklab olish'}
+                      </a>
+                    )}
                   </div>
                 );
               })}
@@ -263,6 +307,14 @@ const DocumentsPage = () => {
           )}
         </div>
       </div>
+      
+      {/* Receipt Download Modal */}
+      {receiptData && (
+        <ReceiptDownload
+          receiptData={receiptData}
+          onClose={() => setReceiptData(null)}
+        />
+      )}
     </>
   );
 };

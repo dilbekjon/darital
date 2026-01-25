@@ -760,11 +760,10 @@ export class TenantPortalService {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Get contract PDFs
-    const contracts = await this.prisma.contract.findMany({
+    // Get contract PDFs (filter out contracts without PDFs)
+    const allContracts = await this.prisma.contract.findMany({
       where: { 
         tenantId: tenant.id,
-        pdfUrl: { not: null },
       },
       select: {
         id: true,
@@ -780,6 +779,9 @@ export class TenantPortalService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    
+    // Filter contracts that have PDF URLs
+    const contracts = allContracts.filter(contract => contract.pdfUrl && contract.pdfUrl.trim() !== '');
 
     // Get payment receipts (from confirmed payments)
     const payments = await this.prisma.payment.findMany({
@@ -833,7 +835,7 @@ export class TenantPortalService {
         id: `receipt-${payment.id}`,
         type: 'PAYMENT_RECEIPT',
         name: `To'lov kvitansiyasi - ${payment.invoice.contract.unit?.name || 'Noma\'lum'}`,
-        fileUrl: `/api/receipts/payment/${payment.id}`, // Receipt data endpoint (frontend will generate PDF)
+        fileUrl: `/api/tenant/receipts/payment/${payment.id}`, // Tenant portal receipt endpoint
         fileSize: null,
         mimeType: 'application/pdf',
         createdAt: payment.paidAt || payment.createdAt,
