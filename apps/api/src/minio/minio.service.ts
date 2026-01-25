@@ -238,8 +238,8 @@ export class MinioService {
     // Use public URL if available (Cloudflare R2 Public Development URL), otherwise construct from endpoint
     let url: string;
     if (this.publicUrl) {
-      // Cloudflare R2 Public Development URL format: https://pub-xxx.r2.dev/bucket/file
-      url = `${this.publicUrl}/${this.bucket}/${encodeURIComponent(objectName)}`;
+      // Cloudflare R2 Public Development URL format: https://pub-xxx.r2.dev/file (no bucket in path)
+      url = `${this.publicUrl}/${encodeURIComponent(objectName)}`;
     } else {
       const protocol = this.useSSL ? 'https' : 'http';
       // Don't include port in URL if it's standard (80 for HTTP, 443 for HTTPS)
@@ -277,8 +277,8 @@ export class MinioService {
       // Use public URL if available (Cloudflare R2 Public Development URL), otherwise construct from endpoint
       let url: string;
       if (this.publicUrl) {
-        // Cloudflare R2 Public Development URL format: https://pub-xxx.r2.dev/bucket/file
-        url = `${this.publicUrl}/${useBucket}/${encodeURIComponent(objectName)}`;
+        // Cloudflare R2 Public Development URL format: https://pub-xxx.r2.dev/file (no bucket in path)
+        url = `${this.publicUrl}/${encodeURIComponent(objectName)}`;
       } else {
         const protocol = this.useSSL ? 'https' : 'http';
         // Don't include port in URL if it's standard (80 for HTTP, 443 for HTTPS)
@@ -359,10 +359,13 @@ export class MinioService {
         // Extract bucket and object from path: /bucket/object.pdf
         const pathParts = pathname.split('/').filter(p => p);
         if (pathParts.length >= 2) {
-          const bucket = pathParts[0];
+          // Skip bucket (first part), get object name (rest)
           const objectName = pathParts.slice(1).join('/');
-          // Return public URL format
-          return `${this.publicUrl}/${bucket}/${objectName}`;
+          // Return public URL format without bucket: https://pub-xxx.r2.dev/object.pdf
+          return `${this.publicUrl}/${objectName}`;
+        } else if (pathParts.length === 1) {
+          // If only one part, it's already the object name
+          return `${this.publicUrl}/${pathParts[0]}`;
         }
       }
       
