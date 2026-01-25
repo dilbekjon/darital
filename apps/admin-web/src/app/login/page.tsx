@@ -182,14 +182,6 @@ export default function LoginPage() {
               {isLoading ? t.loading : t.login}
             </button>
           </form>
-
-          {/* Demo Credentials */}
-          <div className={`mt-6 pt-6 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-            <p className={`text-xs text-center ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-              Admin: admin@darital.local / admin123<br />
-              Tenant: almurotov.dilbek@gmail.com / admin123
-            </p>
-          </div>
         </div>
       </div>
     </div>

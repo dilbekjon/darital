@@ -232,18 +232,18 @@ export class ContractsService {
       return updated;
     });
 
-    // Automatically create invoice when contract is activated
+    // Automatically create monthly invoices when contract is activated
     if (currentStatus === ContractStatus.DRAFT && newStatus === ContractStatus.ACTIVE) {
       try {
-        // Check if invoice already exists for this contract
+        // Check if invoices already exist for this contract
         const existingInvoices = await this.prisma.invoice.findMany({
           where: { contractId: id },
         });
 
-        // Only create invoice if none exists
+        // Only create invoices if none exist
         if (existingInvoices.length === 0) {
-          // Create invoice automatically using helper method
-          await this.invoicesService.createForContract(
+          // Create monthly invoices for entire contract duration
+          const createdInvoices = await this.invoicesService.createForContract(
             id,
             updatedContract.amount,
             updatedContract.startDate,
@@ -251,12 +251,16 @@ export class ContractsService {
           );
 
           this.logger.log(
-            `✅ Auto-created invoice for contract ${id} (tenant: ${updatedContract.tenant.fullName})`
+            `✅ Auto-created ${createdInvoices.length} monthly invoice(s) for contract ${id} (tenant: ${updatedContract.tenant.fullName})`
+          );
+        } else {
+          this.logger.log(
+            `ℹ️ Contract ${id} already has ${existingInvoices.length} invoice(s), skipping auto-creation`
           );
         }
       } catch (error: any) {
         // Log error but don't fail contract activation
-        console.error(`Failed to auto-create invoice for contract ${id}:`, error?.message || error);
+        this.logger.error(`Failed to auto-create invoices for contract ${id}:`, error?.message || error);
       }
     }
 

@@ -198,25 +198,65 @@ export class InvoicesService {
   }
 
   /**
-   * Create invoice for a contract automatically
+   * Create monthly invoices for a contract automatically
    * Used when contract is activated
+   * Generates one invoice per month for the entire contract duration
    */
-  async createForContract(contractId: string, contractAmount: Decimal, startDate: Date, endDate: Date): Promise<any> {
-    // Calculate due date: first of next month from start date
-    const dueDate = new Date(startDate);
-    dueDate.setMonth(dueDate.getMonth() + 1);
-    dueDate.setDate(1); // Set to first day of month
+  async createForContract(contractId: string, contractAmount: Decimal, startDate: Date, endDate: Date): Promise<any[]> {
+    const invoices = [];
+    const monthlyAmount = contractAmount;
     
-    // If contract is less than a month, use contract end date
-    if (dueDate > endDate) {
-      dueDate.setTime(endDate.getTime());
+    // Start from the contract start date
+    let currentDate = new Date(startDate);
+    const contractEnd = new Date(endDate);
+    
+    // Generate invoices for each month
+    while (currentDate < contractEnd) {
+      // Calculate due date: first day of the next month
+      const dueDate = new Date(currentDate);
+      dueDate.setMonth(dueDate.getMonth() + 1);
+      dueDate.setDate(1); // Set to first day of the month
+      
+      // If the calculated due date exceeds the contract end date, use contract end date
+      if (dueDate > contractEnd) {
+        dueDate.setTime(contractEnd.getTime());
+      }
+      
+      // Check if invoice already exists for this month
+      const existingInvoice = await this.prisma.invoice.findFirst({
+        where: {
+          contractId,
+          dueDate: {
+            gte: new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
+            lt: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
+          },
+        },
+      });
+      
+      // Only create if it doesn't exist
+      if (!existingInvoice) {
+        const invoice = await this.prisma.invoice.create({
+          data: {
+            contractId,
+            dueDate,
+            amount: monthlyAmount,
+            status: InvoiceStatus.PENDING,
+          },
+          include: { payments: true, contract: true },
+        });
+        invoices.push(invoice);
+      }
+      
+      // Move to next month
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      currentDate.setDate(1); // Start of next month
     }
-
-    return this.create({
-      contractId,
-      dueDate: dueDate.toISOString(),
-      amount: contractAmount.toString(),
-    });
+    
+    this.logger.log(
+      `✅ Created ${invoices.length} monthly invoice(s) for contract ${contractId}`
+    );
+    
+    return invoices;
   }
 
   /**

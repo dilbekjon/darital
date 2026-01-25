@@ -2,20 +2,16 @@
 
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../contexts/LanguageContext';
 import { useUntypedTranslations } from '../i18n/useUntypedTranslations';
 import { useTheme } from '../contexts/ThemeContext';
 import { useState } from 'react';
-import { Language, languageNames, languageFlags } from '../lib/i18n';
 import NotificationCenter from './NotificationCenter';
 
 export default function TenantNavbar() {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { language, setLanguage } = useLanguage();
   const t = useUntypedTranslations();
   const { darkMode, toggleTheme } = useTheme();
-  const [showLangMenu, setShowLangMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const handleLogout = () => {
@@ -29,8 +25,10 @@ export default function TenantNavbar() {
   return (
     <nav className={`${
       darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-    } border-b sticky top-0 z-10 backdrop-blur-none`} style={{
-      backgroundColor: darkMode ? undefined : '#ffffff'
+    } border-b sticky top-0 z-10`} style={{
+      backgroundColor: darkMode ? '#1f2937' : '#ffffff',
+      backdropFilter: 'none',
+      WebkitBackdropFilter: 'none'
     }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
@@ -46,44 +44,8 @@ export default function TenantNavbar() {
             </button>
           </div>
 
-          {/* Right side: Language, Theme, User */}
+          {/* Right side: Theme, User */}
           <div className="flex items-center space-x-4">
-            {/* Language Selector */}
-            <div className="relative">
-              <button
-                onClick={() => setShowLangMenu(!showLangMenu)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  darkMode
-                    ? 'bg-gray-700 text-white hover:bg-gray-600'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {languageFlags[language]} {languageNames[language]}
-              </button>
-              {showLangMenu && (
-                <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg ${
-                  darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-                }`}>
-                  {(['uz', 'ru', 'en'] as Language[]).map((lang) => (
-                    <button
-                      key={lang}
-                      onClick={() => {
-                        setLanguage(lang);
-                        setShowLangMenu(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                        language === lang
-                          ? darkMode ? 'bg-yellow-600 text-black' : 'bg-blue-50 text-blue-700'
-                          : darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
-                      } ${lang === 'uz' ? 'rounded-t-lg' : lang === 'en' ? 'rounded-b-lg' : ''}`}
-                    >
-                      {languageFlags[lang]} {languageNames[lang]}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}

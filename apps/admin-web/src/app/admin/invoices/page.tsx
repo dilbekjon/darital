@@ -63,6 +63,7 @@ export default function AdminInvoicesPage() {
   const [contractIdFilter, setContractIdFilter] = useState<string>('');
   const [dueFromFilter, setDueFromFilter] = useState<string>('');
   const [dueToFilter, setDueToFilter] = useState<string>('');
+  const [sortByDeadline, setSortByDeadline] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(20);
   const [meta, setMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
@@ -441,7 +442,15 @@ export default function AdminInvoicesPage() {
   };
 
   // Sort invoices by importance: OVERDUE > PAYMENT_RECEIVED > PENDING > PAID
+  // Or by closest deadline if sortByDeadline is enabled
   const sortedInvoices = useMemo(() => {
+    if (sortByDeadline) {
+      // Sort purely by deadline (closest first), regardless of status
+      return [...invoices].sort((a, b) => {
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+    }
+    
     const statusPriority: Record<string, number> = { 
       OVERDUE: 0, 
       PAYMENT_RECEIVED: 1,
@@ -465,7 +474,7 @@ export default function AdminInvoicesPage() {
       }
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
-  }, [invoices]);
+  }, [invoices, sortByDeadline]);
 
   const getInvoiceStatusText = (displayStatus: string) => {
     switch (displayStatus) {
@@ -621,6 +630,28 @@ export default function AdminInvoicesPage() {
                 : 'bg-white border-gray-300 text-gray-900'
             } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
           />
+        </div>
+        <div className="sm:w-auto">
+          <button
+            onClick={() => {
+              setSortByDeadline(!sortByDeadline);
+              setCurrentPage(1);
+            }}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+              sortByDeadline
+                ? darkMode
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                : darkMode
+                  ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            {sortByDeadline ? 'Sort by Status' : 'Sort by Deadline'}
+          </button>
         </div>
       </div>
 
