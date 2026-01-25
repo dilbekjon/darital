@@ -29,7 +29,9 @@ export default function TenantNavbar() {
   return (
     <nav className={`${
       darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-    } border-b sticky top-0 z-10`}>
+    } border-b sticky top-0 z-10 backdrop-blur-none`} style={{
+      backgroundColor: darkMode ? undefined : '#ffffff'
+    }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo/Brand */}

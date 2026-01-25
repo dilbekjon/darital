@@ -7,6 +7,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ContractStatus, UnitStatus } from '@prisma/client';
 import { InvoicesService } from '../invoices/invoices.service';
+import { MinioService } from '../minio/minio.service';
 
 @Injectable()
 export class ContractsService {
@@ -16,6 +17,7 @@ export class ContractsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly invoicesService: InvoicesService,
+    private readonly minioService: MinioService,
   ) {}
 
   async findAll(includeArchived = false) {
@@ -38,7 +40,7 @@ export class ContractsService {
       endDate: contract.endDate.toISOString(),
       amount: contract.amount.toNumber(),
       status: contract.status,
-      pdfUrl: contract.pdfUrl,
+      pdfUrl: contract.pdfUrl ? this.minioService.transformToPublicUrl(contract.pdfUrl) : contract.pdfUrl,
       notes: contract.notes || null,
       createdAt: contract.createdAt.toISOString(),
       tenant: {
@@ -57,6 +59,12 @@ export class ContractsService {
       include: { tenant: true, unit: true },
     });
     if (!contract) throw new NotFoundException('Contract not found');
+    
+    // Transform PDF URL to use public URL if available
+    if (contract.pdfUrl) {
+      contract.pdfUrl = this.minioService.transformToPublicUrl(contract.pdfUrl);
+    }
+    
     return contract;
   }
 
@@ -80,7 +88,7 @@ export class ContractsService {
       endDate: contract.endDate.toISOString(),
       amount: contract.amount.toNumber(),
       status: contract.status,
-      pdfUrl: contract.pdfUrl,
+      pdfUrl: contract.pdfUrl ? this.minioService.transformToPublicUrl(contract.pdfUrl) : contract.pdfUrl,
       notes: contract.notes || null,
       createdAt: contract.createdAt.toISOString(),
       isArchived: contract.isArchived,

@@ -15,6 +15,7 @@ export class MinioService {
   private endpoint: string;
   private port: number;
   private useSSL: boolean;
+  private publicUrl?: string; // Cloudflare R2 Public Development URL for public file access
   private readonly enabled: boolean;
 
   constructor() {
@@ -26,6 +27,7 @@ export class MinioService {
       MINIO_ROOT_USER,
       MINIO_ROOT_PASSWORD,
       MINIO_BUCKET,
+      MINIO_PUBLIC_URL, // Optional: Cloudflare R2 Public Development URL (e.g., https://pub-xxx.r2.dev)
     } = process.env;
 
     const nodeEnv = process.env.NODE_ENV;
@@ -107,6 +109,13 @@ export class MinioService {
       this.port = cfg.port;
       this.bucket = cfg.bucket;
       this.useSSL = cfg.useSSL;
+      // Use public URL if provided (Cloudflare R2 Public Development URL)
+      this.publicUrl = MINIO_PUBLIC_URL;
+      if (this.publicUrl) {
+        // Remove trailing slash if present
+        this.publicUrl = this.publicUrl.replace(/\/$/, '');
+        this.logger.log(`✅ Using public URL for file access: ${this.publicUrl}`);
+      }
       this.client = new MinioClient({
         endPoint: this.endpoint,
         port: this.port,
@@ -138,6 +147,12 @@ export class MinioService {
       this.port = port;
       this.bucket = bucket;
       this.useSSL = parsed.useSSL;
+      // Use public URL if provided (Cloudflare R2 Public Development URL)
+      this.publicUrl = MINIO_PUBLIC_URL;
+      if (this.publicUrl) {
+        this.publicUrl = this.publicUrl.replace(/\/$/, '');
+        this.logger.log(`✅ Using public URL for file access: ${this.publicUrl}`);
+      }
       this.client = new MinioClient({
         endPoint: this.endpoint,
         port: this.port,
@@ -177,21 +192,38 @@ export class MinioService {
   }
 
   private async ensurePublicRead(bucket: string): Promise<void> {
-    const policy = {
-      Version: '2012-10-17',
-      Statement: [
-        {
-          Action: ['s3:GetObject'],
-          Effect: 'Allow',
-          Principal: { AWS: ['*'] },
-          Resource: [`arn:aws:s3:::${bucket}/*`],
-        },
-      ],
-    } as any;
-    // setBucketPolicy may not exist in some SDK versions; guard and ignore errors
-    const anyClient: any = this.client as any;
-    if (typeof anyClient.setBucketPolicy === 'function') {
-      await anyClient.setBucketPolicy(bucket, JSON.stringify(policy));
+    try {
+      const policy = {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Sid: 'PublicReadGetObject',
+            Effect: 'Allow',
+            Principal: '*',
+            Action: ['s3:GetObject'],
+            Resource: [`arn:aws:s3:::${bucket}/*`],
+          },
+        ],
+      };
+      
+      // Try to set bucket policy
+      const anyClient: any = this.client as any;
+      if (typeof anyClient.setBucketPolicy === 'function') {
+        try {
+          await anyClient.setBucketPolicy(bucket, JSON.stringify(policy));
+          this.logger.log(`✅ Set public read policy for bucket: ${bucket}`);
+        } catch (policyError: any) {
+          // Cloudflare R2 might not support setBucketPolicy, or bucket needs to be public in dashboard
+          this.logger.warn(`⚠️ Could not set bucket policy via API: ${policyError?.message || policyError}`);
+          this.logger.warn(`   For Cloudflare R2, ensure bucket "${bucket}" is set to "Public" in Cloudflare dashboard`);
+          this.logger.warn(`   Go to: R2 → Buckets → ${bucket} → Settings → Public Access`);
+        }
+      } else {
+        this.logger.warn('⚠️ setBucketPolicy method not available. Ensure bucket is public in Cloudflare dashboard.');
+      }
+    } catch (err: any) {
+      this.logger.warn(`⚠️ Error setting public read policy: ${err?.message || err}`);
+      this.logger.warn(`   Ensure bucket "${bucket}" is configured as Public in Cloudflare R2 dashboard`);
     }
   }
 
@@ -202,10 +234,22 @@ export class MinioService {
     await this.ensureBucket();
     const meta = { 'Content-Type': contentType || 'application/octet-stream' } as any;
     await this.client.putObject(this.bucket, objectName, buffer, undefined, meta);
-    const protocol = this.useSSL ? 'https' : 'http';
-    // Don't include port in URL if it's standard (80 for HTTP, 443 for HTTPS)
-    const portPart = (this.useSSL && this.port === 443) || (!this.useSSL && this.port === 80) ? '' : `:${this.port}`;
-    const url = `${protocol}://${this.endpoint}${portPart}/${this.bucket}/${encodeURIComponent(objectName)}`;
+    
+    // Use public URL if available (Cloudflare R2 Public Development URL), otherwise construct from endpoint
+    let url: string;
+    if (this.publicUrl) {
+      // Cloudflare R2 Public Development URL format: https://pub-xxx.r2.dev/bucket/file
+      url = `${this.publicUrl}/${this.bucket}/${encodeURIComponent(objectName)}`;
+    } else {
+      const protocol = this.useSSL ? 'https' : 'http';
+      // Don't include port in URL if it's standard (80 for HTTP, 443 for HTTPS)
+      const portPart = (this.useSSL && this.port === 443) || (!this.useSSL && this.port === 80) ? '' : `:${this.port}`;
+      url = `${protocol}://${this.endpoint}${portPart}/${this.bucket}/${encodeURIComponent(objectName)}`;
+    }
+    
+    this.logger.log(`📤 Uploaded object: ${objectName} to bucket: ${this.bucket}`);
+    this.logger.log(`🔗 Public URL: ${url}`);
+    
     return { bucket: this.bucket, objectName, url };
   }
 
@@ -230,10 +274,22 @@ export class MinioService {
       const objectName = `${Date.now()}-${safeName}`;
       const meta = { 'Content-Type': file.mimetype || 'application/pdf' } as any;
       await this.client.putObject(useBucket, objectName, file.buffer, undefined, meta);
-      const protocol = this.useSSL ? 'https' : 'http';
-      // Don't include port in URL if it's standard (80 for HTTP, 443 for HTTPS)
-      const portPart = (this.useSSL && this.port === 443) || (!this.useSSL && this.port === 80) ? '' : `:${this.port}`;
-      return `${protocol}://${this.endpoint}${portPart}/${useBucket}/${encodeURIComponent(objectName)}`;
+      // Use public URL if available (Cloudflare R2 Public Development URL), otherwise construct from endpoint
+      let url: string;
+      if (this.publicUrl) {
+        // Cloudflare R2 Public Development URL format: https://pub-xxx.r2.dev/bucket/file
+        url = `${this.publicUrl}/${useBucket}/${encodeURIComponent(objectName)}`;
+      } else {
+        const protocol = this.useSSL ? 'https' : 'http';
+        // Don't include port in URL if it's standard (80 for HTTP, 443 for HTTPS)
+        const portPart = (this.useSSL && this.port === 443) || (!this.useSSL && this.port === 80) ? '' : `:${this.port}`;
+        url = `${protocol}://${this.endpoint}${portPart}/${useBucket}/${encodeURIComponent(objectName)}`;
+      }
+      
+      this.logger.log(`📤 Uploaded file: ${objectName} to bucket: ${useBucket}`);
+      this.logger.log(`🔗 Public URL: ${url}`);
+      
+      return url;
     } catch (err: any) {
       this.logger.error(`MinIO upload failed: ${err?.message || err}`);
       throw err;
@@ -282,6 +338,39 @@ export class MinioService {
       return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === this.endpoint;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Transform a MinIO URL to use the public URL if available
+   * This is useful for converting old endpoint URLs to public development URLs
+   */
+  transformToPublicUrl(url: string): string {
+    if (!url || !this.publicUrl) {
+      return url; // Return as-is if no public URL is configured
+    }
+
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      
+      // Check if URL uses the endpoint (needs transformation)
+      if (urlObj.hostname === this.endpoint || urlObj.hostname.includes('r2.cloudflarestorage.com')) {
+        // Extract bucket and object from path: /bucket/object.pdf
+        const pathParts = pathname.split('/').filter(p => p);
+        if (pathParts.length >= 2) {
+          const bucket = pathParts[0];
+          const objectName = pathParts.slice(1).join('/');
+          // Return public URL format
+          return `${this.publicUrl}/${bucket}/${objectName}`;
+        }
+      }
+      
+      // If already using public URL or doesn't match endpoint, return as-is
+      return url;
+    } catch {
+      // If URL parsing fails, return as-is
+      return url;
     }
   }
 }
