@@ -754,9 +754,110 @@ export class TenantPortalService {
       throw new NotFoundException('Tenant not found');
     }
 
-    return this.prisma.document.findMany({
+    // Get all documents from Document table
+    const documents = await this.prisma.document.findMany({
       where: { tenantId: tenant.id },
       orderBy: { createdAt: 'desc' },
+    });
+
+    // Get contract PDFs
+    const contracts = await this.prisma.contract.findMany({
+      where: { 
+        tenantId: tenant.id,
+        pdfUrl: { not: null },
+      },
+      select: {
+        id: true,
+        pdfUrl: true,
+        startDate: true,
+        endDate: true,
+        createdAt: true,
+        unit: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Get payment receipts (from confirmed payments)
+    const payments = await this.prisma.payment.findMany({
+      where: {
+        invoice: {
+          contract: {
+            tenantId: tenant.id,
+          },
+        },
+        status: 'CONFIRMED',
+      },
+      include: {
+        invoice: {
+          include: {
+            contract: {
+              include: {
+                unit: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { paidAt: 'desc' },
+    });
+
+    // Combine all documents
+    const allDocuments: any[] = [];
+
+    // Add contract PDFs as documents
+    contracts.forEach((contract) => {
+      if (contract.pdfUrl) {
+        allDocuments.push({
+          id: `contract-${contract.id}`,
+          type: 'LEASE_AGREEMENT',
+          name: `Shartnoma - ${contract.unit?.name || 'Noma\'lum'}`,
+          fileUrl: contract.pdfUrl,
+          fileSize: null,
+          mimeType: 'application/pdf',
+          createdAt: contract.createdAt,
+        });
+      }
+    });
+
+    // Add payment receipts
+    payments.forEach((payment) => {
+      allDocuments.push({
+        id: `receipt-${payment.id}`,
+        type: 'PAYMENT_RECEIPT',
+        name: `To'lov kvitansiyasi - ${payment.invoice.contract.unit?.name || 'Noma\'lum'}`,
+        fileUrl: `/api/receipts/payment/${payment.id}`, // Receipt data endpoint (frontend will generate PDF)
+        fileSize: null,
+        mimeType: 'application/pdf',
+        createdAt: payment.paidAt || payment.createdAt,
+      });
+    });
+
+    // Add regular documents
+    documents.forEach((doc) => {
+      allDocuments.push({
+        id: doc.id,
+        type: doc.type,
+        name: doc.name,
+        fileUrl: doc.fileUrl,
+        fileSize: doc.fileSize,
+        mimeType: doc.mimeType,
+        createdAt: doc.createdAt,
+      });
+    });
+
+    // Sort by creation date (newest first)
+    return allDocuments.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateB - dateA;
     });
   }
 }

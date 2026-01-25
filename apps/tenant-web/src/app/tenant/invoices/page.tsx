@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { createTenantPaymentIntent, getTenantInvoices } from '../../../lib/tenantApi';
+import { createTenantPaymentIntent, getTenantInvoices, refreshTenantPayment } from '../../../lib/tenantApi';
 import { ApiError } from '../../../lib/api';
 import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -37,6 +37,33 @@ const InvoicePage = () => {
       try {
         const invoiceData = await getTenantInvoices();
         setInvoices(invoiceData);
+        
+        // Check if user just returned from payment page
+        if (typeof window !== 'undefined') {
+          const lastPaymentId = localStorage.getItem('lastPaymentId');
+          const lastInvoiceId = localStorage.getItem('lastPaymentInvoiceId');
+          
+          if (lastPaymentId && lastInvoiceId) {
+            // Always refresh payment status when user returns from checkout
+            // This ensures we get the latest status from the payment provider
+            // and only shows "Payment Received" if payment was actually completed
+            try {
+              await refreshTenantPayment(lastPaymentId);
+              // Reload invoices after refresh to get updated status
+              const refreshedData = await getTenantInvoices();
+              setInvoices(refreshedData);
+            } catch (refreshErr) {
+              console.error('Failed to refresh payment status:', refreshErr);
+              // Even if refresh fails, reload invoices to get current state
+              const refreshedData = await getTenantInvoices();
+              setInvoices(refreshedData);
+            }
+            
+            // Clear stored payment info
+            localStorage.removeItem('lastPaymentId');
+            localStorage.removeItem('lastPaymentInvoiceId');
+          }
+        }
       } catch (err) {
         console.error(err);
         if (err instanceof ApiError && err.status === 401) {
@@ -188,17 +215,24 @@ const InvoicePage = () => {
           </div>
         ) : (
           <div className="grid gap-6">
-            {sortedInvoices.map((invoice) => {
+            {sortedInvoices.map((invoice: any) => {
               // Check if payment was made and is pending verification
+              // IMPORTANT: Only show "Payment Received" if payment was ACTUALLY confirmed by provider
+              // Just having providerPaymentId doesn't mean payment was completed - it only means order was created
               const hasPaymentPending = invoice.latestPayment && invoice.latestPayment.status === 'PENDING';
               const payment = invoice.latestPayment;
               const rawPayload = payment?.rawPayload;
+              
+              // Payment is only "received" if:
+              // 1. Webhook was received (rawPayload.webhook === true)
+              // 2. OR checkout.uz API confirms payment status is 'paid'
+              // 3. OR rawPayload has explicit paid/success status
+              // DO NOT check just providerPaymentId - that only means order was created, not paid
               const isPaymentReceived = hasPaymentPending && (
                 rawPayload?.webhook === true ||
                 rawPayload?.checkoutUz?.payment?.status === 'paid' ||
                 rawPayload?.status === 'paid' ||
-                rawPayload?.status === 'success' ||
-                (payment?.providerPaymentId && payment?.method === 'ONLINE')
+                rawPayload?.status === 'success'
               );
               const isPaid = invoice.status === 'PAID';
               const isOverdue = invoice.status === 'OVERDUE';
@@ -235,10 +269,10 @@ const InvoicePage = () => {
                         </div>
                         <div>
                           <p className={`font-bold ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
-                            {t.paid || 'Invoice Paid'}
+                            {t.paid || 'To\'langan'}
                           </p>
                           <p className={`text-xs ${darkMode ? 'text-green-400/70' : 'text-green-600'}`}>
-                            {darkMode ? "Hisob-faktura to'liq to'landi" : 'This invoice has been fully paid'}
+                            Hisob-faktura to'liq to'landi
                           </p>
                         </div>
                       </div>
@@ -255,10 +289,10 @@ const InvoicePage = () => {
                         </div>
                         <div className="flex-1">
                           <p className={`font-bold ${darkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
-                            {darkMode ? "To'lov Qabul Qilindi - Tekshirilmoqda" : 'Payment Received - Under Review'}
+                            To'lov Qabul Qilindi - Tekshirilmoqda
                           </p>
                           <p className={`text-xs ${darkMode ? 'text-yellow-400/70' : 'text-yellow-600'}`}>
-                            {darkMode ? "Administrator tekshiruvini kutmoqda" : 'Awaiting administrator verification'}
+                            Administrator tekshiruvini kutmoqda
                           </p>
                         </div>
                         {/* Animated Progress Indicator */}
@@ -283,7 +317,7 @@ const InvoicePage = () => {
                         </div>
                         <div>
                           <p className={`font-bold ${darkMode ? 'text-red-400' : 'text-red-700'}`}>
-                            {t.overdue || 'Payment Overdue'}
+                            {t.overdue || 'Muddati o\'tgan'}
                           </p>
                           <p className={`text-xs ${darkMode ? 'text-red-400/70' : 'text-red-600'}`}>
                             {darkMode ? "Iltimos, zudlik bilan to'lang" : 'Please pay immediately to avoid penalties'}
@@ -349,14 +383,22 @@ const InvoicePage = () => {
                       {/* Due Date */}
                       <div className="text-center sm:text-right">
                         <p className={`text-xs uppercase tracking-wider mb-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                          {t.dueDate || 'Due Date'}
+                          {t.dueDate || 'To\'lov muddati'}
                         </p>
                         <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {new Date(invoice.dueDate).toLocaleDateString('uz-UZ', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
+                          {invoice.dueDate ? (() => {
+                            const date = new Date(invoice.dueDate);
+                            const day = date.getDate();
+                            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                            const month = monthNames[date.getMonth()];
+                            const year = date.getFullYear();
+                            const getOrdinal = (n: number) => {
+                              const s = ['th', 'st', 'nd', 'rd'];
+                              const v = n % 100;
+                              return n + (s[(v - 20) % 10] || s[v] || s[0]);
+                            };
+                            return `${getOrdinal(day)} ${month}, ${year}`;
+                          })() : 'Muddati ko\'rsatilmagan'}
                         </p>
                         {!isPaid && (() => {
                           const { days, isOverdue: overdue, urgency } = getDaysRemaining(invoice.dueDate);
@@ -369,8 +411,8 @@ const InvoicePage = () => {
                                 : darkMode ? 'bg-blue-500/30 text-blue-300' : 'bg-blue-100 text-blue-700'
                             }`}>
                               {overdue
-                                ? `${days}d overdue`
-                                : `${days}d left`
+                                ? `${days} ${t.daysOverdue || 'kun muddati o\'tgan'}`
+                                : `${days} ${t.daysRemaining || 'kun qoldi'}`
                               }
                             </span>
                           );
@@ -392,7 +434,7 @@ const InvoicePage = () => {
                               </svg>
                             </div>
                             <p className={`mt-2 text-xs font-medium text-center ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
-                              {darkMode ? 'Hisob-faktura' : 'Invoice'}
+                              Hisob-faktura
                             </p>
                           </div>
                           
@@ -409,7 +451,7 @@ const InvoicePage = () => {
                               </svg>
                             </div>
                             <p className={`mt-2 text-xs font-medium text-center ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
-                              {darkMode ? "To'landi" : 'Paid'}
+                              To'landi
                             </p>
                           </div>
                           
@@ -428,7 +470,7 @@ const InvoicePage = () => {
                               </svg>
                             </div>
                             <p className={`mt-2 text-xs font-medium text-center ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
-                              {darkMode ? 'Tekshiruv' : 'Review'}
+                              Tekshiruv
                             </p>
                           </div>
                           
@@ -445,7 +487,7 @@ const InvoicePage = () => {
                               </svg>
                             </div>
                             <p className={`mt-2 text-xs font-medium text-center ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                              {darkMode ? 'Yakunlandi' : 'Complete'}
+                              Yakunlandi
                             </p>
                           </div>
                         </div>
@@ -474,7 +516,7 @@ const InvoicePage = () => {
                               } else if (days <= 3) {
                                 return (
                                   <p className={`text-sm font-semibold ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                                    {`Only ${days} days left to pay`}
+                                    {`To'lov uchun ${days} kun qoldi`}
                                   </p>
                                 );
                               }
@@ -519,9 +561,7 @@ const InvoicePage = () => {
                     {isPaymentReceived && !isPaid && (
                       <div className={`mt-6 pt-4 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                         <p className={`text-sm text-center ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                          {darkMode 
-                            ? "To'lov allaqachon qabul qilindi. Tasdiqlashni kutmoqdasiz."
-                            : 'Payment already received. Waiting for confirmation.'}
+                          To'lov allaqachon qabul qilindi. Tasdiqlashni kutmoqdasiz.
                         </p>
                       </div>
                     )}

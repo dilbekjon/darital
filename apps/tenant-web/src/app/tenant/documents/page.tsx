@@ -20,12 +20,12 @@ interface Document {
 }
 
 const documentTypeLabels: Record<string, { label: string; icon: string; color: string }> = {
-  LEASE_AGREEMENT: { label: 'Lease Agreement', icon: '📄', color: 'blue' },
-  ID_COPY: { label: 'ID Copy', icon: '🪪', color: 'purple' },
-  PASSPORT: { label: 'Passport', icon: '📕', color: 'red' },
-  PAYMENT_RECEIPT: { label: 'Payment Receipt', icon: '🧾', color: 'green' },
-  CONTRACT_ATTACHMENT: { label: 'Contract Attachment', icon: '📎', color: 'yellow' },
-  OTHER: { label: 'Other', icon: '📁', color: 'gray' },
+  LEASE_AGREEMENT: { label: 'Ijara shartnomasi', icon: '📄', color: 'blue' },
+  ID_COPY: { label: 'ID nusxasi', icon: '🪪', color: 'purple' },
+  PASSPORT: { label: 'Pasport', icon: '📕', color: 'red' },
+  PAYMENT_RECEIPT: { label: 'To\'lov kvitansiyasi', icon: '🧾', color: 'green' },
+  CONTRACT_ATTACHMENT: { label: 'Shartnoma ilovasi', icon: '📎', color: 'yellow' },
+  OTHER: { label: 'Boshqa', icon: '📁', color: 'gray' },
 };
 
 const DocumentsPage = () => {
@@ -68,11 +68,12 @@ const DocumentsPage = () => {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    const date = new Date(dateStr);
+    const day = date.getDate();
+    const monthNames = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+    const month = monthNames[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day} ${month}, ${year}`;
   };
 
   const filteredDocuments = filter === 'ALL' 
@@ -126,7 +127,7 @@ const DocumentsPage = () => {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              All ({documents.length})
+              Barchasi ({documents.length})
             </button>
             {Object.entries(documentTypeLabels).map(([type, info]) => {
               const count = documents.filter(d => d.type === type).length;
