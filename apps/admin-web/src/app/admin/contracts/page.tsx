@@ -435,25 +435,6 @@ export default function AdminContractsPage() {
     return date.toLocaleDateString('en-GB');
   };
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    if (!openDropdownId) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (target && !target.closest('.actions-dropdown')) {
-        setOpenDropdownId(null);
-      }
-    };
-
-    // Use capture phase to handle clicks before they bubble
-    document.addEventListener('mousedown', handleClickOutside, true);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside, true);
-    };
-  }, [openDropdownId]);
-
   return (
           <div className={`p-4 sm:p-6 lg:p-8 min-h-screen ${
             darkMode ? 'bg-black' : 'bg-gray-100'
@@ -765,11 +746,14 @@ export default function AdminContractsPage() {
                                 className="fixed inset-0 z-40" 
                                 onClick={() => setOpenDropdownId(null)}
                               />
-                              <div className={`absolute right-0 mt-2 w-56 rounded-lg shadow-lg border py-1 z-50 ${
-                                darkMode 
-                                  ? 'bg-black border-blue-600/40' 
-                                  : 'bg-white border-gray-200'
-                              }`}>
+                              <div 
+                                className={`absolute right-0 mt-2 w-56 rounded-lg shadow-lg border py-1 z-50 ${
+                                  darkMode 
+                                    ? 'bg-black border-blue-600/40' 
+                                    : 'bg-white border-gray-200'
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <a
                                   href={contract.pdfUrl}
                                   target="_blank"
