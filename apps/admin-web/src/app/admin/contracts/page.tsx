@@ -437,16 +437,21 @@ export default function AdminContractsPage() {
 
   // Close dropdown when clicking outside
   useEffect(() => {
+    if (!openDropdownId) return;
+
     const handleClickOutside = (event: MouseEvent) => {
-      if (openDropdownId && !(event.target as Element).closest('.actions-dropdown')) {
+      const target = event.target as Element;
+      if (target && !target.closest('.actions-dropdown')) {
         setOpenDropdownId(null);
       }
     };
 
-    if (openDropdownId) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
+    // Use capture phase to handle clicks before they bubble
+    document.addEventListener('mousedown', handleClickOutside, true);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside, true);
+    };
   }, [openDropdownId]);
 
   return (
@@ -738,7 +743,10 @@ export default function AdminContractsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="relative actions-dropdown">
                           <button
-                            onClick={() => setOpenDropdownId(openDropdownId === contract.id ? null : contract.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenDropdownId(openDropdownId === contract.id ? null : contract.id);
+                            }}
                             className={`p-2 rounded-lg transition-colors ${
                               darkMode
                                 ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
