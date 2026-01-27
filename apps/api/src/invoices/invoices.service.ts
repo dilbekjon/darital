@@ -206,16 +206,16 @@ export class InvoicesService {
     const invoices = [];
     const monthlyAmount = contractAmount;
     
-    // Start from the contract start date
-    let currentDate = new Date(startDate);
+    // Start from the first day of the contract start month
+    let currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
     const contractEnd = new Date(endDate);
     
-    // Generate invoices for each month
-    while (currentDate < contractEnd) {
-      // Calculate due date: first day of the next month
-      const dueDate = new Date(currentDate);
+    // Generate invoices for each month that is within contract duration
+    while (currentMonth < contractEnd) {
+      // Calculate the first day of the next month (which is the due date for this month)
+      const dueDate = new Date(currentMonth);
       dueDate.setMonth(dueDate.getMonth() + 1);
-      dueDate.setDate(1); // Set to first day of the month
+      dueDate.setDate(1);
       
       // If the calculated due date exceeds the contract end date, use contract end date
       if (dueDate > contractEnd) {
@@ -223,12 +223,15 @@ export class InvoicesService {
       }
       
       // Check if invoice already exists for this month
+      const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+      
       const existingInvoice = await this.prisma.invoice.findFirst({
         where: {
           contractId,
           dueDate: {
-            gte: new Date(currentDate.getFullYear(), currentDate.getMonth(), 1),
-            lt: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
+            gte: monthStart,
+            lt: monthEnd,
           },
         },
       });
@@ -248,12 +251,11 @@ export class InvoicesService {
       }
       
       // Move to next month
-      currentDate.setMonth(currentDate.getMonth() + 1);
-      currentDate.setDate(1); // Start of next month
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
     }
     
     this.logger.log(
-      `✅ Created ${invoices.length} monthly invoice(s) for contract ${contractId}`
+      `✅ Created ${invoices.length} monthly invoice(s) for contract ${contractId} (${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()})`
     );
     
     return invoices;

@@ -89,6 +89,7 @@ export default function AdminInvoicesPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<string | null>(null);
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const socketRef = useRef<Socket | null>(null);
 
   const loadInvoices = useCallback(async () => {
@@ -441,12 +442,26 @@ export default function AdminInvoicesPage() {
     }
   };
 
+  // Filter by search query (email or unit name)
+  const searchFilteredInvoices = useMemo(() => {
+    if (!searchQuery.trim()) return invoices;
+    
+    const query = searchQuery.toLowerCase();
+    return invoices.filter((invoice) => {
+      const email = invoice.contract?.tenant?.email?.toLowerCase() || '';
+      const unitName = invoice.contract?.unit?.name?.toLowerCase() || '';
+      const tenantName = invoice.contract?.tenant?.fullName?.toLowerCase() || '';
+      
+      return email.includes(query) || unitName.includes(query) || tenantName.includes(query);
+    });
+  }, [invoices, searchQuery]);
+
   // Sort invoices by importance: OVERDUE > PAYMENT_RECEIVED > PENDING > PAID
   // Or by closest deadline if sortByDeadline is enabled
   const sortedInvoices = useMemo(() => {
     if (sortByDeadline) {
       // Sort purely by deadline (closest first), regardless of status
-      return [...invoices].sort((a, b) => {
+      return [...searchFilteredInvoices].sort((a, b) => {
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       });
     }
@@ -458,7 +473,7 @@ export default function AdminInvoicesPage() {
       PAID: 3 
     };
     
-    return [...invoices].sort((a, b) => {
+    return [...searchFilteredInvoices].sort((a, b) => {
       // Get display status which accounts for payment received state
       const displayA = getInvoiceDisplayStatus(a);
       const displayB = getInvoiceDisplayStatus(b);
@@ -474,7 +489,7 @@ export default function AdminInvoicesPage() {
       }
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
-  }, [invoices, sortByDeadline]);
+  }, [searchFilteredInvoices, sortByDeadline]);
 
   const getInvoiceStatusText = (displayStatus: string) => {
     switch (displayStatus) {
@@ -548,6 +563,22 @@ export default function AdminInvoicesPage() {
 
       {/* Filters */}
       <div className="mb-4 flex flex-col sm:flex-row gap-4 flex-wrap">
+        <div className="flex-1 min-w-[200px]">
+          <input
+            type="text"
+            placeholder="Search by email or unit name..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+            className={`block w-full px-3 py-2 border rounded-lg ${
+              darkMode
+                ? 'bg-gray-900 border-blue-600/30 text-white placeholder-gray-400'
+                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+            } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+          />
+        </div>
         <div className="sm:w-40">
           <select
             value={statusFilter}
