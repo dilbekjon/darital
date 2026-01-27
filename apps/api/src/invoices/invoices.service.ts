@@ -210,29 +210,24 @@ export class InvoicesService {
     let currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
     const contractEnd = new Date(endDate);
     
+    this.logger.log(`📅 Creating invoices for contract ${contractId}: ${currentMonth.toISOString()} to ${contractEnd.toISOString()}`);
+    
     // Generate invoices for each month that is within contract duration
     while (currentMonth < contractEnd) {
-      // Calculate the first day of the next month (which is the due date for this month)
-      const dueDate = new Date(currentMonth);
-      dueDate.setMonth(dueDate.getMonth() + 1);
-      dueDate.setDate(1);
+      // Due date is the last day of the current month (or first day of next month at midnight)
+      // This represents "payment due for this month"
+      const dueDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
       
       // If the calculated due date exceeds the contract end date, use contract end date
       if (dueDate > contractEnd) {
         dueDate.setTime(contractEnd.getTime());
       }
       
-      // Check if invoice already exists for this month
-      const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-      const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
-      
+      // Check if invoice already exists with this exact due date
       const existingInvoice = await this.prisma.invoice.findFirst({
         where: {
           contractId,
-          dueDate: {
-            gte: monthStart,
-            lt: monthEnd,
-          },
+          dueDate: dueDate,
         },
       });
       
@@ -248,14 +243,17 @@ export class InvoicesService {
           include: { payments: true, contract: true },
         });
         invoices.push(invoice);
+        this.logger.log(`   📄 Created invoice for ${currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })} with due date ${dueDate.toISOString()}`);
+      } else {
+        this.logger.log(`   ⏭️ Skipped ${currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })} - invoice already exists`);
       }
       
       // Move to next month
-      currentMonth.setMonth(currentMonth.getMonth() + 1);
+      currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
     }
     
     this.logger.log(
-      `✅ Created ${invoices.length} monthly invoice(s) for contract ${contractId} (${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()})`
+      `✅ Created ${invoices.length} monthly invoice(s) for contract ${contractId}`
     );
     
     return invoices;
