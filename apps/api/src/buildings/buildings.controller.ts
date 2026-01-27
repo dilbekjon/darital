@@ -22,7 +22,7 @@ export class BuildingsController {
   constructor(private readonly buildingsService: BuildingsService) {}
 
   @Get()
-  @Permissions('contracts.read')
+  @Permissions('buildings.read')
   @ApiOperation({ summary: 'Get all buildings with unit counts' })
   findAll() {
     return this.buildingsService.findAll();
@@ -36,22 +36,22 @@ export class BuildingsController {
   }
 
   @Get(':id')
-  @Permissions('contracts.read')
+  @Permissions('buildings.read')
   @ApiOperation({ summary: 'Get building details with units' })
   findOne(@Param('id') id: string) {
     return this.buildingsService.findOne(id);
   }
 
   @Post()
-  @Permissions('contracts.create')
-  @ApiOperation({ summary: 'Create a new building' })
+  @Permissions('buildings.create')
+  @ApiOperation({ summary: 'Create a new building (User Manager, Admin, Super Admin)' })
   create(@Body() data: { name: string; address?: string; description?: string }) {
     return this.buildingsService.create(data);
   }
 
   @Put(':id')
-  @Permissions('contracts.update')
-  @ApiOperation({ summary: 'Update a building' })
+  @Permissions('buildings.update')
+  @ApiOperation({ summary: 'Update a building (User Manager, Admin, Super Admin)' })
   update(
     @Param('id') id: string,
     @Body() data: { name?: string; address?: string; description?: string },
@@ -60,8 +60,8 @@ export class BuildingsController {
   }
 
   @Delete(':id')
-  @Permissions('contracts.delete')
-  @ApiOperation({ summary: 'Delete a building' })
+  @Permissions('buildings.delete')
+  @ApiOperation({ summary: 'Delete a building (User Manager, Admin, Super Admin)' })
   remove(@Param('id') id: string) {
     return this.buildingsService.remove(id);
   }

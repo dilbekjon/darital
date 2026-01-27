@@ -29,10 +29,10 @@ export class UnitsController {
   constructor(private readonly unitsService: UnitsService) {}
 
   @Get()
-  @Permissions('contracts.read') // Accessible by TENANT, ADMIN, SUPER_ADMIN to view associated units
+  @Permissions('units.read')
   @ApiOperation({ 
     summary: 'Get all units',
-    description: 'Accessible by: TENANT, ADMIN, SUPER_ADMIN (with contracts.read permission for non-tenants)'
+    description: 'View all units/rooms. Accessible by: USER_MANAGER, CASHIER, ADMIN, SUPER_ADMIN'
   })
   @ApiResponse({ status: 200, description: 'List of units' })
   @ApiResponse({ status: 401, description: 'Unauthorized - JWT token required' })
@@ -41,10 +41,10 @@ export class UnitsController {
   }
 
   @Get(':id')
-  @Permissions('contracts.read') // Accessible by TENANT, ADMIN, SUPER_ADMIN to view associated units
+  @Permissions('units.read')
   @ApiOperation({ 
     summary: 'Get unit by ID',
-    description: 'Accessible by: TENANT, ADMIN, SUPER_ADMIN (with contracts.read permission for non-tenants)'
+    description: 'View unit details. Accessible by: USER_MANAGER, CASHIER, ADMIN, SUPER_ADMIN'
   })
   @ApiResponse({ status: 200, description: 'Unit found' })
   @ApiResponse({ status: 404, description: 'Unit not found' })
@@ -54,26 +54,26 @@ export class UnitsController {
   }
 
   @Post()
-  @Permissions('contracts.update') // Permission for creating/managing units
+  @Permissions('units.create')
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @ApiOperation({ 
-    summary: 'Create new unit',
-    description: 'Accessible by: ADMIN, SUPER_ADMIN only (requires contracts.update permission)'
+    summary: 'Create new unit/room',
+    description: 'Create a new unit. Accessible by: USER_MANAGER, ADMIN, SUPER_ADMIN only'
   })
   @ApiResponse({ status: 201, description: 'Unit created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 401, description: 'Unauthorized - JWT token required' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires units.create permission' })
   async create(@Body() createUnitDto: CreateUnitDto) {
     return this.unitsService.create(createUnitDto);
   }
 
   @Patch(':id')
-  @Permissions('contracts.update') // Permission for creating/managing units
+  @Permissions('units.update')
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @ApiOperation({ 
     summary: 'Update unit',
-    description: 'Accessible by: ADMIN, SUPER_ADMIN only. Can update name, price, area, floor, or status (requires contracts.update permission).'
+    description: 'Update unit details. Accessible by: USER_MANAGER, ADMIN, SUPER_ADMIN only'
   })
   @ApiResponse({ status: 200, description: 'Unit updated successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
@@ -85,14 +85,14 @@ export class UnitsController {
   }
 
   @Delete(':id')
-  @Permissions('contracts.update') // Permission for creating/managing units
+  @Permissions('units.delete')
   @ApiOperation({ 
     summary: 'Delete unit',
-    description: 'Accessible by: ADMIN, SUPER_ADMIN only (requires contracts.update permission)'
+    description: 'Delete a unit. Accessible by: USER_MANAGER, ADMIN, SUPER_ADMIN only'
   })
   @ApiResponse({ status: 200, description: 'Unit deleted successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized - JWT token required' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires units.delete permission' })
   @ApiResponse({ status: 404, description: 'Unit not found' })
   async remove(@Param('id') id: string) {
     return this.unitsService.remove(id);

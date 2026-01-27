@@ -204,3 +204,24 @@ export async function cleanupOldArchives(days: number): Promise<{
 }> {
   return fetchApi(`/archive/cleanup/${days}`, { method: 'DELETE' });
 }
+
+/**
+ * Permanently delete an archived tenant
+ */
+export async function deleteArchivedTenant(tenantId: string): Promise<void> {
+  return fetchApi(`/tenants/${tenantId}`, { method: 'DELETE' });
+}
+
+/**
+ * Permanently delete an archived contract
+ */
+export async function deleteArchivedContract(contractId: string): Promise<void> {
+  return fetchApi(`/contracts/${contractId}`, { method: 'DELETE' });
+}
+
+/**
+ * Permanently delete an archived invoice
+ */
+export async function deleteArchivedInvoice(invoiceId: string): Promise<void> {
+  return fetchApi(`/invoices/${invoiceId}`, { method: 'DELETE' });
+}

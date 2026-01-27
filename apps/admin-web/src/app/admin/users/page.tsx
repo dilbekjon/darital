@@ -13,7 +13,9 @@ import { fetchApi, ApiError } from '../../../lib/api';
 enum AdminRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
   ADMIN = 'ADMIN',
+  USER_MANAGER = 'USER_MANAGER',
   CASHIER = 'CASHIER',
+  PAYMENT_COLLECTOR = 'PAYMENT_COLLECTOR',
   SUPPORT = 'SUPPORT',
   ANALYST = 'ANALYST',
   TENANT_USER = 'TENANT_USER',
@@ -266,11 +268,13 @@ export default function AdminUsersPage() {
               } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
             >
               <option value="ALL">{t.allRoles || 'All Roles'}</option>
-              <option value="SUPER_ADMIN">{t.superAdmin}</option>
-              <option value="ADMIN">{t.admin}</option>
-              <option value="CASHIER">{t.cashier}</option>
-              <option value="SUPPORT">{t.support}</option>
-              <option value="ANALYST">{t.analyst}</option>
+              <option value="SUPER_ADMIN">{t.superAdmin || 'Bosh Direktor'}</option>
+              <option value="ADMIN">{t.admin || 'Admin'}</option>
+              <option value="USER_MANAGER">{t.userManager || 'Foydalanuvchi Menejeri'}</option>
+              <option value="CASHIER">{t.cashier || 'Kassir'}</option>
+              <option value="PAYMENT_COLLECTOR">{t.paymentCollector || 'To\'lov Yig\'uvchi'}</option>
+              <option value="SUPPORT">{t.support || 'Qo\'llab-quvvatlash'}</option>
+              <option value="ANALYST">{t.analyst || 'Tahlilchi'}</option>
             </select>
           </div>
         </div>
@@ -348,11 +352,13 @@ export default function AdminUsersPage() {
                   }`}>{u.email}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
-                  }`}>{u.role === 'SUPER_ADMIN' ? t.superAdmin :
-                         u.role === 'ADMIN' ? t.admin :
-                         u.role === 'CASHIER' ? t.cashier :
-                         u.role === 'SUPPORT' ? t.support :
-                         u.role === 'ANALYST' ? t.analyst : u.role}</td>
+                  }`}>{u.role === 'SUPER_ADMIN' ? (t.superAdmin || 'Bosh Direktor') :
+                         u.role === 'ADMIN' ? (t.admin || 'Admin') :
+                         u.role === 'USER_MANAGER' ? (t.userManager || 'Foydalanuvchi Menejeri') :
+                         u.role === 'CASHIER' ? (t.cashier || 'Kassir') :
+                         u.role === 'PAYMENT_COLLECTOR' ? (t.paymentCollector || 'To\'lov Yig\'uvchi') :
+                         u.role === 'SUPPORT' ? (t.support || 'Qo\'llab-quvvatlash') :
+                         u.role === 'ANALYST' ? (t.analyst || 'Tahlilchi') : u.role}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>{new Date(u.createdAt).toLocaleDateString()}</td>
@@ -465,11 +471,13 @@ export default function AdminUsersPage() {
                     .filter(role => role !== AdminRole.TENANT_USER)
                     .map((role) => (
                       <option key={role} value={role}>
-                        {role === AdminRole.SUPER_ADMIN ? t.superAdmin :
-                         role === AdminRole.ADMIN ? t.admin :
-                         role === AdminRole.CASHIER ? t.cashier :
-                         role === AdminRole.SUPPORT ? t.support :
-                         role === AdminRole.ANALYST ? t.analyst : role}
+                        {role === AdminRole.SUPER_ADMIN ? (t.superAdmin || 'Bosh Direktor') :
+                         role === AdminRole.ADMIN ? (t.admin || 'Admin') :
+                         role === AdminRole.USER_MANAGER ? (t.userManager || 'Foydalanuvchi Menejeri') :
+                         role === AdminRole.CASHIER ? (t.cashier || 'Kassir') :
+                         role === AdminRole.PAYMENT_COLLECTOR ? (t.paymentCollector || 'To\'lov Yig\'uvchi') :
+                         role === AdminRole.SUPPORT ? (t.support || 'Qo\'llab-quvvatlash') :
+                         role === AdminRole.ANALYST ? (t.analyst || 'Tahlilchi') : role}
                       </option>
                     ))}
                 </select>
@@ -529,11 +537,13 @@ export default function AdminUsersPage() {
                   .filter(role => role !== AdminRole.TENANT_USER) // Cannot assign TENANT_USER role here
                   .map((role) => (
                     <option key={role} value={role}>
-                      {role === AdminRole.SUPER_ADMIN ? t.superAdmin :
-                       role === AdminRole.ADMIN ? t.admin :
-                       role === AdminRole.CASHIER ? t.cashier :
-                       role === AdminRole.SUPPORT ? t.support :
-                       role === AdminRole.ANALYST ? t.analyst : role}
+                      {role === AdminRole.SUPER_ADMIN ? (t.superAdmin || 'Bosh Direktor') :
+                       role === AdminRole.ADMIN ? (t.admin || 'Admin') :
+                       role === AdminRole.USER_MANAGER ? (t.userManager || 'Foydalanuvchi Menejeri') :
+                       role === AdminRole.CASHIER ? (t.cashier || 'Kassir') :
+                       role === AdminRole.PAYMENT_COLLECTOR ? (t.paymentCollector || 'To\'lov Yig\'uvchi') :
+                       role === AdminRole.SUPPORT ? (t.support || 'Qo\'llab-quvvatlash') :
+                       role === AdminRole.ANALYST ? (t.analyst || 'Tahlilchi') : role}
                     </option>
                   ))}
               </select>

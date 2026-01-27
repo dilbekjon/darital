@@ -282,14 +282,34 @@ export class ContractsService {
     }
 
     const archivedAt = new Date();
-    return this.prisma.contract.update({
-      where: { id },
-      data: {
-        isArchived: true,
-        archivedAt,
-        archivedBy: adminId,
-        archiveReason: reason,
-      },
+    
+    // Archive contract and all related invoices in a transaction
+    return this.prisma.$transaction(async (tx) => {
+      // Archive all invoices related to this contract
+      const archivedInvoices = await tx.invoice.updateMany({
+        where: { contractId: id },
+        data: {
+          isArchived: true,
+          archivedAt,
+          archivedBy: adminId,
+          archiveReason: reason || 'Contract archived',
+        },
+      });
+      
+      this.logger.log(`📦 Archived ${archivedInvoices.count} invoice(s) for contract ${id}`);
+      
+      // Archive the contract
+      const archivedContract = await tx.contract.update({
+        where: { id },
+        data: {
+          isArchived: true,
+          archivedAt,
+          archivedBy: adminId,
+          archiveReason: reason,
+        },
+      });
+      
+      return archivedContract;
     });
   }
 
@@ -306,14 +326,33 @@ export class ContractsService {
       throw new ConflictException('Contract is not archived');
     }
 
-    return this.prisma.contract.update({
-      where: { id },
-      data: {
-        isArchived: false,
-        archivedAt: null,
-        archivedBy: null,
-        archiveReason: null,
-      },
+    // Unarchive contract and all related invoices in a transaction
+    return this.prisma.$transaction(async (tx) => {
+      // Unarchive all invoices related to this contract
+      const unarchivedInvoices = await tx.invoice.updateMany({
+        where: { contractId: id },
+        data: {
+          isArchived: false,
+          archivedAt: null,
+          archivedBy: null,
+          archiveReason: null,
+        },
+      });
+      
+      this.logger.log(`📤 Unarchived ${unarchivedInvoices.count} invoice(s) for contract ${id}`);
+      
+      // Unarchive the contract
+      const unarchivedContract = await tx.contract.update({
+        where: { id },
+        data: {
+          isArchived: false,
+          archivedAt: null,
+          archivedBy: null,
+          archiveReason: null,
+        },
+      });
+      
+      return unarchivedContract;
     });
   }
 
@@ -325,17 +364,30 @@ export class ContractsService {
       throw new ConflictException('Cannot permanently delete non-archived contract. Archive it first.');
     }
 
-    // Check if contract has invoices
-    const invoices = await this.prisma.invoice.findMany({
-      where: { contractId: id },
-    });
-
-    if (invoices.length > 0) {
-      throw new ConflictException('Cannot delete contract with existing invoices. Please delete invoices first.');
-    }
-
-    // Delete contract and update unit status in a transaction
+    // Delete contract, all related invoices and their payments in a transaction
     return this.prisma.$transaction(async (tx) => {
+      // Get all invoices for this contract
+      const invoices = await tx.invoice.findMany({
+        where: { contractId: id },
+        select: { id: true },
+      });
+      
+      const invoiceIds = invoices.map(inv => inv.id);
+      
+      // Delete all payments related to these invoices
+      if (invoiceIds.length > 0) {
+        const deletedPayments = await tx.payment.deleteMany({
+          where: { invoiceId: { in: invoiceIds } },
+        });
+        this.logger.log(`🗑️ Deleted ${deletedPayments.count} payment(s) for contract ${id}`);
+      }
+      
+      // Delete all invoices related to this contract
+      const deletedInvoices = await tx.invoice.deleteMany({
+        where: { contractId: id },
+      });
+      this.logger.log(`🗑️ Deleted ${deletedInvoices.count} invoice(s) for contract ${id}`);
+
       // Delete the contract
       await tx.contract.delete({
         where: { id },
@@ -349,7 +401,7 @@ export class ContractsService {
         });
       }
 
-      return { message: 'Contract permanently deleted successfully' };
+      return { message: 'Contract and all related invoices/payments permanently deleted successfully' };
     });
   }
 }

@@ -72,12 +72,14 @@ enum SenderRole {
 }
 
 enum AdminRole {
-  SUPER_ADMIN
-  ADMIN
-  CASHIER
-  SUPPORT
-  ANALYST
-  TENANT_USER // For distinguishing between internal admin roles and external tenant users
+  SUPER_ADMIN       // Main Director - full access to everything
+  ADMIN             // General admin (legacy)
+  USER_MANAGER      // Can manage buildings, rooms, users, contracts - no payment access
+  CASHIER           // Verifies and approves all payments (online + offline)
+  PAYMENT_COLLECTOR // Collects offline cash payments, records details, cannot approve
+  SUPPORT           // Customer support - chat access
+  ANALYST           // Reports and analytics only
+  TENANT_USER       // External tenant users
 }
 
 // Document type enum

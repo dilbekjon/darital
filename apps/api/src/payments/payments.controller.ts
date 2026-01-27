@@ -32,27 +32,33 @@ export class PaymentsController {
   }
 
   @Post()
-  @Permissions('payments.capture_offline')
+  @Permissions('payments.record_offline')
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  @ApiOperation({ summary: 'Create payment (ONLINE auto-confirms, OFFLINE pending)' })
-  @ApiResponse({ status: 201, description: 'Payment created; may be confirmed automatically' })
+  @ApiOperation({ 
+    summary: 'Record offline payment (Payment Collector)',
+    description: 'Records a new offline payment. Accessible by: PAYMENT_COLLECTOR, CASHIER, ADMIN, SUPER_ADMIN. Payment remains PENDING until approved by Cashier.'
+  })
+  @ApiResponse({ status: 201, description: 'Payment recorded; awaiting cashier approval' })
   async create(@Body() dto: CreatePaymentDto) {
     return this.paymentsService.create(dto);
   }
 
   @Patch(':id')
-  @Permissions('payments.capture_offline')
+  @Permissions('payments.approve')
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  @ApiOperation({ summary: 'Update payment status (OFFLINE confirmation/cancellation)' })
+  @ApiOperation({ 
+    summary: 'Update payment status (Cashier only)',
+    description: 'Update payment status for approval/cancellation. Accessible by: CASHIER, ADMIN, SUPER_ADMIN only.'
+  })
   async update(@Param('id') id: string, @Body() dto: UpdatePaymentDto) {
     return this.paymentsService.update(id, dto);
   }
 
   @Patch(':id/verify/accept')
-  @Permissions('payments.capture_offline') // Only admins with payment verification permission
+  @Permissions('payments.approve')
   @ApiOperation({ 
-    summary: 'Accept and confirm payment (admin verification)',
-    description: 'Verifies an online payment received via webhook. Only main admins and financial admins can verify payments.'
+    summary: 'Accept and confirm payment (Cashier verification)',
+    description: 'Verifies and approves a payment (online or offline). Only CASHIER, ADMIN, SUPER_ADMIN can approve payments.'
   })
   @ApiResponse({ status: 200, description: 'Payment verified and confirmed' })
   async acceptPayment(@Param('id') id: string) {
@@ -60,21 +66,32 @@ export class PaymentsController {
   }
 
   @Patch(':id/verify/decline')
-  @Permissions('payments.capture_offline') // Only admins with payment verification permission
+  @Permissions('payments.approve')
   @ApiOperation({ 
-    summary: 'Decline payment (admin verification)',
-    description: 'Rejects an online payment. Payment will be cancelled. Only main admins and financial admins can verify payments.'
+    summary: 'Decline payment (Cashier verification)',
+    description: 'Rejects a payment. Only CASHIER, ADMIN, SUPER_ADMIN can decline payments.'
   })
   @ApiResponse({ status: 200, description: 'Payment declined and cancelled' })
   async declinePayment(@Param('id') id: string, @Body() body: { reason?: string }) {
     return this.paymentsService.verifyPayment(id, false, body.reason);
   }
 
-  @Delete(':id')
+  @Patch(':id/capture')
   @Permissions('payments.capture_offline')
   @ApiOperation({ 
-    summary: 'Delete payment',
-    description: 'Delete a payment. Only PENDING or CANCELLED payments can be deleted. CONFIRMED payments cannot be deleted as they affect financial records.'
+    summary: 'Mark offline payment as received (Cashier)',
+    description: 'Cashier marks that cash has been received from Payment Collector. Accessible by: CASHIER, ADMIN, SUPER_ADMIN.'
+  })
+  @ApiResponse({ status: 200, description: 'Payment marked as cash received' })
+  async captureOffline(@Param('id') id: string) {
+    return this.paymentsService.verifyPayment(id, true);
+  }
+
+  @Delete(':id')
+  @Permissions('payments.approve')
+  @ApiOperation({ 
+    summary: 'Delete payment (Admin only)',
+    description: 'Delete a payment. Only PENDING or CANCELLED payments can be deleted. CONFIRMED payments cannot be deleted.'
   })
   @ApiResponse({ status: 200, description: 'Payment deleted successfully' })
   @ApiResponse({ status: 404, description: 'Payment not found' })

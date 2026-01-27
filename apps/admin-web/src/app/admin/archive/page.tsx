@@ -19,6 +19,9 @@ import {
   unarchiveTenant,
   unarchiveContract,
   unarchiveInvoice,
+  deleteArchivedTenant,
+  deleteArchivedContract,
+  deleteArchivedInvoice,
   cleanupOldArchives,
   ArchiveSummary,
   ArchivedConversation,
@@ -38,6 +41,7 @@ export default function ArchiveManagementPage() {
   const [archiving, setArchiving] = useState(false);
   const [restoring, setRestoring] = useState<string | null>(null);
   const [unarchiving, setUnarchiving] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [cleaning, setCleaning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -162,6 +166,63 @@ export default function ArchiveManagementPage() {
       setError(t.failedToUnarchiveInvoice);
     } finally {
       setUnarchiving(null);
+    }
+  };
+
+  const handleDeleteTenant = async (tenantId: string, tenantName: string) => {
+    if (!confirm(`Bu ijara oluvchini butunlay o'chirmoqchimisiz?\n\n"${tenantName}"\n\nBu amalni qaytarib bo'lmaydi!`)) {
+      return;
+    }
+    
+    setDeleting(tenantId);
+    setError(null);
+    try {
+      await deleteArchivedTenant(tenantId);
+      setSuccess('Ijara oluvchi muvaffaqiyatli o\'chirildi');
+      setArchivedTenants(prev => prev.filter(t => t.id !== tenantId));
+    } catch (err: any) {
+      console.error('Failed to delete tenant:', err);
+      setError(err?.message || 'Ijara oluvchini o\'chirishda xato');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleDeleteContract = async (contractId: string, contractInfo: string) => {
+    if (!confirm(`Bu shartnomani butunlay o'chirmoqchimisiz?\n\n"${contractInfo}"\n\nBarcha tegishli hisob-fakturalar va to'lovlar ham o'chiriladi!\n\nBu amalni qaytarib bo'lmaydi!`)) {
+      return;
+    }
+    
+    setDeleting(contractId);
+    setError(null);
+    try {
+      await deleteArchivedContract(contractId);
+      setSuccess('Shartnoma muvaffaqiyatli o\'chirildi');
+      setArchivedContracts(prev => prev.filter(c => c.id !== contractId));
+    } catch (err: any) {
+      console.error('Failed to delete contract:', err);
+      setError(err?.message || 'Shartnomani o\'chirishda xato');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm(`Bu hisob-fakturani butunlay o'chirmoqchimisiz?\n\nBu amalni qaytarib bo'lmaydi!`)) {
+      return;
+    }
+    
+    setDeleting(invoiceId);
+    setError(null);
+    try {
+      await deleteArchivedInvoice(invoiceId);
+      setSuccess('Hisob-faktura muvaffaqiyatli o\'chirildi');
+      setArchivedInvoices(prev => prev.filter(i => i.id !== invoiceId));
+    } catch (err: any) {
+      console.error('Failed to delete invoice:', err);
+      setError(err?.message || 'Hisob-fakturani o\'chirishda xato');
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -434,17 +495,30 @@ export default function ArchiveManagementPage() {
                             </div>
                           )}
                         </div>
-                        <button
-                          onClick={() => handleUnarchiveTenant(tenant.id)}
-                          disabled={unarchiving === tenant.id}
-                          className={`px-3 py-1 rounded text-sm font-medium transition-all ${
-                            unarchiving === tenant.id
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              : 'bg-green-600 text-white hover:bg-green-700'
-                          }`}
-                        >
-                          {unarchiving === tenant.id ? t.unarchiving : t.unarchive}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleUnarchiveTenant(tenant.id)}
+                            disabled={unarchiving === tenant.id || deleting === tenant.id}
+                            className={`px-3 py-1 rounded text-sm font-medium transition-all ${
+                              unarchiving === tenant.id
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-green-600 text-white hover:bg-green-700'
+                            }`}
+                          >
+                            {unarchiving === tenant.id ? t.unarchiving : t.unarchive}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTenant(tenant.id, tenant.fullName)}
+                            disabled={unarchiving === tenant.id || deleting === tenant.id}
+                            className={`px-3 py-1 rounded text-sm font-medium transition-all ${
+                              deleting === tenant.id
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-red-600 text-white hover:bg-red-700'
+                            }`}
+                          >
+                            {deleting === tenant.id ? 'O\'chirilmoqda...' : 'O\'chirish'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -485,17 +559,30 @@ export default function ArchiveManagementPage() {
                             ${contract.amount} • {contract.status} • Archived: {formatDate(contract.archivedAt)}
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleUnarchiveContract(contract.id)}
-                          disabled={unarchiving === contract.id}
-                          className={`px-3 py-1 rounded text-sm font-medium transition-all ${
-                            unarchiving === contract.id
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              : 'bg-green-600 text-white hover:bg-green-700'
-                          }`}
-                        >
-                          {unarchiving === contract.id ? t.unarchiving : t.unarchive}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleUnarchiveContract(contract.id)}
+                            disabled={unarchiving === contract.id || deleting === contract.id}
+                            className={`px-3 py-1 rounded text-sm font-medium transition-all ${
+                              unarchiving === contract.id
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-green-600 text-white hover:bg-green-700'
+                            }`}
+                          >
+                            {unarchiving === contract.id ? t.unarchiving : t.unarchive}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteContract(contract.id, `${contract.tenant.fullName} - ${contract.unit.name}`)}
+                            disabled={unarchiving === contract.id || deleting === contract.id}
+                            className={`px-3 py-1 rounded text-sm font-medium transition-all ${
+                              deleting === contract.id
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-red-600 text-white hover:bg-red-700'
+                            }`}
+                          >
+                            {deleting === contract.id ? 'O\'chirilmoqda...' : 'O\'chirish'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -536,17 +623,30 @@ export default function ArchiveManagementPage() {
                             ${invoice.amount} • {invoice.status} • Archived: {formatDate(invoice.archivedAt)}
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleUnarchiveInvoice(invoice.id)}
-                          disabled={unarchiving === invoice.id}
-                          className={`px-3 py-1 rounded text-sm font-medium transition-all ${
-                            unarchiving === invoice.id
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              : 'bg-green-600 text-white hover:bg-green-700'
-                          }`}
-                        >
-                          {unarchiving === invoice.id ? t.unarchiving : t.unarchive}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleUnarchiveInvoice(invoice.id)}
+                            disabled={unarchiving === invoice.id || deleting === invoice.id}
+                            className={`px-3 py-1 rounded text-sm font-medium transition-all ${
+                              unarchiving === invoice.id
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-green-600 text-white hover:bg-green-700'
+                            }`}
+                          >
+                            {unarchiving === invoice.id ? t.unarchiving : t.unarchive}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteInvoice(invoice.id)}
+                            disabled={unarchiving === invoice.id || deleting === invoice.id}
+                            className={`px-3 py-1 rounded text-sm font-medium transition-all ${
+                              deleting === invoice.id
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-red-600 text-white hover:bg-red-700'
+                            }`}
+                          >
+                            {deleting === invoice.id ? 'O\'chirilmoqda...' : 'O\'chirish'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

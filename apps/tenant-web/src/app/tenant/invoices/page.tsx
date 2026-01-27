@@ -497,63 +497,36 @@ const InvoicePage = () => {
                     {/* Pay Now Button Section */}
                     {!isPaid && !isPaymentReceived && (
                       <div className={`mt-6 pt-6 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className={`text-sm font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {isOverdue 
-                                ? (t.payBefore || 'Please pay immediately')
-                                : (t.paymentDue || 'Payment Due')
-                              }
-                            </p>
-                            {(() => {
-                              const { days, isOverdue: overdue } = getDaysRemaining(invoice.dueDate);
-                              if (overdue) {
-                                return (
-                                  <p className={`text-sm font-semibold ${darkMode ? 'text-red-400' : 'text-red-600'}`}>
-                                    {t.urgentPayment || 'Urgent: Payment is overdue!'}
-                                  </p>
-                                );
-                              } else if (days <= 3) {
-                                return (
-                                  <p className={`text-sm font-semibold ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                                    {`To'lov uchun ${days} kun qoldi`}
-                                  </p>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </div>
-                          <button
-                            onClick={() => handlePayInvoice(invoice.id)}
-                            disabled={payingInvoiceId === invoice.id}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-base shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 ${
-                              isOverdue
-                                ? darkMode
-                                  ? 'bg-red-600 text-white hover:bg-red-700 shadow-red-500/50'
-                                  : 'bg-red-600 text-white hover:bg-red-700 shadow-red-500/30'
-                                : darkMode
-                                ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400 shadow-yellow-500/50'
-                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30'
-                            }`}
-                          >
-                            {payingInvoiceId === invoice.id ? (
-                              <>
-                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                {t.loading || 'Loading...'}
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                </svg>
-                                {t.payNow || 'Pay Now'}
-                              </>
-                            )}
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => handlePayInvoice(invoice.id)}
+                          disabled={payingInvoiceId === invoice.id}
+                          className={`w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-bold text-lg shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+                            isOverdue
+                              ? darkMode
+                                ? 'bg-gradient-to-r from-red-600 to-red-500 text-white hover:from-red-500 hover:to-red-400 shadow-red-500/40'
+                                : 'bg-gradient-to-r from-red-600 to-red-500 text-white hover:from-red-500 hover:to-red-400 shadow-red-500/30'
+                              : darkMode
+                              ? 'bg-gradient-to-r from-yellow-500 to-yellow-400 text-gray-900 hover:from-yellow-400 hover:to-yellow-300 shadow-yellow-500/40'
+                              : 'bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-500 hover:to-blue-400 shadow-blue-500/30'
+                          }`}
+                        >
+                          {payingInvoiceId === invoice.id ? (
+                            <>
+                              <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              <span>{t.loading || 'Yuklanmoqda...'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                              </svg>
+                              <span>{isOverdue ? (t.payNowUrgent || 'Hozir to\'lang!') : (t.payNow || 'To\'lash')}</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     )}
 
