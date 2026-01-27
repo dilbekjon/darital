@@ -428,6 +428,11 @@ export class PaymentsService {
       provider: (payment as any).provider || null,
       providerPaymentId: (payment as any).providerPaymentId || null,
       rawPayload: (payment as any).rawPayload || null,
+      // Archive fields
+      isArchived: payment.isArchived,
+      archivedAt: payment.archivedAt ? payment.archivedAt.toISOString() : null,
+      archivedBy: payment.archivedBy,
+      archiveReason: payment.archiveReason,
       tenant: payment.invoice.contract.tenant,
       unit: payment.invoice.contract.unit,
       invoice: {

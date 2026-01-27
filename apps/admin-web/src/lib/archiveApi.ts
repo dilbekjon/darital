@@ -30,10 +30,15 @@ export interface ArchivedContract {
 export interface ArchivedInvoice {
   id: string;
   contractId: string;
-  contract: { tenant: { fullName: string } };
+  contract: { 
+    id: string;
+    tenant: { fullName: string; email: string };
+    unit: { name: string };
+  };
   dueDate: string;
   amount: number;
   status: string;
+  isArchived: boolean;
   archivedAt: string;
   archivedBy: string;
   archiveReason?: string;

@@ -87,6 +87,11 @@ export class InvoicesService {
       status: invoice.status,
       createdAt: invoice.createdAt.toISOString(),
       updatedAt: invoice.updatedAt.toISOString(),
+      // Archive fields
+      isArchived: invoice.isArchived,
+      archivedAt: invoice.archivedAt ? invoice.archivedAt.toISOString() : null,
+      archivedBy: invoice.archivedBy,
+      archiveReason: invoice.archiveReason,
       contract: invoice.contract ? {
         id: invoice.contract.id,
         tenantId: invoice.contract.tenantId,

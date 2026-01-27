@@ -430,7 +430,7 @@ export default function ArchiveManagementPage() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Invoices ({archivedInvoices.length})
+              Hisob-fakturalar ({archivedInvoices.length})
             </button>
             <button
               onClick={() => setActiveTab('payments')}
@@ -594,13 +594,13 @@ export default function ArchiveManagementPage() {
           {activeTab === 'invoices' && (
             <div>
               <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                Archived Invoices ({archivedInvoices.length})
+                Arxivlangan Hisob-fakturalar ({archivedInvoices.length})
               </h2>
               {archivedInvoices.length === 0 ? (
                 <EmptyState
                   icon={<span className="text-4xl">🧾</span>}
-                  title={t.noArchivedInvoices}
-                  description={t.archivedInvoicesDesc}
+                  title={t.noArchivedInvoices || 'Arxivlangan hisob-fakturalar yo\'q'}
+                  description={t.archivedInvoicesDesc || 'Shartnoma arxivlanganda, unga tegishli hisob-fakturalar ham arxivlanadi'}
                 />
               ) : (
                 <div className="space-y-3">
@@ -616,11 +616,19 @@ export default function ArchiveManagementPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                            {invoice.contract.tenant.fullName}
+                            {invoice.contract?.tenant?.fullName || 'Noma\'lum'}
                           </h3>
                           <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            Due: {new Date(invoice.dueDate).toLocaleDateString()} •
-                            ${invoice.amount} • {invoice.status} • Archived: {formatDate(invoice.archivedAt)}
+                            {invoice.contract?.unit?.name && <span className="mr-2">Xona: {invoice.contract.unit.name}</span>}
+                            {invoice.contract?.tenant?.email && <span className="mr-2">• {invoice.contract.tenant.email}</span>}
+                          </div>
+                          <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            To'lov muddati: {new Date(invoice.dueDate).toLocaleDateString('uz-UZ')} •
+                            {' '}{Number(invoice.amount).toLocaleString()} UZS • {invoice.status === 'PENDING' ? 'Kutilmoqda' : invoice.status === 'PAID' ? 'To\'langan' : invoice.status === 'OVERDUE' ? 'Muddati o\'tgan' : invoice.status}
+                          </div>
+                          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                            Arxivlangan: {formatDate(invoice.archivedAt)}
+                            {invoice.archiveReason && <span> • Sabab: {invoice.archiveReason}</span>}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -633,7 +641,7 @@ export default function ArchiveManagementPage() {
                                 : 'bg-green-600 text-white hover:bg-green-700'
                             }`}
                           >
-                            {unarchiving === invoice.id ? t.unarchiving : t.unarchive}
+                            {unarchiving === invoice.id ? 'Tiklanmoqda...' : 'Tiklash'}
                           </button>
                           <button
                             onClick={() => handleDeleteInvoice(invoice.id)}
