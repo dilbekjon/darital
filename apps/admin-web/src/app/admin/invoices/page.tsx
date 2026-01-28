@@ -125,7 +125,7 @@ export default function AdminInvoicesPage() {
 
   useEffect(() => {
     if (!loading) {
-      if (!user || !hasPermission('payments.read')) {
+      if (!user || !hasPermission('invoices.read')) {
         setPageLoading(false);
         return;
       }
@@ -146,7 +146,7 @@ export default function AdminInvoicesPage() {
   }, [loading, user, hasPermission, loadInvoices]);
 
   useEffect(() => {
-    if (!user || !hasPermission('payments.read')) {
+    if (!user || !hasPermission('invoices.read')) {
       return;
     }
     const token = getToken();
@@ -512,7 +512,7 @@ export default function AdminInvoicesPage() {
     return <DaritalLoader darkMode={darkMode} />;
   }
 
-  if (!user || !hasPermission('payments.read')) {
+  if (!user || !hasPermission('invoices.read')) {
     return <NoAccess />;
   }
 
