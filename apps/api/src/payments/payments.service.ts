@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { Decimal } from '@prisma/client/runtime/library';
-import { PaymentMethod, PaymentStatus, PaymentProvider, Prisma } from '@prisma/client';
+import { PaymentMethod, PaymentStatus, PaymentProvider, Prisma, InvoiceStatus } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
 import { PaymentWebhookDto } from './dto/payment-webhook.dto';
@@ -428,6 +428,12 @@ export class PaymentsService {
       provider: (payment as any).provider || null,
       providerPaymentId: (payment as any).providerPaymentId || null,
       rawPayload: (payment as any).rawPayload || null,
+      // Offline payment tracking fields
+      collectedBy: payment.collectedBy,
+      collectedAt: payment.collectedAt ? payment.collectedAt.toISOString() : null,
+      collectorNote: payment.collectorNote,
+      approvedBy: payment.approvedBy,
+      approvedAt: payment.approvedAt ? payment.approvedAt.toISOString() : null,
       // Archive fields
       isArchived: payment.isArchived,
       archivedAt: payment.archivedAt ? payment.archivedAt.toISOString() : null,
@@ -484,6 +490,100 @@ export class PaymentsService {
     }
 
     return payment;
+  }
+
+  /**
+   * Record offline payment - Used by PAYMENT_COLLECTOR
+   * Creates a CONFIRMED payment immediately since cash was received
+   */
+  async recordOfflinePayment(
+    dto: { invoiceId: string; amount: string; collectorNote?: string; collectedAt?: string },
+    collectorId: string,
+  ) {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: dto.invoiceId },
+      include: { 
+        contract: { include: { tenant: true } },
+        payments: { where: { status: PaymentStatus.CONFIRMED } },
+      },
+    });
+    
+    if (!invoice) throw new NotFoundException('Invoice not found');
+    
+    // Check if invoice is already fully paid
+    const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount.toNumber(), 0);
+    if (totalPaid >= invoice.amount.toNumber()) {
+      throw new ConflictException('This invoice is already fully paid');
+    }
+
+    const collectedAt = dto.collectedAt ? new Date(dto.collectedAt) : new Date();
+    const amount = new Decimal(dto.amount);
+
+    // Create and confirm payment in a transaction
+    const payment = await this.prisma.$transaction(async (tx) => {
+      // Create payment with CONFIRMED status
+      const newPayment = await tx.payment.create({
+        data: {
+          invoiceId: dto.invoiceId,
+          method: PaymentMethod.OFFLINE,
+          amount,
+          status: PaymentStatus.CONFIRMED,
+          paidAt: collectedAt,
+          collectedBy: collectorId,
+          collectedAt,
+          collectorNote: dto.collectorNote,
+        },
+        include: {
+          invoice: {
+            include: {
+              contract: {
+                include: {
+                  tenant: {
+                    select: { id: true, fullName: true, email: true },
+                  },
+                  unit: {
+                    select: { id: true, name: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Update invoice status to PAID
+      await tx.invoice.update({
+        where: { id: dto.invoiceId },
+        data: { status: InvoiceStatus.PAID },
+      });
+
+      return newPayment;
+    });
+
+    // Send notifications
+    await this.notifications.notifyAdminNewPayment(
+      payment.id,
+      invoice.contract.tenant.fullName,
+      amount.toNumber(),
+      PaymentMethod.OFFLINE,
+    );
+
+    // Emit WebSocket event
+    const gateway = this.getChatGateway();
+    if (gateway) {
+      setImmediate(async () => {
+        try {
+          await gateway.emitPaymentUpdated(payment);
+        } catch (error) {
+          console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+        }
+      });
+    }
+
+    return {
+      ...payment,
+      message: 'Offline payment recorded and confirmed successfully',
+    };
   }
 
   async update(id: string, dto: UpdatePaymentDto) {

@@ -355,9 +355,9 @@ const PaymentsPage = () => {
                             <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium ${
                               payment.method === 'ONLINE'
                                 ? darkMode ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700'
-                                : darkMode ? 'bg-gray-600/50 text-gray-300' : 'bg-gray-200 text-gray-700'
+                                : darkMode ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-700'
                             }`}>
-                              {payment.method === 'ONLINE' ? '🌐 Online' : '💵 Offline'}
+                              {payment.method === 'ONLINE' ? '🌐 Online' : '💵 Naqd pul'}
                             </span>
                             {payment.provider && payment.provider !== 'NONE' && (
                               <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium ${

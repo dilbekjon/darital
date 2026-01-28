@@ -269,12 +269,22 @@ const InvoicePage = () => {
                         </div>
                         <div>
                           <p className={`font-bold ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
-                            {t.paid || 'To\'langan'}
+                            {payment?.method === 'OFFLINE' ? 'Naqd pul orqali to\'langan' : (t.paid || 'To\'langan')}
                           </p>
                           <p className={`text-xs ${darkMode ? 'text-green-400/70' : 'text-green-600'}`}>
-                            Hisob-faktura to'liq to'landi
+                            {payment?.method === 'OFFLINE' 
+                              ? (payment?.collectedAt ? `Qabul qilingan: ${new Date(payment.collectedAt).toLocaleString('uz-UZ')}` : 'Naqd pul qabul qilindi')
+                              : 'Hisob-faktura to\'liq to\'landi'
+                            }
                           </p>
                         </div>
+                        {payment?.method === 'OFFLINE' && (
+                          <span className={`ml-auto px-2 py-1 rounded-full text-xs font-medium ${
+                            darkMode ? 'bg-green-500/30 text-green-300' : 'bg-green-200 text-green-700'
+                          }`}>
+                            💵 Naqd
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}

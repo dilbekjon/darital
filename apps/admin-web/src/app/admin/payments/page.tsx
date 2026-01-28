@@ -42,6 +42,12 @@ interface Payment {
   provider?: string;
   providerPaymentId?: string;
   rawPayload?: any;
+  // Offline payment tracking
+  collectedBy?: string;
+  collectedAt?: string;
+  collectorNote?: string;
+  approvedBy?: string;
+  approvedAt?: string;
   tenant?: Tenant;
   unit?: Unit;
   invoice?: Invoice;
@@ -81,6 +87,16 @@ export default function AdminPaymentsPage() {
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+  
+  // Record Offline Payment Modal State
+  const [recordOfflineModalOpen, setRecordOfflineModalOpen] = useState(false);
+  const [recordingOffline, setRecordingOffline] = useState(false);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [offlineForm, setOfflineForm] = useState({
+    invoiceId: '',
+    amount: '',
+    collectorNote: '',
+  });
 
   // Load payments function - wrapped in useCallback to prevent stale closures
   const loadPayments = useCallback(async () => {
@@ -101,6 +117,61 @@ export default function AdminPaymentsPage() {
       setPageLoading(false);
     }
   }, []);
+
+  // Load pending invoices for offline payment recording
+  const loadPendingInvoices = useCallback(async () => {
+    try {
+      const data = await fetchApi<any>('/invoices?status=PENDING&limit=1000');
+      const result = normalizeListResponse<Invoice>(data);
+      setInvoices(result.items || []);
+    } catch (err) {
+      console.error('Failed to load invoices:', err);
+    }
+  }, []);
+
+  // Record offline payment
+  const handleRecordOfflinePayment = async () => {
+    if (!offlineForm.invoiceId || !offlineForm.amount) {
+      setError('Hisob-faktura va miqdorni tanlang');
+      return;
+    }
+
+    setRecordingOffline(true);
+    setError(null);
+
+    try {
+      await fetchApi<any>('/payments/offline', {
+        method: 'POST',
+        body: JSON.stringify({
+          invoiceId: offlineForm.invoiceId,
+          amount: offlineForm.amount,
+          collectorNote: offlineForm.collectorNote || undefined,
+        }),
+      });
+
+      // Reset form and close modal
+      setOfflineForm({ invoiceId: '', amount: '', collectorNote: '' });
+      setRecordOfflineModalOpen(false);
+      
+      // Reload payments to show the new one
+      await loadPayments();
+    } catch (err) {
+      console.error('Failed to record offline payment:', err);
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Oflayn to\'lovni yozishda xato yuz berdi');
+      }
+    } finally {
+      setRecordingOffline(false);
+    }
+  };
+
+  // Open record offline payment modal
+  const openRecordOfflineModal = async () => {
+    await loadPendingInvoices();
+    setRecordOfflineModalOpen(true);
+  };
 
   // Handle payment verification (Accept/Decline)
   const handleVerifyPayment = async (paymentId: string, accept: boolean) => {
@@ -643,6 +714,23 @@ export default function AdminPaymentsPage() {
               </span>
             </label>
           </div>
+          
+          {/* Record Offline Payment Button */}
+          {hasPermission('payments.record_offline') && (
+            <button
+              onClick={openRecordOfflineModal}
+              className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                darkMode
+                  ? 'bg-green-600 hover:bg-green-500 text-white'
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Oflayn to'lov yozish
+            </button>
+          )}
         </div>
       )}
 
@@ -775,10 +863,34 @@ export default function AdminPaymentsPage() {
                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}>
-                        <div>{payment.method === 'ONLINE' ? 'Online' : 'Offline'}</div>
+                        <div className="flex items-center gap-1">
+                          {payment.method === 'ONLINE' ? (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              Online
+                            </span>
+                          ) : (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-800'
+                            }`}>
+                              Naqd pul
+                            </span>
+                          )}
+                        </div>
                         {payment.method === 'ONLINE' && payment.provider && payment.provider !== 'NONE' && (
                           <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                             {payment.provider}
+                          </div>
+                        )}
+                        {payment.method === 'OFFLINE' && payment.collectedAt && (
+                          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {new Date(payment.collectedAt).toLocaleDateString('uz-UZ')}
+                          </div>
+                        )}
+                        {payment.method === 'OFFLINE' && payment.collectorNote && (
+                          <div className={`text-xs mt-0.5 truncate max-w-[120px] ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} title={payment.collectorNote}>
+                            {payment.collectorNote}
                           </div>
                         )}
                       </td>
@@ -1176,6 +1288,172 @@ export default function AdminPaymentsPage() {
                     }`}
                   >
                     {savingEdit ? (t.processing || 'Saving...') : (t.save || 'Save')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Record Offline Payment Modal */}
+      {recordOfflineModalOpen && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={() => !recordingOffline && setRecordOfflineModalOpen(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className={`w-full max-w-md rounded-xl shadow-2xl ${
+              darkMode ? 'bg-gray-900 border border-blue-600/30' : 'bg-white'
+            }`}>
+              {/* Modal Header */}
+              <div className={`px-6 py-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between">
+                  <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Oflayn to'lovni yozish
+                  </h3>
+                  <button
+                    onClick={() => !recordingOffline && setRecordOfflineModalOpen(false)}
+                    disabled={recordingOffline}
+                    className={`p-1 rounded-lg transition-colors ${
+                      darkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Ijara oluvchidan naqd pul qabul qilinganini yozib qo'ying
+                </p>
+              </div>
+
+              {/* Modal Body */}
+              <div className="px-6 py-4 space-y-4">
+                {error && (
+                  <div className={`p-3 rounded-lg border ${
+                    darkMode ? 'bg-red-900/20 border-red-600/30 text-red-300' : 'bg-red-50 border-red-200 text-red-800'
+                  }`}>
+                    <p className="text-sm">{error}</p>
+                  </div>
+                )}
+
+                {/* Invoice Selection */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Hisob-faktura *
+                  </label>
+                  <select
+                    value={offlineForm.invoiceId}
+                    onChange={(e) => {
+                      const selectedInvoice = invoices.find(inv => inv.id === e.target.value);
+                      setOfflineForm({
+                        ...offlineForm,
+                        invoiceId: e.target.value,
+                        amount: selectedInvoice ? selectedInvoice.amount.toString() : '',
+                      });
+                    }}
+                    disabled={recordingOffline}
+                    className={`w-full px-3 py-2 border rounded-lg ${
+                      darkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  >
+                    <option value="">Hisob-fakturani tanlang...</option>
+                    {invoices.map((invoice) => (
+                      <option key={invoice.id} value={invoice.id}>
+                        {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('uz-UZ') : 'N/A'} - 
+                        {' '}UZS {Number(invoice.amount).toLocaleString()} - 
+                        {' '}{invoice.status}
+                      </option>
+                    ))}
+                  </select>
+                  {invoices.length === 0 && (
+                    <p className={`text-xs mt-1 ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                      To'lanmagan hisob-fakturalar topilmadi
+                    </p>
+                  )}
+                </div>
+
+                {/* Amount */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Miqdor (UZS) *
+                  </label>
+                  <input
+                    type="number"
+                    value={offlineForm.amount}
+                    onChange={(e) => setOfflineForm({ ...offlineForm, amount: e.target.value })}
+                    disabled={recordingOffline}
+                    placeholder="100000"
+                    className={`w-full px-3 py-2 border rounded-lg ${
+                      darkMode
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                </div>
+
+                {/* Collector Note */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Izoh (ixtiyoriy)
+                  </label>
+                  <textarea
+                    value={offlineForm.collectorNote}
+                    onChange={(e) => setOfflineForm({ ...offlineForm, collectorNote: e.target.value })}
+                    disabled={recordingOffline}
+                    placeholder="Kvitansiya raqami, qo'shimcha ma'lumot..."
+                    rows={2}
+                    className={`w-full px-3 py-2 border rounded-lg ${
+                      darkMode
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                </div>
+
+                {/* Info Box */}
+                <div className={`p-3 rounded-lg border ${
+                  darkMode ? 'bg-blue-900/20 border-blue-600/30 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-800'
+                }`}>
+                  <p className="text-sm">
+                    ℹ️ Oflayn to'lov darhol tasdiqlangan holda saqlanadi. Hisob-faktura "To'langan" deb belgilanadi.
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => !recordingOffline && setRecordOfflineModalOpen(false)}
+                    disabled={recordingOffline}
+                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      darkMode
+                        ? 'bg-gray-800 hover:bg-gray-700 text-white border border-gray-700'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    } disabled:opacity-50`}
+                  >
+                    Bekor qilish
+                  </button>
+                  <button
+                    onClick={handleRecordOfflinePayment}
+                    disabled={recordingOffline || !offlineForm.invoiceId || !offlineForm.amount}
+                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      darkMode
+                        ? 'bg-green-600 hover:bg-green-700 text-white disabled:opacity-50'
+                        : 'bg-green-600 hover:bg-green-700 text-white disabled:opacity-50'
+                    }`}
+                  >
+                    {recordingOffline ? 'Saqlanmoqda...' : 'To\'lovni yozish'}
                   </button>
                 </div>
               </div>

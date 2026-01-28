@@ -251,6 +251,13 @@ model Payment {
   paidAt      DateTime?
   createdAt   DateTime       @default(now())
 
+  // Offline payment tracking
+  collectedBy   String?        // User ID of Payment Collector who received cash
+  collectedAt   DateTime?      // When the cash was collected
+  collectorNote String?        // Note from collector (e.g., receipt number)
+  approvedBy    String?        // Cashier who approved the payment
+  approvedAt    DateTime?      // When the payment was approved
+
   // Archive fields
   isArchived    Boolean        @default(false)
   archivedAt    DateTime?
@@ -262,6 +269,7 @@ model Payment {
   @@index([paidAt])
   @@index([createdAt])
   @@index([isArchived])
+  @@index([collectedBy])
 }
 
 model Balance {

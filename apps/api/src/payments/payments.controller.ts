@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, Patch, Param, Post, UseGuards, UseInterceptors, UsePipes, ValidationPipe, Query, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Param, Post, UseGuards, UseInterceptors, UsePipes, ValidationPipe, Query, ForbiddenException, NotFoundException, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
+import { RecordOfflinePaymentDto } from './dto/record-offline-payment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Permissions } from '../rbac/permissions.decorator';
 import { AuditInterceptor } from '../audit/audit.interceptor';
@@ -11,6 +12,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { PaymentWebhookDto } from './dto/payment-webhook.dto';
 import { PaymentProviderEnum } from './dto/payment-intent.dto';
 import { PrismaService } from '../prisma.service';
+import { Request } from 'express';
 
 @ApiTags('payments')
 @ApiBearerAuth()
@@ -35,12 +37,30 @@ export class PaymentsController {
   @Permissions('payments.record_offline')
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @ApiOperation({ 
-    summary: 'Record offline payment (Payment Collector)',
-    description: 'Records a new offline payment. Accessible by: PAYMENT_COLLECTOR, CASHIER, ADMIN, SUPER_ADMIN. Payment remains PENDING until approved by Cashier.'
+    summary: 'Create payment (general)',
+    description: 'Creates a payment record. For online payments, use payment intent flow instead.'
   })
-  @ApiResponse({ status: 201, description: 'Payment recorded; awaiting cashier approval' })
+  @ApiResponse({ status: 201, description: 'Payment created' })
   async create(@Body() dto: CreatePaymentDto) {
     return this.paymentsService.create(dto);
+  }
+
+  @Post('offline')
+  @Permissions('payments.record_offline')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @ApiOperation({ 
+    summary: 'Record offline cash payment (Payment Collector)',
+    description: 'Records an offline cash payment received from tenant. Payment is immediately confirmed. Accessible by: PAYMENT_COLLECTOR, CASHIER, ADMIN, SUPER_ADMIN.'
+  })
+  @ApiResponse({ status: 201, description: 'Offline payment recorded and confirmed' })
+  @ApiResponse({ status: 404, description: 'Invoice not found' })
+  @ApiResponse({ status: 409, description: 'Invoice already paid' })
+  async recordOfflinePayment(
+    @Body() dto: RecordOfflinePaymentDto,
+    @Req() req: Request,
+  ) {
+    const user = req.user as any;
+    return this.paymentsService.recordOfflinePayment(dto, user.id);
   }
 
   @Patch(':id')
