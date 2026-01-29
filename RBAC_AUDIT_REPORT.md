@@ -111,6 +111,19 @@ cd apps/api
 pnpm rbac:seed
 ```
 
+### Render (apps/api) — production build and start
+Build uses `tsc` (no Nest CLI). Seed path: `dist/rbac/seed.js`; app entry: `dist/main.js`.
+
+**Build (single line):**
+```bash
+cd apps/api && npx prisma migrate deploy --schema=prisma/schema.prisma && npx prisma generate --schema=prisma/schema.prisma && pnpm build && node dist/rbac/seed.js
+```
+
+**Start:**
+```bash
+cd apps/api && node dist/main.js
+```
+
 ---
 
 ## 6. File List of Changes (this audit)
