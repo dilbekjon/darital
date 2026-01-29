@@ -388,10 +388,10 @@ const PaymentsPage = () => {
                         <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS</p>
                       </div>
 
-                      {/* Date */}
+                      {/* Date — when paid (or created) */}
                       <div className="text-center sm:text-right">
                         <p className={`text-xs uppercase tracking-wider mb-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                          {payment.paidAt ? (t.paidAt || 'Paid') : (t.createdAt || 'Created')}
+                          {payment.paidAt ? (t.paidAt || "To'langan sana") : (t.createdAt || 'Yaratilgan')}
                         </p>
                         <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                           {new Date(payment.paidAt || payment.createdAt).toLocaleDateString('uz-UZ', {

@@ -272,10 +272,15 @@ const InvoicePage = () => {
                             {payment?.method === 'OFFLINE' ? 'Naqd pul orqali to\'langan' : (t.paid || 'To\'langan')}
                           </p>
                           <p className={`text-xs ${darkMode ? 'text-green-400/70' : 'text-green-600'}`}>
-                            {payment?.method === 'OFFLINE' 
-                              ? (payment?.collectedAt ? `Qabul qilingan: ${new Date(payment.collectedAt).toLocaleString('uz-UZ')}` : 'Naqd pul qabul qilindi')
-                              : 'Hisob-faktura to\'liq to\'landi'
-                            }
+                            {payment
+                              ? (() => {
+                                  const paidAt = payment.paidAt || payment.collectedAt || payment.createdAt;
+                                  const when = paidAt
+                                    ? new Date(paidAt).toLocaleString('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                    : null;
+                                  return when ? `To'langan: ${when}` : (payment?.method === 'OFFLINE' ? 'Naqd pul qabul qilindi' : 'Hisob-faktura to\'liq to\'landi');
+                                })()
+                              : 'Hisob-faktura to\'liq to\'landi'}
                           </p>
                         </div>
                         {payment?.method === 'OFFLINE' && (

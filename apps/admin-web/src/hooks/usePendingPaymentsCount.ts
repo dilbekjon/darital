@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchApi, normalizeListResponse } from '../lib/api';
 import { io, Socket } from 'socket.io-client';
 import { getToken } from '../lib/auth';
+import { useAuth } from '../contexts/AuthContext';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001';
 
@@ -15,21 +16,27 @@ interface Payment {
 
 /**
  * Hook to fetch and maintain pending payments count (for admin verification)
- * Updates automatically when payments are created or verified via socket
+ * Only fetches when user has payments.read; avoids 403 for roles like SUPPORT (yordamchi).
  */
 export function usePendingPaymentsCount() {
+  const { hasPermission } = useAuth();
   const [count, setCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const canReadPayments = hasPermission('payments.read');
 
-  // Fetch pending payments count (only ONLINE PENDING payments)
+  // Fetch pending payments count (only when user has permission)
   const fetchCount = useCallback(async () => {
+    if (!canReadPayments) {
+      setCount(0);
+      setLoading(false);
+      return;
+    }
     try {
       setError(null);
       const data = await fetchApi<any>('/payments?limit=1000&status=PENDING');
       const payments = normalizeListResponse<Payment>(data).items;
-      // Count only ONLINE pending payments that need verification
       const pendingOnlineCount = payments.filter(p => p.method === 'ONLINE').length;
       setCount(pendingOnlineCount);
     } catch (err: any) {
@@ -39,20 +46,18 @@ export function usePendingPaymentsCount() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [canReadPayments]);
 
   // Initial fetch
   useEffect(() => {
     fetchCount();
   }, [fetchCount]);
 
-  // Set up socket connection to listen for payment updates
+  // Socket and poll only when user can read payments
   useEffect(() => {
+    if (!canReadPayments) return;
     const token = getToken();
-    
-    if (!token) {
-      return;
-    }
+    if (!token) return;
 
     const socket = io(`${SOCKET_URL}/chat`, {
       auth: { token },
@@ -63,7 +68,6 @@ export function usePendingPaymentsCount() {
       console.log('[usePendingPaymentsCount] Socket connected');
     });
 
-    // Listen for payment_updated events (when payment is created or verified)
     socket.on('payment_updated', () => {
       console.log('[usePendingPaymentsCount] Payment updated event received, refreshing count');
       fetchCount();
@@ -75,16 +79,16 @@ export function usePendingPaymentsCount() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [fetchCount]);
+  }, [canReadPayments, fetchCount]);
 
-  // Poll for updates every 30 seconds as a fallback
   useEffect(() => {
+    if (!canReadPayments) return;
     const interval = setInterval(() => {
       fetchCount();
-    }, 30000); // 30 seconds
+    }, 30000);
 
     return () => clearInterval(interval);
-  }, [fetchCount]);
+  }, [canReadPayments, fetchCount]);
 
   return {
     count,

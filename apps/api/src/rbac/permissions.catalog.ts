@@ -93,12 +93,13 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
     'chat.read'
   ],
   
-  // Support - Chat and tenant info access only
+  // Support - Chat, tenant info, contracts and units (yordamchi admin)
   SUPPORT: [
     'chat.read', 'chat.reply', 'chat.manage',
     'tenants.read',
     'contracts.read',
-    'invoices.read'
+    'invoices.read',
+    'units.read'
   ],
   
   // Analyst - Reports and view-only access

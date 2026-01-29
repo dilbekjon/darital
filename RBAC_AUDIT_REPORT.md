@@ -14,7 +14,7 @@ Rows = roles. Columns = module/action. Cell = Allowed/Denied + required permissi
 | Module / Action | Permission(s) | SUPER_ADMIN | ADMIN | USER_MANAGER | CASHIER | PAYMENT_COLLECTOR | SUPPORT | ANALYST | TENANT_USER |
 |-----------------|---------------|-------------|-------|--------------|---------|-------------------|---------|---------|-------------|
 | **Buildings** list/create/edit/delete | buildings.read, .create, .update, .delete | Allowed | Allowed | Allowed | Denied | Denied | Denied | Denied | Denied |
-| **Units** list/create/edit/delete/status | units.read, .create, .update, .delete | Allowed | Allowed | Allowed | list only | list only | Denied | list only | Denied |
+| **Units** list/create/edit/delete/status | units.read, .create, .update, .delete | Allowed | Allowed | Allowed | list only | list only | list only | list only | Denied |
 | **Tenants** list/create/edit/archive/restore/delete | tenants.read, .create, .update, .delete | Allowed | Allowed | Allowed | list only | list only | list only | list only | Denied |
 | **Contracts** list/create/edit/status/archive/restore/pdf/delete | contracts.read, .create, .update, .delete | Allowed | Allowed | Allowed | list only | list only | list only | list only | Denied |
 | **Invoices** list/one/qr/create/edit/archive/restore | invoices.read, contracts.update | Allowed | Allowed | Allowed | list only | list only | list only | list only | Denied |
