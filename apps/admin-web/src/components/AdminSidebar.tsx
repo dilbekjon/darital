@@ -235,9 +235,12 @@ export function AdminSidebar() {
   ];
 
   // Filter items based on user permissions
-  const visibleMenuItems = allMenuItems.filter(item => 
-    item.permissionCodes.every(perm => hasPermission(perm))
-  );
+  const visibleMenuItems = allMenuItems.filter(item => {
+    const hasPerms = item.permissionCodes.every(perm => hasPermission(perm));
+    // Hide Chat tab for PAYMENT_COLLECTOR (tolovyiguvchi)
+    if (item.href === '/admin/chat' && user?.role === 'PAYMENT_COLLECTOR') return false;
+    return hasPerms;
+  });
 
   // Group items by section
   const sections: Record<string, SidebarMenuItem[]> = {

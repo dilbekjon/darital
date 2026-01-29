@@ -24,6 +24,14 @@ interface Invoice {
   amount: number;
   status: string;
   dueDate?: string;
+  contractId?: string;
+  contract?: {
+    id: string;
+    tenantId?: string;
+    unitId?: string;
+    tenant?: { id: string; fullName?: string; email?: string };
+    unit?: { id: string; name?: string };
+  };
 }
 
 interface Unit {
@@ -92,6 +100,7 @@ export default function AdminPaymentsPage() {
   const [recordOfflineModalOpen, setRecordOfflineModalOpen] = useState(false);
   const [recordingOffline, setRecordingOffline] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [offlineInvoiceSearch, setOfflineInvoiceSearch] = useState('');
   const [offlineForm, setOfflineForm] = useState({
     invoiceId: '',
     amount: '',
@@ -151,6 +160,7 @@ export default function AdminPaymentsPage() {
 
       // Reset form and close modal
       setOfflineForm({ invoiceId: '', amount: '', collectorNote: '' });
+      setOfflineInvoiceSearch('');
       setRecordOfflineModalOpen(false);
       
       // Reload payments to show the new one
@@ -167,8 +177,29 @@ export default function AdminPaymentsPage() {
     }
   };
 
+  // Filter pending invoices by search (tenant name, contract id, invoice id, unit name)
+  const offlineFilteredInvoices = useMemo(() => {
+    const q = offlineInvoiceSearch.trim().toLowerCase();
+    if (!q) return invoices;
+    return invoices.filter((inv) => {
+      const tenantName = inv.contract?.tenant?.fullName?.toLowerCase() ?? '';
+      const tenantEmail = inv.contract?.tenant?.email?.toLowerCase() ?? '';
+      const contractId = (inv.contract?.id ?? inv.contractId ?? '').toLowerCase();
+      const invoiceId = inv.id.toLowerCase();
+      const unitName = inv.contract?.unit?.name?.toLowerCase() ?? '';
+      return (
+        tenantName.includes(q) ||
+        tenantEmail.includes(q) ||
+        contractId.includes(q) ||
+        invoiceId.includes(q) ||
+        unitName.includes(q)
+      );
+    });
+  }, [invoices, offlineInvoiceSearch]);
+
   // Open record offline payment modal
   const openRecordOfflineModal = async () => {
+    setOfflineInvoiceSearch('');
     await loadPendingInvoices();
     setRecordOfflineModalOpen(true);
   };
@@ -1301,7 +1332,12 @@ export default function AdminPaymentsPage() {
         <>
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
-            onClick={() => !recordingOffline && setRecordOfflineModalOpen(false)}
+            onClick={() => {
+              if (!recordingOffline) {
+                setOfflineInvoiceSearch('');
+                setRecordOfflineModalOpen(false);
+              }
+            }}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className={`w-full max-w-md rounded-xl shadow-2xl ${
@@ -1314,7 +1350,12 @@ export default function AdminPaymentsPage() {
                     Oflayn to'lovni yozish
                   </h3>
                   <button
-                    onClick={() => !recordingOffline && setRecordOfflineModalOpen(false)}
+                    onClick={() => {
+                      if (!recordingOffline) {
+                        setOfflineInvoiceSearch('');
+                        setRecordOfflineModalOpen(false);
+                      }
+                    }}
                     disabled={recordingOffline}
                     className={`p-1 rounded-lg transition-colors ${
                       darkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-500'
@@ -1340,13 +1381,25 @@ export default function AdminPaymentsPage() {
                   </div>
                 )}
 
-                {/* Invoice Selection */}
+                {/* Invoice Selection: search + dropdown with tenant/contract/unit */}
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
                     Hisob-faktura *
                   </label>
+                  <input
+                    type="text"
+                    value={offlineInvoiceSearch}
+                    onChange={(e) => setOfflineInvoiceSearch(e.target.value)}
+                    placeholder="Ijara oluvchi, shartnoma ID, hisob-faktura ID yoki xona boʻyicha qidirish..."
+                    disabled={recordingOffline}
+                    className={`w-full px-3 py-2 border rounded-lg mb-2 ${
+                      darkMode
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
                   <select
                     value={offlineForm.invoiceId}
                     onChange={(e) => {
@@ -1365,17 +1418,28 @@ export default function AdminPaymentsPage() {
                     } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   >
                     <option value="">Hisob-fakturani tanlang...</option>
-                    {invoices.map((invoice) => (
-                      <option key={invoice.id} value={invoice.id}>
-                        {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('uz-UZ') : 'N/A'} - 
-                        {' '}UZS {Number(invoice.amount).toLocaleString()} - 
-                        {' '}{invoice.status}
-                      </option>
-                    ))}
+                    {offlineFilteredInvoices.map((invoice) => {
+                      const tenantName = invoice.contract?.tenant?.fullName || '—';
+                      const contractShort = invoice.contract?.id ? `${invoice.contract.id.slice(0, 8)}…` : '—';
+                      const unitName = invoice.contract?.unit?.name || '—';
+                      const dueStr = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('uz-UZ') : 'N/A';
+                      const amountStr = Number(invoice.amount).toLocaleString();
+                      const label = `${tenantName} • Shartnoma ${contractShort} • ${unitName} • ${dueStr} • ${amountStr} UZS`;
+                      return (
+                        <option key={invoice.id} value={invoice.id} title={label}>
+                          {label}
+                        </option>
+                      );
+                    })}
                   </select>
                   {invoices.length === 0 && (
                     <p className={`text-xs mt-1 ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
                       To'lanmagan hisob-fakturalar topilmadi
+                    </p>
+                  )}
+                  {invoices.length > 0 && offlineFilteredInvoices.length === 0 && (
+                    <p className={`text-xs mt-1 ${darkMode ? 'text-amber-400' : 'text-amber-600'}`}>
+                      Qidiruv boʻyicha hech narsa topilmadi. Boshqa soʻz yozib koʻring.
                     </p>
                   )}
                 </div>
@@ -1434,7 +1498,12 @@ export default function AdminPaymentsPage() {
                 {/* Actions */}
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => !recordingOffline && setRecordOfflineModalOpen(false)}
+                    onClick={() => {
+                      if (!recordingOffline) {
+                        setOfflineInvoiceSearch('');
+                        setRecordOfflineModalOpen(false);
+                      }
+                    }}
                     disabled={recordingOffline}
                     className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
                       darkMode

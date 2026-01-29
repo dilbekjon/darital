@@ -36,11 +36,12 @@ export default function AdminChatPage() {
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Check permissions and load data
+  // Check permissions and load data (Chat tab hidden for PAYMENT_COLLECTOR / tolovyiguvchi)
   useEffect(() => {
     if (!authLoading) {
-      if (!user || !hasPermission('chat.read')) {
+      if (!user || !hasPermission('chat.read') || user.role === 'PAYMENT_COLLECTOR') {
         setPageLoading(false);
+        if (user && user.role === 'PAYMENT_COLLECTOR') router.replace('/dashboard');
         return;
       }
 
