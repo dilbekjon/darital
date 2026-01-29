@@ -112,16 +112,16 @@ pnpm rbac:seed
 ```
 
 ### Render (apps/api) — production build and start
-Build uses `tsc` (no Nest CLI). Seed path: `dist/rbac/seed.js`; app entry: `dist/main.js`.
+Run from **repo root**: workspace install first so deps/types are visible, then build api. Build uses `tsc` (no Nest CLI). Output: `apps/api/dist/main.js`, `apps/api/dist/rbac/seed.js`.
 
 **Build (single line):**
 ```bash
-cd apps/api && npx prisma migrate deploy --schema=prisma/schema.prisma && npx prisma generate --schema=prisma/schema.prisma && pnpm build && node dist/rbac/seed.js
+pnpm install --frozen-lockfile && pnpm -C apps/api exec prisma migrate deploy --schema=prisma/schema.prisma && pnpm -C apps/api exec prisma generate --schema=prisma/schema.prisma && pnpm -C apps/api build && node apps/api/dist/rbac/seed.js
 ```
 
 **Start:**
 ```bash
-cd apps/api && node dist/main.js
+node apps/api/dist/main.js
 ```
 
 ---
