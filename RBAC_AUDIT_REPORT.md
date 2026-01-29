@@ -14,13 +14,13 @@ Rows = roles. Columns = module/action. Cell = Allowed/Denied + required permissi
 | Module / Action | Permission(s) | SUPER_ADMIN | ADMIN | USER_MANAGER | CASHIER | PAYMENT_COLLECTOR | SUPPORT | ANALYST | TENANT_USER |
 |-----------------|---------------|-------------|-------|--------------|---------|-------------------|---------|---------|-------------|
 | **Buildings** list/create/edit/delete | buildings.read, .create, .update, .delete | Allowed | Allowed | Allowed | Denied | Denied | Denied | Denied | Denied |
-| **Units** list/create/edit/delete/status | units.read, .create, .update, .delete | Allowed | Allowed | Allowed | list only | Denied | Denied | list only | Denied |
+| **Units** list/create/edit/delete/status | units.read, .create, .update, .delete | Allowed | Allowed | Allowed | list only | list only | Denied | list only | Denied |
 | **Tenants** list/create/edit/archive/restore/delete | tenants.read, .create, .update, .delete | Allowed | Allowed | Allowed | list only | list only | list only | list only | Denied |
 | **Contracts** list/create/edit/status/archive/restore/pdf/delete | contracts.read, .create, .update, .delete | Allowed | Allowed | Allowed | list only | list only | list only | list only | Denied |
 | **Invoices** list/one/qr/create/edit/archive/restore | invoices.read, contracts.update | Allowed | Allowed | Allowed | list only | list only | list only | list only | Denied |
 | **Payments** list/record_offline/approve/capture/cancel | payments.read, .record_offline, .approve, .capture_offline | Allowed | Allowed (no record_offline) | Denied | Allowed (no record_offline) | read+record_offline | Denied | list only | Denied |
 | **Documents** view/upload/delete | tenants.read, contracts.read, payments.read, tenants.update | Allowed | Allowed | Allowed | Allowed view | Allowed view | Allowed view | Denied | Denied |
-| **Chat** list/assign/reply/close/archive/restore | chat.read, chat.reply; archive=admin.users.read | Allowed | Allowed | Allowed | Denied | Denied | Allowed | Denied | Allowed (chat only) |
+| **Chat** list/assign/reply/close/archive/restore | chat.read, chat.reply; archive=admin.users.read | Allowed | Allowed | Allowed | Denied | list only (chat.read) | Allowed | Denied | Allowed (chat only) |
 | **Notifications** manage/test/templates/telegram | notifications.manage | Allowed | Allowed | Denied | Denied | Denied | Denied | Denied | Denied |
 | **Admin Users** list/create/update roles | admin.users.read, admin.users.update | Allowed | Denied | Denied | Denied | Denied | Denied | Denied | Denied |
 | **Reports/Exports** view + CSV | reports.view; exports: tenants/contracts/invoices/payments.read | Allowed | Allowed | Allowed (invoices export) | Denied | Denied | Denied | Allowed | Denied |

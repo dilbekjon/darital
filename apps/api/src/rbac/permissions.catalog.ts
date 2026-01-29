@@ -88,7 +88,9 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
     'payments.record_offline',
     'invoices.read',
     'tenants.read',
-    'contracts.read'
+    'contracts.read',
+    'units.read',
+    'chat.read'
   ],
   
   // Support - Chat and tenant info access only
