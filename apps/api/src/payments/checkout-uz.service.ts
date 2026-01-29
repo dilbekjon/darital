@@ -27,7 +27,7 @@ interface CheckoutUzStatusInvoiceResponse {
 @Injectable()
 export class CheckoutUzService {
   private readonly logger = new Logger(CheckoutUzService.name);
-  private readonly baseUrl = process.env.CHECKOUTUZ_BASE_URL || 'https://checkout.uz/api';
+  private readonly baseUrl = process.env.CHECKOUTUZ_BASE_URL || 'https://pay.checkout.uz/api';
   private readonly apiKey = process.env.CHECKOUTUZ_API_KEY || '';
   private readonly timeoutMs = Number(process.env.CHECKOUTUZ_TIMEOUT_MS || 10000);
 

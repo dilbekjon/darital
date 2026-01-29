@@ -1,6 +1,7 @@
 import { Controller, Get, Param, UseGuards, Req } from '@nestjs/common';
 import { ReceiptsService } from './receipts.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Permissions } from '../rbac/permissions.decorator';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
 @ApiTags('receipts')
@@ -11,7 +12,8 @@ export class ReceiptsController {
   constructor(private readonly receiptsService: ReceiptsService) {}
 
   @Get('payment/:paymentId')
-  @ApiOperation({ summary: 'Get receipt data for a payment' })
+  @Permissions('payments.read')
+  @ApiOperation({ summary: 'Get receipt data for a payment (admin)' })
   getReceiptData(@Param('paymentId') paymentId: string) {
     return this.receiptsService.generateReceiptData(paymentId);
   }
@@ -24,6 +26,7 @@ export class ReceiptsController {
   }
 
   @Get('history/:tenantId')
+  @Permissions('payments.read')
   @ApiOperation({ summary: 'Get payment history for a specific tenant (admin)' })
   getPaymentHistoryAdmin(@Param('tenantId') tenantId: string) {
     return this.receiptsService.getPaymentHistory(tenantId);
@@ -37,6 +40,7 @@ export class ReceiptsController {
   }
 
   @Get('chart-data/:tenantId')
+  @Permissions('payments.read')
   @ApiOperation({ summary: 'Get payment chart data for a specific tenant (admin)' })
   getChartDataAdmin(@Param('tenantId') tenantId: string) {
     return this.receiptsService.getPaymentChartData(tenantId);

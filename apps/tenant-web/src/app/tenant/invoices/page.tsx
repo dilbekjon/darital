@@ -225,7 +225,7 @@ const InvoicePage = () => {
               
               // Payment is only "received" if:
               // 1. Webhook was received (rawPayload.webhook === true)
-              // 2. OR checkout.uz API confirms payment status is 'paid'
+              // 2. OR pay.checkout.uz API confirms payment status is 'paid'
               // 3. OR rawPayload has explicit paid/success status
               // DO NOT check just providerPaymentId - that only means order was created, not paid
               const isPaymentReceived = hasPaymentPending && (

@@ -35,7 +35,7 @@ export class ExportsController {
   }
 
   @Get('invoices')
-  @Permissions('payments.read')
+  @Permissions('invoices.read')
   @ApiOperation({ summary: 'Export invoices to CSV' })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'from', required: false })

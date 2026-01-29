@@ -77,7 +77,7 @@ export default function ActivityLogsPage() {
 
   useEffect(() => {
     const loadLogs = async () => {
-      if (!user || !hasPermission('admin.users.read')) {
+      if (!user || !hasPermission('audit.read')) {
         console.warn('User does not have permission to view audit logs');
         setPageLoading(false);
         return;
@@ -161,7 +161,7 @@ export default function ActivityLogsPage() {
     return <DaritalLoader darkMode={darkMode} />;
   }
 
-  if (!user || !hasPermission('admin.users.read')) {
+  if (!user || !hasPermission('audit.read')) {
     return <NoAccess />;
   }
 

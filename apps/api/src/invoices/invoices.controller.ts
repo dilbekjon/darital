@@ -18,8 +18,8 @@ export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
   @Get()
-  @Permissions('payments.read') // Admin permission to list invoices
-  @ApiOperation({ summary: 'List invoices (payments.read for admin, tenant access via TenantPortal)', description: 'Filter by tenantId or status' })
+  @Permissions('invoices.read')
+  @ApiOperation({ summary: 'List invoices (invoices.read for admin, tenant access via TenantPortal)', description: 'Filter by tenantId or status' })
   @ApiQuery({ name: 'tenantId', required: false })
   @ApiQuery({ name: 'status', required: false, enum: InvoiceStatus })
   async findAll(@Query() query: ListInvoicesQueryDto) {
@@ -27,14 +27,14 @@ export class InvoicesController {
   }
 
   @Get(':id')
-  @Permissions('payments.read') // Admin permission to get invoice by ID
-  @ApiOperation({ summary: 'Get invoice by id with payments and contract (payments.read for admin, tenant access via TenantPortal)' })
+  @Permissions('invoices.read')
+  @ApiOperation({ summary: 'Get invoice by id with payments and contract (invoices.read for admin, tenant access via TenantPortal)' })
   async findOne(@Param('id') id: string) {
     return this.invoicesService.findOne(id);
   }
 
   @Get(':id/qr')
-  @Permissions('payments.read') // Admin permission to get QR code data for invoice
+  @Permissions('invoices.read')
   @ApiOperation({ 
     summary: 'Get QR code data for invoice payment (payments.read for admin, tenant access via TenantPortal)',
     description: 'Returns QR string for payment providers and current payment status' 

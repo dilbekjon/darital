@@ -32,13 +32,14 @@ import { AdminModule } from './admin/admin.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './rbac/permissions.guard';
 import { CustomThrottlerGuard } from './telegram/custom-throttler.guard';
+import { NoopGuard } from './common/guards/noop.guard';
 import { AllExceptionsFilter } from './filters/all-exceptions.filter';
 import { PrismaModule } from './prisma.module';
 
 @Module({
   imports: [
     PrismaModule, // Import PrismaModule first so PrismaService is available globally
-    ScheduleModule.forRoot(),
+    ...(process.env.NODE_ENV === 'test' ? [] : [ScheduleModule.forRoot()]),
     ThrottlerModule.forRoot({
       throttlers: [
         {
@@ -82,7 +83,7 @@ import { PrismaModule } from './prisma.module';
     },
     {
       provide: APP_GUARD,
-      useClass: CustomThrottlerGuard, // Custom guard that skips Telegram messages
+      useClass: process.env.NODE_ENV === 'test' ? NoopGuard : CustomThrottlerGuard,
     },
     {
       provide: APP_GUARD,

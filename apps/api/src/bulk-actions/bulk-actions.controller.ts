@@ -31,7 +31,7 @@ export class BulkActionsController {
   constructor(private readonly bulkActionsService: BulkActionsService) {}
 
   @Post('invoices/status')
-  @Permissions('payments.read')
+  @Permissions('invoices.update')
   @ApiOperation({ summary: 'Bulk update invoice status' })
   async bulkUpdateInvoiceStatus(@Body() dto: BulkStatusDto) {
     return this.bulkActionsService.bulkUpdateInvoiceStatus(

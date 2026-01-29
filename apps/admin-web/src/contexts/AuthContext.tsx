@@ -8,7 +8,9 @@ import { getToken, clearToken, isAuthenticated } from '../lib/auth';
 enum AdminRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
   ADMIN = 'ADMIN',
+  USER_MANAGER = 'USER_MANAGER',
   CASHIER = 'CASHIER',
+  PAYMENT_COLLECTOR = 'PAYMENT_COLLECTOR',
   SUPPORT = 'SUPPORT',
   ANALYST = 'ANALYST',
   TENANT_USER = 'TENANT_USER',

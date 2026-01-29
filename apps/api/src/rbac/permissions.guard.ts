@@ -37,10 +37,10 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    // TENANT_USER can access chat-related permissions (chat.read, chat.write, etc.)
+    // TENANT_USER can access chat-related permissions (chat.read, chat.reply, chat.manage)
     // The service layer ensures tenants can only access their own conversations
     if (user.role === AdminRole.TENANT_USER) {
-      const chatPermissions = ['chat.read', 'chat.write', 'chat.reply', 'chat.manage'];
+      const chatPermissions = ['chat.read', 'chat.reply', 'chat.manage'];
       const isChatPermission = requiredPermissions.every(permission => 
         chatPermissions.includes(permission)
       );

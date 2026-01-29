@@ -13,10 +13,10 @@ export class AuditLogsController {
   constructor(private readonly auditLogsService: AuditLogsService) {}
 
   @Get()
-  @Permissions('admin.users.read')
-  @ApiOperation({ 
-    summary: 'Get audit logs (requires admin.users.read permission)',
-    description: 'Returns paginated audit logs sorted by creation date descending. Only accessible by users with admin.users.read permission.'
+  @Permissions('audit.read')
+  @ApiOperation({
+    summary: 'Get audit logs (requires audit.read permission)',
+    description: 'Returns paginated audit logs sorted by creation date descending. Only accessible by users with audit.read permission.'
   })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 50)' })
@@ -62,7 +62,7 @@ export class AuditLogsController {
     },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized - JWT token required' })
-  @ApiResponse({ status: 403, description: 'Forbidden - admin.users.read permission required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - audit.read permission required' })
   async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
