@@ -105,6 +105,7 @@ pnpm test:e2e
 - Tests: no token → 401; tenant token → 403 on admin endpoints; per-role allow/deny (buildings, invoices, payments, receipts, exports, archive, audit-logs, admin/users).
 
 ### Run RBAC seed (required after clone / before e2e)
+Re-run after any change to `ROLE_PRESETS` in `permissions.catalog.ts`; the DB `role_permissions` table is repopulated from the catalog (e.g. PAYMENT_COLLECTOR needs `contracts.read` for the Contracts page).
 ```bash
 cd apps/api
 pnpm rbac:seed
