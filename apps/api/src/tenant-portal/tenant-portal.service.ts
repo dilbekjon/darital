@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, forwardRef, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { RegisterDeviceDto } from './dto/register-device.dto';
 import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
@@ -14,6 +14,7 @@ export class TenantPortalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly checkoutUzService: CheckoutUzService,
+    @Inject(forwardRef(() => PaymentsService))
     private readonly paymentsService: PaymentsService,
   ) {}
 
