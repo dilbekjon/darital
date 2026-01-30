@@ -65,11 +65,7 @@ const ReceiptDownload: React.FC<ReceiptDownloadProps> = ({ receiptData, onClose 
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
 
   const handleDownload = () => {

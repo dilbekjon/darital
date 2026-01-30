@@ -401,19 +401,7 @@ const InvoicePage = () => {
                           {t.dueDate || 'To\'lov muddati'}
                         </p>
                         <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {invoice.dueDate ? (() => {
-                            const date = new Date(invoice.dueDate);
-                            const day = date.getDate();
-                            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-                            const month = monthNames[date.getMonth()];
-                            const year = date.getFullYear();
-                            const getOrdinal = (n: number) => {
-                              const s = ['th', 'st', 'nd', 'rd'];
-                              const v = n % 100;
-                              return n + (s[(v - 20) % 10] || s[v] || s[0]);
-                            };
-                            return `${getOrdinal(day)} ${month}, ${year}`;
-                          })() : 'Muddati ko\'rsatilmagan'}
+                          {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'Muddati ko\'rsatilmagan'}
                         </p>
                         {!isPaid && (() => {
                           const { days, isOverdue: overdue, urgency } = getDaysRemaining(invoice.dueDate);

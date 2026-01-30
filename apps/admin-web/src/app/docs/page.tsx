@@ -101,7 +101,7 @@ export default function DocsPage() {
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/login" className={`text-sm ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'} transition-colors`}>
-              Login
+              Kirish
             </Link>
             <Link href="/dashboard" className={`text-sm px-3 py-1.5 rounded-lg ${darkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'} transition-colors`}>
               Dashboard
@@ -238,7 +238,7 @@ export default function DocsPage() {
         <button
           type="button"
           onClick={scrollToTop}
-          aria-label="Back to top"
+          aria-label="Yuqoriga"
           className={`fixed bottom-6 right-6 z-10 w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${
             darkMode ? 'bg-gray-800 text-white hover:bg-gray-700 border border-gray-700' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
           }`}

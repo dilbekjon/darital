@@ -219,7 +219,7 @@ export default function TenantChatPage() {
     if (diffMins < 60) return `${diffMins}${t.minutesAgo}`;
     if (diffHours < 24) return `${diffHours}${t.hoursAgo}`;
     if (diffDays < 7) return `${diffDays}${t.daysAgo}`;
-    return d.toLocaleDateString();
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
 
   return (

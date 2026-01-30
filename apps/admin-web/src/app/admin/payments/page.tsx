@@ -565,7 +565,7 @@ export default function AdminPaymentsPage() {
     
     switch (status) {
       case 'CONFIRMED': return 'Confirmed';
-      case 'CANCELLED': return 'Cancelled';
+      case 'CANCELLED': return t.cancelled || 'Bekor qilingan';
       default: return status;
     }
   };
@@ -592,18 +592,18 @@ export default function AdminPaymentsPage() {
       {/* Breadcrumbs */}
       <Breadcrumbs
         items={[
-          { label: t.dashboard || 'Dashboard', href: '/dashboard' },
-          { label: t.payments || 'Payments' },
+          { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
+          { label: t.payments || 'To\'lovlar' },
         ]}
       />
 
       {/* Page Header */}
       <div className="mb-6">
         <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-          {t.paymentsHistory || 'Payments History'}
+          {t.paymentsHistory || 'To\'lovlar tarixi'}
         </h1>
         <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          {t.viewAndManagePayments || 'View and manage payment records'}
+          {t.viewAndManagePayments || 'To\'lov yozuvlarini ko\'rish va boshqarish'}
         </p>
       </div>
 
@@ -687,7 +687,7 @@ export default function AdminPaymentsPage() {
             </div>
             <input
               type="text"
-              placeholder="Search by tenant, invoice, amount, status..."
+              placeholder={t.searchByTenantInvoice || 'Ijara oluvchi, hisob-faktura, summa, holat bo\'yicha qidirish...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`block w-full pl-10 pr-3 py-2 border rounded-lg ${
@@ -710,7 +710,7 @@ export default function AdminPaymentsPage() {
               <option value="ALL">All Status</option>
               <option value="PENDING">Pending</option>
               <option value="CONFIRMED">Confirmed</option>
-              <option value="CANCELLED">Cancelled</option>
+              <option value="CANCELLED">{t.cancelled || 'Bekor qilingan'}</option>
             </select>
           </div>
           <div className="sm:w-40">
@@ -827,7 +827,7 @@ export default function AdminPaymentsPage() {
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    Due Date
+                    {t.dueDate || 'To\'lov muddati'}
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -863,17 +863,17 @@ export default function AdminPaymentsPage() {
                       darkMode ? 'text-white' : 'text-gray-900'
                     }`}>
                         <div className="text-sm font-medium">
-                          {payment.tenant?.fullName || 'N/A'}
+                          {payment.tenant?.fullName || (t.notApplicable || 'Mavjud emas')}
                         </div>
                         <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {payment.tenant?.email || 'No email'}
+                          {payment.tenant?.email || (t.noEmail || 'Email yo\'q')}
                         </div>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
                         <div className="text-sm font-medium">
-                          🏠 {payment.unit?.name || 'N/A'}
+                          🏠 {payment.unit?.name || (t.notApplicable || 'Mavjud emas')}
                         </div>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap ${
@@ -883,7 +883,7 @@ export default function AdminPaymentsPage() {
                       {payment.invoiceId}
                         </div>
                         <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                          {payment.invoice?.status || 'N/A'}
+                          {payment.invoice?.status || (t.notApplicable || 'Mavjud emas')}
                         </div>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
@@ -916,7 +916,7 @@ export default function AdminPaymentsPage() {
                         )}
                         {payment.method === 'OFFLINE' && payment.collectedAt && (
                           <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                            {new Date(payment.collectedAt).toLocaleDateString('uz-UZ')}
+                            {new Date(payment.collectedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                           </div>
                         )}
                         {payment.method === 'OFFLINE' && payment.collectorNote && (
@@ -986,7 +986,7 @@ export default function AdminPaymentsPage() {
                     }`}>
                         {payment.invoice?.dueDate ? (
                           <div>
-                            <div>{new Date(payment.invoice.dueDate).toLocaleDateString()}</div>
+                            <div>{new Date(payment.invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</div>
                             {overdue && (
                               <div className="text-xs text-red-600 font-semibold">
                                 Overdue
@@ -1031,7 +1031,7 @@ export default function AdminPaymentsPage() {
                                   ? 'text-yellow-400 hover:text-yellow-300'
                                   : 'text-yellow-600 hover:text-yellow-700'
                               }`}
-                              title="Edit payment"
+                              title={t.editPayment || 'To\'lovni tahrirlash'}
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1050,7 +1050,7 @@ export default function AdminPaymentsPage() {
                                       ? 'text-red-400 hover:text-red-300'
                                       : 'text-red-600 hover:text-red-900')
                               }`}
-                              title="Delete payment"
+                              title={t.deletePayment || 'To\'lovni o\'chirish'}
                             >
                               {deletingPaymentId === payment.id ? (
                                 <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1200,7 +1200,7 @@ export default function AdminPaymentsPage() {
                 <h2 className={`text-xl font-bold ${
                   darkMode ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {(t as any).editPayment || 'Edit Payment'}
+                  {(t as any).editPayment || t.editPayment || 'To\'lovni tahrirlash'}
                 </h2>
                 <button
                   onClick={() => !savingEdit && setEditModalOpen(false)}
@@ -1220,7 +1220,7 @@ export default function AdminPaymentsPage() {
                     {t.tenant || 'Tenant'}: <span className="font-medium">{editingPayment.tenant?.fullName || 'N/A'}</span>
                   </p>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {t.unit || 'Unit'}: <span className="font-medium">{editingPayment.unit?.name || 'N/A'}</span>
+                    {t.unit || 'Unit'}: <span className="font-medium">{editingPayment.unit?.name || (t.notApplicable || 'Mavjud emas')}</span>
                   </p>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     {t.invoiceId || 'Invoice'}: <span className="font-mono text-xs">{editingPayment.invoiceId}</span>
@@ -1291,7 +1291,7 @@ export default function AdminPaymentsPage() {
                     darkMode ? 'bg-red-900/20 border-red-600/30 text-red-300' : 'bg-red-50 border-red-200 text-red-800'
                   }`}>
                     <p className="text-sm">
-                      ⚠️ Cancelling this payment will not affect the invoice status. The invoice will remain unpaid.
+                      {t.cancelPaymentWarning || 'To\'lovni bekor qilish hisob-faktura holatiga ta\'sir qilmaydi. Hisob-faktura to\'lanmagan bo\'lib qoladi.'}
                     </p>
                   </div>
                 )}
@@ -1318,7 +1318,7 @@ export default function AdminPaymentsPage() {
                         : 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50'
                     }`}
                   >
-                    {savingEdit ? (t.processing || 'Saving...') : (t.save || 'Save')}
+                    {savingEdit ? (t.processing || 'Saqlanmoqda...') : (t.save || 'Saqlash')}
                   </button>
                 </div>
               </div>
@@ -1422,7 +1422,7 @@ export default function AdminPaymentsPage() {
                       const tenantName = invoice.contract?.tenant?.fullName || '—';
                       const contractShort = invoice.contract?.id ? `${invoice.contract.id.slice(0, 8)}…` : '—';
                       const unitName = invoice.contract?.unit?.name || '—';
-                      const dueStr = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('uz-UZ') : 'N/A';
+                      const dueStr = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'N/A';
                       const amountStr = Number(invoice.amount).toLocaleString();
                       const label = `${tenantName} • Shartnoma ${contractShort} • ${unitName} • ${dueStr} • ${amountStr} UZS`;
                       return (

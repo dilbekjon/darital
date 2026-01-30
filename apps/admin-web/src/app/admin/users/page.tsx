@@ -202,8 +202,8 @@ export default function AdminUsersPage() {
       {/* Breadcrumbs */}
       <Breadcrumbs
         items={[
-          { label: t.dashboard || 'Dashboard', href: '/dashboard' },
-          { label: t.adminUsers || 'Admin Users' },
+          { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
+          { label: t.adminUsers || 'Admin foydalanuvchilar' },
         ]}
       />
 
@@ -211,10 +211,10 @@ export default function AdminUsersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
         <div>
           <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            {t.adminUsers || 'Admin Users'}
+            {t.adminUsers || 'Admin foydalanuvchilar'}
           </h1>
           <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            {t.manageAdminAccounts || 'Manage admin user accounts and permissions'}
+            {t.manageAdminAccounts || 'Admin foydalanuvchi hisoblarini va ruxsatlarni boshqarish'}
           </p>
         </div>
         {canManageUsers && (
@@ -225,7 +225,7 @@ export default function AdminUsersPage() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            {t.createUser || 'Create User'}
+            {t.createUser || 'Foydalanuvchi yaratish'}
           </button>
         )}
       </div>
@@ -361,7 +361,7 @@ export default function AdminUsersPage() {
                          u.role === 'ANALYST' ? (t.analyst || 'Tahlilchi') : u.role}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
-                  }`}>{new Date(u.createdAt).toLocaleDateString()}</td>
+                  }`}>{new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {canManageUsers && u.id !== user?.id && (
                       <>

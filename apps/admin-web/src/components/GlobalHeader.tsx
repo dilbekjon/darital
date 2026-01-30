@@ -11,7 +11,7 @@ import GlobalSearch from './GlobalSearch';
 
 // Helper to get current section name from pathname
 function getSectionName(pathname: string, t: any): string {
-  if (pathname === '/dashboard') return t.dashboard || 'Dashboard';
+  if (pathname === '/dashboard') return t.dashboard || 'Bosh sahifa';
   if (pathname.startsWith('/admin/contracts')) return t.contracts || 'Contracts';
   if (pathname.startsWith('/admin/tenants')) return t.tenants || 'Tenants';
   if (pathname.startsWith('/admin/units')) return t.units || 'Units';
@@ -177,7 +177,7 @@ export default function GlobalHeader() {
                             : 'text-gray-700 hover:bg-gray-100'
                         }`}
                       >
-                        {t.dashboard || 'Dashboard'}
+                        {t.dashboard || 'Bosh sahifa'}
                       </Link>
                       <button
                         onClick={handleLogout}

@@ -78,6 +78,15 @@ export default function AdminContractsPage() {
   const [archivingContractId, setArchivingContractId] = useState<string | null>(null);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
+  // Prevent body scroll when dropdown is open so clicking below doesn't shift the page
+  useEffect(() => {
+    if (openDropdownId) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [openDropdownId]);
+
   // Filter contracts based on search query and status
   const filteredContracts = useMemo(() => {
     let filtered = contracts;
@@ -432,7 +441,7 @@ export default function AdminContractsPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB');
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
 
   return (
@@ -442,8 +451,8 @@ export default function AdminContractsPage() {
       {/* Breadcrumbs */}
       <Breadcrumbs
         items={[
-          { label: t.dashboard || 'Dashboard', href: '/dashboard' },
-          { label: t.contracts || 'Contracts' },
+          { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
+          { label: t.contracts || 'Shartnomalar' },
         ]}
       />
 
@@ -454,7 +463,7 @@ export default function AdminContractsPage() {
             {t.contractsList || 'Contracts'}
           </h1>
           <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            {t.manageRentalContracts || 'Manage rental contracts and agreements'}
+            {t.manageRentalContracts || 'Ijara shartnomalarini boshqarish'}
           </p>
         </div>
         {canCreateContracts && (
@@ -528,7 +537,7 @@ export default function AdminContractsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             }
-            title={contracts.length === 0 ? (t.noContracts || 'No contracts yet') : t.noResultsFound}
+            title={contracts.length === 0 ? (t.noContracts || 'Shartnomalar yo\'q') : t.noResultsFound}
             description={
               contracts.length === 0
                 ? t.getStartedByCreating
@@ -744,7 +753,13 @@ export default function AdminContractsPage() {
                             <>
                               <div 
                                 className="fixed inset-0 z-40" 
-                                onClick={() => setOpenDropdownId(null)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setOpenDropdownId(null);
+                                }}
+                                onMouseDown={(e) => e.preventDefault()}
+                                aria-hidden
                               />
                               <div 
                                 className={`absolute right-0 mt-2 w-56 rounded-lg shadow-lg border py-1 z-50 max-h-[70vh] overflow-y-auto ${
@@ -968,7 +983,7 @@ export default function AdminContractsPage() {
                   step="0.01"
                   value={editFormData.amount}
                   onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
-                  placeholder={t.monthlyRent || 'Enter monthly rent amount'}
+                  placeholder={t.monthlyRent || t.enterMonthlyRent || 'Oylik ijara summasini kiriting'}
                   className={`w-full rounded-md shadow-sm px-3 py-2 border ${
                     darkMode ? 'bg-gray-900 border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
@@ -1066,7 +1081,7 @@ export default function AdminContractsPage() {
                     darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   }`}
                 >
-                  {t.cancel || 'Cancel'}
+                  {t.cancel || 'Bekor qilish'}
                 </button>
                 <button
                   type="submit"
@@ -1170,14 +1185,14 @@ export default function AdminContractsPage() {
                     darkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
                   }`}
                 >
-                  {t.cancel || 'Cancel'}
+                  {t.cancel || 'Bekor qilish'}
                 </button>
                 <button
                   onClick={handleChangeStatus}
                   disabled={updatingStatus || getAvailableStatuses(editingContract.status).length === 0}
                   className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
-                  {updatingStatus ? (t.loading || 'Updating...') : 'Change Status'}
+                  {updatingStatus ? (t.loading || 'Yangilanmoqda...') : (t.changeStatus || 'Holatni o\'zgartirish')}
                 </button>
               </div>
             </div>
@@ -1370,7 +1385,7 @@ export default function AdminContractsPage() {
                   step="0.01"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  placeholder={t.monthlyRent || 'Enter monthly rent amount'}
+                  placeholder={t.monthlyRent || t.enterMonthlyRent || 'Oylik ijara summasini kiriting'}
                   className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
@@ -1397,7 +1412,7 @@ export default function AdminContractsPage() {
                   rows={4}
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Add any additional notes, terms, or description about this contract..."
+                  placeholder={t.contractNotesPlaceholder || 'Qo\'shimcha eslatmalar, shartlar yoki tavsif qo\'shing...'}
                   className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
@@ -1450,7 +1465,7 @@ export default function AdminContractsPage() {
                   disabled={submitting || !file || !formData.tenantId || !formData.unitId}
                   className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
-                  {submitting ? t.loading : (t.save || 'Create Contract')}
+                  {submitting ? t.loading : (t.save || 'Shartnoma yaratish')}
                 </button>
               </div>
             </form>

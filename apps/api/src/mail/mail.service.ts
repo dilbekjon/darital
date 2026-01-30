@@ -62,17 +62,18 @@ export class MailService {
     const due = new Date(dueDate);
     const subject = `Payment Reminder • ${unitName}`;
     const prettyAmount = typeof amount === 'number' ? amount.toFixed(2) : amount;
+    const dueStr = due.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
     const html = `
       <div style="font-family: Arial, sans-serif; line-height:1.6;">
         <h2 style="margin:0 0 8px;">Payment Reminder</h2>
         <p>Dear tenant,</p>
-        <p>This is a friendly reminder that your payment for <strong>${unitName}</strong> is due on <strong>${due.toDateString()}</strong>.</p>
+        <p>This is a friendly reminder that your payment for <strong>${unitName}</strong> is due on <strong>${dueStr}</strong>.</p>
         <p><strong>Amount:</strong> ${prettyAmount}</p>
         <p>If you have already paid, please ignore this message.</p>
         <p>Best regards,<br/>Darital</p>
       </div>
     `;
-    const text = `Payment Reminder: ${unitName}\nDue: ${due.toDateString()}\nAmount: ${prettyAmount}`;
+    const text = `Payment Reminder: ${unitName}\nDue: ${dueStr}\nAmount: ${prettyAmount}`;
     const attachments = imageUrl ? [{ filename: 'notification-image.jpg', path: imageUrl }] : undefined;
     return this.send(tenantEmail, subject, html, text, attachments);
   }

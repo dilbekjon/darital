@@ -394,11 +394,7 @@ const PaymentsPage = () => {
                           {payment.paidAt ? (t.paidAt || "To'langan sana") : (t.createdAt || 'Yaratilgan')}
                         </p>
                         <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {new Date(payment.paidAt || payment.createdAt).toLocaleDateString('uz-UZ', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric'
-                          })}
+                          {new Date(payment.paidAt || payment.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         </p>
                         <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                           {new Date(payment.paidAt || payment.createdAt).toLocaleTimeString('uz-UZ', { 

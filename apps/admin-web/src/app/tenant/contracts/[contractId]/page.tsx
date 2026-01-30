@@ -129,7 +129,7 @@ const ContractPdfPage = () => {
               {contract.unit?.name || t.contractDetails}
             </h1>
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              {new Date(contract.startDate).toLocaleDateString('en-GB')} - {new Date(contract.endDate).toLocaleDateString('en-GB')}
+              {new Date(contract.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })} - {new Date(contract.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
             </p>
           </div>
         </div>

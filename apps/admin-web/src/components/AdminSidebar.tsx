@@ -95,7 +95,7 @@ export function AdminSidebar() {
       section: 'operations',
     },
     {
-      label: t.units || 'Units',
+      label: t.units || 'Xonalar',
       href: '/admin/units',
       permissionCodes: ['units.read'],
       icon: (
@@ -128,7 +128,7 @@ export function AdminSidebar() {
       section: 'operations',
     },
     {
-      label: t.invoices || 'Invoices',
+      label: t.invoices || 'Hisob-fakturalar',
       href: '/admin/invoices',
       permissionCodes: ['invoices.read'],
       icon: (
@@ -196,7 +196,7 @@ export function AdminSidebar() {
       section: 'administration',
     },
     {
-      label: t.activityLogs || 'Activity Logs',
+      label: t.activityLogs || 'Faollik jurnali',
       href: '/admin/activity',
       permissionCodes: ['audit.read'],
       icon: (
@@ -207,7 +207,7 @@ export function AdminSidebar() {
       section: 'administration',
     },
     {
-      label: 'Archive Management',
+      label: t.archiveManagement || 'Arxiv boshqaruvi',
       href: '/admin/archive',
       permissionCodes: ['admin.users.read'],
       icon: (

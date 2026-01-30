@@ -31,7 +31,7 @@ const CommandPalette: React.FC = () => {
   // Define all commands
   const allCommands: CommandItem[] = [
     // Navigation
-    { id: 'nav-dashboard', title: t.dashboard || 'Dashboard', icon: '🏠', action: () => router.push('/dashboard'), keywords: ['home', 'main'], shortcut: 'G D' },
+    { id: 'nav-dashboard', title: t.dashboard || 'Bosh sahifa', icon: '🏠', action: () => router.push('/dashboard'), keywords: ['home', 'main', 'bosh'], shortcut: 'G D' },
     { id: 'nav-tenants', title: t.tenants || 'Tenants', icon: '👥', action: () => router.push('/admin/tenants'), keywords: ['users', 'residents'] },
     { id: 'nav-units', title: t.units || 'Units', icon: '🏢', action: () => router.push('/admin/units'), keywords: ['apartments', 'rooms'] },
     { id: 'nav-contracts', title: t.contracts || 'Contracts', icon: '📄', action: () => router.push('/admin/contracts'), keywords: ['lease', 'agreements'] },
@@ -53,9 +53,9 @@ const CommandPalette: React.FC = () => {
     { id: 'theme-toggle', title: darkMode ? (t.lightMode || 'Light Mode') : (t.darkMode || 'Dark Mode'), icon: darkMode ? '☀️' : '🌙', action: toggleTheme, keywords: ['theme', 'appearance'] },
     
     // Language
-    { id: 'lang-uz', title: "O'zbek tili", subtitle: 'Change language', icon: '🇺🇿', action: () => setLanguage('uz'), keywords: ['language', 'uzbek'] },
-    { id: 'lang-ru', title: 'Русский язык', subtitle: 'Change language', icon: '🇷🇺', action: () => setLanguage('ru'), keywords: ['language', 'russian'] },
-    { id: 'lang-en', title: 'English', subtitle: 'Change language', icon: '🇬🇧', action: () => setLanguage('en'), keywords: ['language'] },
+    { id: 'lang-uz', title: "O'zbek tili", subtitle: 'Tilni o\'zgartirish', icon: '🇺🇿', action: () => setLanguage('uz'), keywords: ['language', 'uzbek'] },
+    { id: 'lang-ru', title: 'Русский язык', subtitle: 'Tilni o\'zgartirish', icon: '🇷🇺', action: () => setLanguage('ru'), keywords: ['language', 'russian'] },
+    { id: 'lang-en', title: 'English', subtitle: 'Tilni o\'zgartirish', icon: '🇬🇧', action: () => setLanguage('en'), keywords: ['language'] },
 
     // Quick Actions
     { id: 'action-export-tenants', title: t.exportTenants || 'Export Tenants', subtitle: 'Download CSV', icon: '📤', action: () => window.open('/api/exports/tenants', '_blank'), keywords: ['download', 'csv'] },
@@ -160,7 +160,7 @@ const CommandPalette: React.FC = () => {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t.searchCommands || 'Search commands...'}
+            placeholder={t.searchCommands || 'Buyruqlarni qidirish...'}
             className={`flex-1 bg-transparent outline-none text-lg ${
               darkMode ? 'text-white placeholder-gray-500' : 'text-gray-800 placeholder-gray-400'
             }`}

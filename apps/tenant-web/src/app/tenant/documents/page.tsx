@@ -70,14 +70,8 @@ const DocumentsPage = () => {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const day = date.getDate();
-    const monthNames = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
-    const month = monthNames[date.getMonth()];
-    const year = date.getFullYear();
-    return `${day} ${month}, ${year}`;
-  };
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
   const filteredDocuments = filter === 'ALL' 
     ? documents 

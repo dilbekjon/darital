@@ -266,7 +266,7 @@ export default function AdminReportsPage() {
     >
       <Breadcrumbs
         items={[
-          { label: t.dashboard || 'Dashboard', href: '/dashboard' },
+          { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
           { label: t.reports || 'Reports' },
         ]}
       />

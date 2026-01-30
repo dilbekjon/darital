@@ -32,7 +32,7 @@ export default function LoginPage() {
       const trimmedPassword = password.trim()
       
       if (!trimmedEmail || !trimmedPassword) {
-        setError('Email and password are required')
+        setError(t.emailAndPasswordRequired || 'Email va parol talab qilinadi')
         setIsLoading(false)
         return
       }
@@ -68,9 +68,9 @@ export default function LoginPage() {
       }
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.data?.message || err.message || 'Invalid email or password')
+        setError(err.data?.message || err.message || (t.invalidCredentials || 'Noto\'g\'ri email yoki parol'))
       } else {
-        setError(`Cannot connect to API: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        setError(`API ga ulanish mumkin emas: ${err instanceof Error ? err.message : 'Noma\'lum xato'}`)
       }
       setIsLoading(false)
     }

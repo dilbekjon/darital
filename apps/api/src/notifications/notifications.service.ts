@@ -350,7 +350,7 @@ export class NotificationsService {
 
 Hurmatli ijrachi,
 
-<b>${unitName}</b> uchun to'lovingiz <b>${due.toLocaleDateString('uz-UZ')}</b> gacha amalga oshirilishi kerak.
+<b>${unitName}</b> uchun to'lovingiz <b>${due.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</b> gacha amalga oshirilishi kerak.
 
 <b>Summa:</b> ${prettyAmount} so'm
 
@@ -377,7 +377,7 @@ Darital
         invoiceId: null,
         type: 'PAYMENT_REMINDER',
         title: 'Payment Reminder',
-        body: `Payment reminder sent for ${unitName}, due ${due.toDateString()}`,
+        body: `Payment reminder sent for ${unitName}, due ${due.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}`,
       },
     });
   }

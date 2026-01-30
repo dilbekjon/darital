@@ -173,7 +173,7 @@ export default function AdminTelegramPage() {
       {/* Breadcrumbs */}
       <Breadcrumbs
         items={[
-          { label: t.dashboard || 'Dashboard', href: '/dashboard' },
+          { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
           { label: 'Telegram Chat' },
         ]}
       />
@@ -297,7 +297,7 @@ export default function AdminTelegramPage() {
             <div className="space-y-2">
               <input
                 type="text"
-                placeholder="Search by name, email..."
+                placeholder={t.searchByNameEmail || 'Ism, email bo\'yicha qidirish...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full px-3 py-2 text-sm border rounded-lg ${
@@ -361,7 +361,7 @@ export default function AdminTelegramPage() {
                       <p className={`text-xs truncate ${
                         darkMode ? 'text-gray-400' : 'text-gray-500'
                       }`}>
-                        {telegramUser.tenant?.email || 'No email'}
+                        {telegramUser.tenant?.email || (t.noEmail || 'Email yo\'q')}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-xs px-2 py-0.5 rounded ${
@@ -398,7 +398,7 @@ export default function AdminTelegramPage() {
                         {selectedUser.tenant?.fullName || 'Unknown User'}
                       </h3>
                       <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {selectedUser.tenant?.email || 'No email'} • Chat ID: {selectedUser.chatId}
+                        {selectedUser.tenant?.email || (t.noEmail || 'Email yo\'q')} • Chat ID: {selectedUser.chatId}
                       </p>
                     </div>
                   </div>
@@ -424,7 +424,7 @@ export default function AdminTelegramPage() {
                     <textarea
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Type your message here... (Supports HTML formatting)"
+                      placeholder={t.typeMessageHere || 'Xabaringizni shu yerga yozing... (HTML qo\'llab-quvvatlanadi)'}
                       rows={8}
                       className={`w-full px-4 py-3 border rounded-lg resize-none ${
                         darkMode

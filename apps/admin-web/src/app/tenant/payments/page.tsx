@@ -156,8 +156,8 @@ const PaymentsPage = () => {
                     </p>
                     <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                       {payment.paidAt 
-                        ? new Date(payment.paidAt).toLocaleDateString('uz-UZ')
-                        : new Date(payment.createdAt).toLocaleDateString('uz-UZ')
+                        ? new Date(payment.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })
+                        : new Date(payment.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })
                       }
                     </p>
                     <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>

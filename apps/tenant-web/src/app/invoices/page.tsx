@@ -219,11 +219,7 @@ const InvoicePage = () => {
                       {invoice.status === 'OVERDUE' ? (t.deadline || 'Deadline') : (t.dueDate || 'Due Date')}
                     </p>
                     <p className={`text-lg font-semibold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {new Date(invoice.dueDate).toLocaleDateString('uz-UZ', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
+                      {new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                     </p>
                     {invoice.status !== 'PAID' && (() => {
                       const { days, isOverdue, urgency } = getDaysRemaining(invoice.dueDate);

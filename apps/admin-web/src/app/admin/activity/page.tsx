@@ -139,12 +139,9 @@ export default function ActivityLogsPage() {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const d = date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const t = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return `${d} ${t}`;
   };
 
   const getActionIcon = (action: string) => {
@@ -182,10 +179,10 @@ export default function ActivityLogsPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-            📋 {t.activityLogs || 'Activity Logs'}
+            📋 {t.activityLogs || 'Faollik jurnali'}
           </h1>
           <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-            {t.activityLogsDesc || 'Track all admin actions and system events'}
+            {t.activityLogsDesc || 'Barcha admin harakatlari va tizim hodisalarini kuzatib boring'}
           </p>
         </div>
 
@@ -218,7 +215,7 @@ export default function ActivityLogsPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t.searchLogs || 'Search logs...'}
+                placeholder={t.searchLogs || 'Jurnallarni qidirish...'}
                 className={`w-full pl-10 pr-4 py-2 rounded-xl border ${
                   darkMode
                     ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
@@ -252,7 +249,7 @@ export default function ActivityLogsPage() {
                   : 'bg-white border-gray-300 text-gray-800'
               } focus:outline-none focus:ring-2 focus:ring-blue-500`}
             >
-              <option value="">{t.allActions || 'All Actions'}</option>
+              <option value="">{t.allActions || 'Barcha harakatlar'}</option>
               {uniqueActions.map((action) => (
                 <option key={action} value={action}>
                   {getActionLabel(action, t)}
@@ -287,7 +284,7 @@ export default function ActivityLogsPage() {
                   darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
                 }`}
               >
-                {t.clearFilters || 'Clear filters'}
+                {t.clearFilters || 'Filtrlarni tozalash'}
               </button>
             )}
           </div>
@@ -359,7 +356,7 @@ export default function ActivityLogsPage() {
                         {log.meta && Object.keys(log.meta).length > 0 && (
                           <details className="mt-2">
                             <summary className="cursor-pointer hover:text-blue-500">
-                              {t.viewDetails || 'View details'}
+                              {t.viewDetails || 'Tafsilotlarni ko\'rish'}
                             </summary>
                             <pre
                               className={`mt-2 p-2 rounded-lg text-xs overflow-x-auto ${

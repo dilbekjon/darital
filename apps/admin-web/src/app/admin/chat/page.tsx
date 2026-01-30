@@ -384,7 +384,7 @@ export default function AdminChatPage() {
     if (diffMins < 60) return `${diffMins}${t.minutesAgo}`;
     if (diffHours < 24) return `${diffHours}${t.hoursAgo}`;
     if (diffDays < 7) return `${diffDays}${t.daysAgo}`;
-    return d.toLocaleDateString();
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
 
   if (authLoading || pageLoading) {
@@ -672,7 +672,7 @@ export default function AdminChatPage() {
                         </span>
                       ) : (
                         <span>
-                          Assigned to {selectedConversation.admin?.fullName || 'Admin'}
+                          {t.assigned || 'Tayinlangan'}: {selectedConversation.admin?.fullName || t.admin || 'Admin'}
                         </span>
                       )}
                     </div>
@@ -871,7 +871,7 @@ export default function AdminChatPage() {
                         handleSendMessage();
                       }
                     }}
-                    placeholder={selectedConversation?.status === 'CLOSED' ? 'This conversation is closed' : 'Type your message...'}
+                    placeholder={selectedConversation?.status === 'CLOSED' ? (t.conversationClosed || 'Bu suhbat yopilgan') : (t.typeMessagePlaceholder || t.typeMessage || 'Xabar yozing...')}
                     className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
                       darkMode
                         ? 'border-gray-600 bg-gray-700 text-white placeholder-gray-400 focus:bg-gray-600'

@@ -519,6 +519,14 @@ export default function AdminInvoicesPage() {
 
   const canCaptureOffline = hasPermission('payments.capture_offline');
 
+  useEffect(() => {
+    if (openDropdownId) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [openDropdownId]);
+
   return (
     <div className={`p-4 sm:p-6 lg:p-8 h-full overflow-y-auto ${
       darkMode ? 'bg-black' : 'bg-gray-100'
@@ -527,7 +535,7 @@ export default function AdminInvoicesPage() {
         {/* Breadcrumbs */}
         <Breadcrumbs
           items={[
-            { label: t.dashboard || 'Dashboard', href: '/dashboard' },
+            { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
             { label: t.invoices },
           ]}
         />
@@ -551,7 +559,7 @@ export default function AdminInvoicesPage() {
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
           >
-            + {(t as any).createInvoice || 'Create Invoice'}
+            + {t.createInvoice || 'Hisob-faktura yaratish'}
           </button>
         )}
       </div>
@@ -567,7 +575,7 @@ export default function AdminInvoicesPage() {
         <div className="flex-1 min-w-[200px]">
           <input
             type="text"
-            placeholder="Search by email or unit name..."
+            placeholder={t.searchByEmailUnit || 'Email yoki xona nomi bo\'yicha qidirish...'}
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -772,7 +780,7 @@ export default function AdminInvoicesPage() {
                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}>
-                      {new Date(invoice.dueDate).toLocaleDateString()}
+                      {new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                     </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                       darkMode ? 'text-white' : 'text-gray-900'
@@ -804,80 +812,133 @@ export default function AdminInvoicesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end gap-2">
+                      <div className="relative inline-block">
                         <button
-                          onClick={() => handleViewQr(invoice.id)}
-                          disabled={loadingQr}
-                          className={`transition-colors ${
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenDropdownId(openDropdownId === invoice.id ? null : invoice.id);
+                          }}
+                          className={`p-2 rounded-lg transition-colors ${
                             darkMode
-                              ? 'text-blue-400 hover:text-blue-300 disabled:text-gray-600'
-                              : 'text-blue-600 hover:text-blue-900 disabled:text-gray-400'
+                              ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
+                              : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
                           }`}
+                          aria-label={t.actions || 'Amallar'}
                         >
-                          {loadingQr ? t.loading : t.viewQr}
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
                         </button>
-                        {hasPermission('contracts.update') && invoice.status !== 'PAID' && (
-                          <button
-                            onClick={() => handleOpenEditModal(invoice)}
-                            className={`transition-colors ${
-                              darkMode
-                                ? 'text-yellow-400 hover:text-yellow-300'
-                                : 'text-yellow-600 hover:text-yellow-700'
-                            }`}
-                          >
-                            {t.edit || 'Edit'}
-                          </button>
-                        )}
-                        {canCaptureOffline && invoice.status !== 'PAID' && (
-                          <button
-                            onClick={() => handleMarkPaid(invoice)}
-                            disabled={markingPaid === invoice.id}
-                            className={`transition-colors ${
-                              darkMode
-                                ? 'text-green-400 hover:text-green-300 disabled:text-gray-600'
-                                : 'text-green-600 hover:text-green-900 disabled:text-gray-400'
-                            }`}
-                          >
-                            {markingPaid === invoice.id ? t.processing : t.markPaid}
-                          </button>
-                        )}
-                        {showVerifyButtons && pendingPayment && (
+                        {openDropdownId === invoice.id && (
                           <>
-                            <button
-                              onClick={() => handleVerifyPayment(pendingPayment.id, true)}
-                              disabled={verifyingPaymentId === pendingPayment.id}
-                              className={`transition-colors ${
-                                darkMode
-                                  ? 'text-green-400 hover:text-green-300 disabled:text-gray-600'
-                                  : 'text-green-600 hover:text-green-900 disabled:text-gray-400'
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setOpenDropdownId(null);
+                              }}
+                              onMouseDown={(e) => e.preventDefault()}
+                              aria-hidden
+                            />
+                            <div
+                              className={`absolute right-0 mt-2 w-52 rounded-lg shadow-lg border py-1 z-50 ${
+                                darkMode ? 'bg-black border-blue-600/40' : 'bg-white border-gray-200'
                               }`}
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              {verifyingPaymentId === pendingPayment.id ? t.processing : 'Accept'}
-                            </button>
-                            <button
-                              onClick={() => handleVerifyPayment(pendingPayment.id, false)}
-                              disabled={verifyingPaymentId === pendingPayment.id}
-                              className={`transition-colors ${
-                                darkMode
-                                  ? 'text-red-400 hover:text-red-300 disabled:text-gray-600'
-                                  : 'text-red-600 hover:text-red-900 disabled:text-gray-400'
-                              }`}
-                            >
-                              {verifyingPaymentId === pendingPayment.id ? t.processing : 'Decline'}
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenDropdownId(null);
+                                  handleViewQr(invoice.id);
+                                }}
+                                disabled={loadingQr}
+                                className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors disabled:opacity-50 ${
+                                  darkMode ? 'text-blue-400 hover:bg-blue-600/20' : 'text-blue-600 hover:bg-blue-50'
+                                }`}
+                              >
+                                <span>{loadingQr ? t.loading : t.viewQr}</span>
+                              </button>
+                              {hasPermission('contracts.update') && invoice.status !== 'PAID' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenDropdownId(null);
+                                    handleOpenEditModal(invoice);
+                                  }}
+                                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors ${
+                                    darkMode ? 'text-yellow-400 hover:bg-yellow-600/20' : 'text-yellow-600 hover:bg-yellow-50'
+                                  }`}
+                                >
+                                  <span>{t.edit || 'Tahrirlash'}</span>
+                                </button>
+                              )}
+                              {canCaptureOffline && invoice.status !== 'PAID' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenDropdownId(null);
+                                    handleMarkPaid(invoice);
+                                  }}
+                                  disabled={markingPaid === invoice.id}
+                                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors disabled:opacity-50 ${
+                                    darkMode ? 'text-green-400 hover:bg-green-600/20' : 'text-green-600 hover:bg-green-50'
+                                  }`}
+                                >
+                                  <span>{markingPaid === invoice.id ? t.processing : t.markPaid}</span>
+                                </button>
+                              )}
+                              {showVerifyButtons && pendingPayment && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenDropdownId(null);
+                                      handleVerifyPayment(pendingPayment.id, true);
+                                    }}
+                                    disabled={verifyingPaymentId === pendingPayment.id}
+                                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors disabled:opacity-50 ${
+                                      darkMode ? 'text-green-400 hover:bg-green-600/20' : 'text-green-600 hover:bg-green-50'
+                                    }`}
+                                  >
+                                    <span>{verifyingPaymentId === pendingPayment.id ? t.processing : (t.confirmed || 'Tasdiqlash')}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenDropdownId(null);
+                                      handleVerifyPayment(pendingPayment.id, false);
+                                    }}
+                                    disabled={verifyingPaymentId === pendingPayment.id}
+                                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors disabled:opacity-50 ${
+                                      darkMode ? 'text-red-400 hover:bg-red-600/20' : 'text-red-600 hover:bg-red-50'
+                                    }`}
+                                  >
+                                    <span>{verifyingPaymentId === pendingPayment.id ? t.processing : (t.cancel || 'Rad etish')}</span>
+                                  </button>
+                                </>
+                              )}
+                              {hasPermission('contracts.update') && invoice.status !== 'PAID' && (
+                                <>
+                                  <div className={`border-t my-0.5 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`} />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setOpenDropdownId(null);
+                                      setDeleteConfirmOpen(invoice.id);
+                                    }}
+                                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors ${
+                                      darkMode ? 'text-red-400 hover:bg-red-600/20' : 'text-red-600 hover:bg-red-50'
+                                    }`}
+                                  >
+                                    <span>{t.delete || 'O\'chirish'}</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </>
-                        )}
-                        {hasPermission('contracts.update') && invoice.status !== 'PAID' && (
-                          <button
-                            onClick={() => setDeleteConfirmOpen(invoice.id)}
-                            className={`transition-colors ${
-                              darkMode
-                                ? 'text-red-400 hover:text-red-300'
-                                : 'text-red-600 hover:text-red-700'
-                            }`}
-                          >
-                            {t.delete || 'Delete'}
-                          </button>
                         )}
                       </div>
                     </td>
@@ -1012,7 +1073,7 @@ export default function AdminInvoicesPage() {
                 <h2 className={`text-xl font-bold ${
                   darkMode ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {(t as any).createInvoice || 'Create Invoice'}
+                  {t.createInvoice || 'Hisob-faktura yaratish'}
                 </h2>
                 <button
                   onClick={() => !creatingInvoice && setCreateModalOpen(false)}
@@ -1043,10 +1104,10 @@ export default function AdminInvoicesPage() {
                         : 'bg-white border-gray-300 text-gray-900'
                     } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50`}
                   >
-                    <option value="">{(t as any).selectContract || 'Select a contract'}</option>
+                    <option value="">{t.selectContract || 'Shartnomani tanlang'}</option>
                     {contracts.map((contract) => (
                       <option key={contract.id} value={contract.id}>
-                        {contract.tenant?.fullName || 'Unknown'} - {contract.unit?.name || 'No Unit'} ({contract.id.slice(0, 8)}...)
+                        {contract.tenant?.fullName || t.unknownUser || 'Noma\'lum'} - {contract.unit?.name || t.noUnit || 'Xona yo\'q'} ({contract.id.slice(0, 8)}...)
                       </option>
                     ))}
                   </select>
@@ -1057,7 +1118,7 @@ export default function AdminInvoicesPage() {
                   <label className={`block text-sm font-medium mb-2 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    {t.dueDate || 'Due Date'} *
+                    {t.dueDate || 'To\'lov muddati'} *
                   </label>
                   <input
                     type="date"
@@ -1126,7 +1187,7 @@ export default function AdminInvoicesPage() {
                         : 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50'
                     }`}
                   >
-                    {creatingInvoice ? (t.processing || 'Processing...') : (t.create || 'Create')}
+                    {creatingInvoice ? (t.processing || 'Qayta ishlanmoqda...') : (t.create || 'Yaratish')}
                   </button>
                 </div>
               </div>
@@ -1150,7 +1211,7 @@ export default function AdminInvoicesPage() {
                 <h2 className={`text-xl font-bold ${
                   darkMode ? 'text-white' : 'text-gray-900'
                 }`}>
-                  {(t as any).editInvoice || 'Edit Invoice'}
+                  {t.editInvoice || 'Hisob-fakturani tahrirlash'}
                 </h2>
                 <button
                   onClick={() => !savingEdit && setEditModalOpen(false)}
@@ -1167,10 +1228,10 @@ export default function AdminInvoicesPage() {
                 {/* Invoice Info */}
                 <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {t.tenant || 'Tenant'}: <span className="font-medium">{editingInvoice.contract?.tenant?.fullName || 'N/A'}</span>
+                    {t.tenant || 'Tenant'}: <span className="font-medium">{editingInvoice.contract?.tenant?.fullName || (t.notApplicable || 'Mavjud emas')}</span>
                   </p>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {t.unit || 'Unit'}: <span className="font-medium">{editingInvoice.contract?.unit?.name || 'N/A'}</span>
+                    {t.unit || 'Unit'}: <span className="font-medium">{editingInvoice.contract?.unit?.name || (t.notApplicable || 'Mavjud emas')}</span>
                   </p>
                 </div>
 
@@ -1179,7 +1240,7 @@ export default function AdminInvoicesPage() {
                   <label className={`block text-sm font-medium mb-2 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    {t.dueDate || 'Due Date'} *
+                    {t.dueDate || 'To\'lov muddati'} *
                   </label>
                   <input
                     type="date"
@@ -1239,7 +1300,7 @@ export default function AdminInvoicesPage() {
                         : 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50'
                     }`}
                   >
-                    {savingEdit ? (t.processing || 'Saving...') : (t.save || 'Save')}
+                    {savingEdit ? (t.processing || 'Saqlanmoqda...') : (t.save || 'Saqlash')}
                   </button>
                 </div>
               </div>
@@ -1263,7 +1324,7 @@ export default function AdminInvoicesPage() {
                 <h2 className={`text-xl font-bold ${
                   darkMode ? 'text-red-400' : 'text-red-600'
                 }`}>
-                  {(t as any).deleteInvoice || 'Delete Invoice'}
+                  {t.deleteInvoice || 'Hisob-fakturani o\'chirish'}
                 </h2>
                 <button
                   onClick={() => !deletingInvoiceId && setDeleteConfirmOpen(null)}
@@ -1281,7 +1342,7 @@ export default function AdminInvoicesPage() {
                   darkMode ? 'bg-red-900/20 border-red-600/30' : 'bg-red-50 border-red-200'
                 }`}>
                   <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    {(t as any).deleteInvoiceWarning || 'Are you sure you want to delete this invoice? This action cannot be undone. Any pending payments associated with this invoice will also be deleted.'}
+                    {t.deleteInvoiceWarning || 'Bu hisob-fakturani o\'chirishni xohlaysizmi? Bu amalni bekor qilib bo\'lmaydi. Unga bog\'liq kutilayotgan to\'lovlar ham o\'chiriladi.'}
                   </p>
                 </div>
 
@@ -1294,13 +1355,13 @@ export default function AdminInvoicesPage() {
                           {t.tenant || 'Tenant'}: <span className="font-medium">{invoiceToDelete.contract?.tenant?.fullName || 'N/A'}</span>
                         </p>
                         <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {t.unit || 'Unit'}: <span className="font-medium">{invoiceToDelete.contract?.unit?.name || 'N/A'}</span>
+                          {t.unit || 'Unit'}: <span className="font-medium">{invoiceToDelete.contract?.unit?.name || (t.notApplicable || 'Mavjud emas')}</span>
                         </p>
                         <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                           {t.amount || 'Amount'}: <span className="font-medium">UZS {getAmount(invoiceToDelete.amount).toLocaleString()}</span>
                         </p>
                         <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {t.dueDate || 'Due Date'}: <span className="font-medium">{new Date(invoiceToDelete.dueDate).toLocaleDateString()}</span>
+                          {t.dueDate || 'To\'lov muddati'}: <span className="font-medium">{new Date(invoiceToDelete.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
                         </p>
                       </div>
                     );
@@ -1330,7 +1391,7 @@ export default function AdminInvoicesPage() {
                         : 'bg-red-600 hover:bg-red-700 text-white disabled:opacity-50'
                     }`}
                   >
-                    {deletingInvoiceId ? (t.processing || 'Deleting...') : (t.delete || 'Delete')}
+                    {deletingInvoiceId ? (t.deleting || 'O\'chirilmoqda...') : (t.delete || 'O\'chirish')}
                   </button>
                 </div>
               </div>

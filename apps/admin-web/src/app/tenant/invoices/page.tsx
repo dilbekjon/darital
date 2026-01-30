@@ -156,7 +156,7 @@ const InvoicePage = () => {
                   <div>
                     <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.dueDate}</p>
                     <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {new Date(invoice.dueDate).toLocaleDateString('uz-UZ')}
+                      {new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                     </p>
                   </div>
 

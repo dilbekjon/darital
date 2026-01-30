@@ -251,8 +251,8 @@ export default function ArchiveManagementPage() {
   };
 
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Never';
-    return new Date(dateStr).toLocaleDateString();
+    if (!dateStr) return t.never || 'Hech qachon';
+    return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
 
   if (loading || pageLoading) {
@@ -272,7 +272,7 @@ export default function ArchiveManagementPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Breadcrumbs
           items={[
-            { label: t.dashboard || 'Dashboard', href: '/dashboard' },
+            { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
             { label: 'Archive Management' },
           ]}
         />
@@ -555,7 +555,7 @@ export default function ArchiveManagementPage() {
                             {contract.tenant.fullName} - {contract.unit.name}
                           </h3>
                           <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {new Date(contract.startDate).toLocaleDateString()} - {new Date(contract.endDate).toLocaleDateString()} •
+                            {new Date(contract.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })} - {new Date(contract.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })} •
                             ${contract.amount} • {contract.status} • Archived: {formatDate(contract.archivedAt)}
                           </div>
                         </div>
@@ -616,14 +616,14 @@ export default function ArchiveManagementPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                            {invoice.contract?.tenant?.fullName || 'Noma\'lum'}
+                            {invoice.contract?.tenant?.fullName || (t.unknownUser || 'Noma\'lum')}
                           </h3>
                           <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                             {invoice.contract?.unit?.name && <span className="mr-2">Xona: {invoice.contract.unit.name}</span>}
                             {invoice.contract?.tenant?.email && <span className="mr-2">• {invoice.contract.tenant.email}</span>}
                           </div>
                           <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            To'lov muddati: {new Date(invoice.dueDate).toLocaleDateString('uz-UZ')} •
+                            To'lov muddati: {new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })} •
                             {' '}{Number(invoice.amount).toLocaleString()} UZS • {invoice.status === 'PENDING' ? 'Kutilmoqda' : invoice.status === 'PAID' ? 'To\'langan' : invoice.status === 'OVERDUE' ? 'Muddati o\'tgan' : invoice.status}
                           </div>
                           <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -736,7 +736,7 @@ export default function ArchiveManagementPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                              {conversation.topic || 'Untitled Conversation'}
+                              {conversation.topic || (t.untitledConversation || 'Mavzusiz suhbat')}
                             </h3>
                             <span className={`px-2 py-0.5 rounded-full text-xs ${
                               conversation.status === 'CLOSED'

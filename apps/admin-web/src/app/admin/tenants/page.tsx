@@ -327,8 +327,8 @@ export default function AdminTenantsPage() {
       {/* Breadcrumbs */}
       <Breadcrumbs
         items={[
-          { label: t.dashboard || 'Dashboard', href: '/dashboard' },
-          { label: t.tenants || 'Tenants' },
+          { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
+          { label: t.tenants || 'Ijara oluvchilar' },
         ]}
       />
 
@@ -336,10 +336,10 @@ export default function AdminTenantsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
         <div>
           <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            {t.tenantsList || 'Tenants'}
+            {t.tenantsList || 'Ijara oluvchilar ro\'yxati'}
           </h1>
                  <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                   {t.manageTenantAccounts || 'Manage tenant accounts and information'}
+                   {t.manageTenantAccounts || 'Ijara oluvchi hisoblarini boshqarish'}
                  </p>
         </div>
         {canCreateTenants && (
@@ -508,7 +508,7 @@ export default function AdminTenantsPage() {
                     </div>
                   </div>
                   <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                    {t.createdAt}: {new Date(tenant.createdAt).toLocaleDateString()}
+                    {t.createdAt}: {new Date(tenant.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                   </div>
                 </div>
               ))}
@@ -585,7 +585,7 @@ export default function AdminTenantsPage() {
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
-                        {new Date(tenant.createdAt).toLocaleDateString()}
+                        {new Date(tenant.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-3">
