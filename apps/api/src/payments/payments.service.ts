@@ -837,41 +837,68 @@ export class PaymentsService {
     const status = (payment.status || '').toLowerCase();
     const raw = { checkoutUz: statusResponse, webhook: rawPayload };
 
-    // Checkout.uz uses "paid" status when payment is confirmed (matching Python pattern)
+    // Checkout.uz uses "paid" status when payment was received from provider
+    // Keep PENDING until admin accepts (same logic as tenant web: admin must verify first)
     if (status === 'paid') {
+      const existingRawPayload = (targetPayment as any).rawPayload;
+      const hasWebhookData =
+        existingRawPayload?.webhook ||
+        existingRawPayload?.checkoutUz?.payment?.status === 'paid' ||
+        (existingRawPayload?.checkoutUz && existingRawPayload?.webhook);
+
       const rawWithWebhook = {
         ...raw,
         webhook: true,
         receivedAt: new Date().toISOString(),
       };
 
-      // Auto-confirm payment so tenant sees it as paid and is not asked to pay again
-      const confirmed = await this.confirmPaymentTransaction({
-        paymentId: targetPayment.id,
-        providerPaymentId: orderIdStr,
-        provider: PaymentProvider.UZUM,
-        paidAt: new Date(),
-        rawPayload: rawWithWebhook,
+      const updated = await this.prisma.payment.update({
+        where: { id: targetPayment.id },
+        data: {
+          providerPaymentId: orderIdStr,
+          provider: PaymentProvider.UZUM,
+          rawPayload: rawWithWebhook,
+          // Keep status PENDING — admin must accept before confirming
+        } as any,
+        include: {
+          invoice: {
+            include: {
+              contract: {
+                include: { tenant: true, unit: true },
+              },
+            },
+          },
+        },
       });
 
-      // Notify tenant that payment was confirmed
       const invoiceWithContract = await this.prisma.invoice.findUnique({
         where: { id: targetPayment.invoiceId },
         include: { contract: { include: { unit: true } } },
       });
-      if (invoiceWithContract) {
+
+      if (invoiceWithContract && !hasWebhookData) {
         const unitName = invoiceWithContract.contract?.unit?.name;
-        await this.notifications.notifyTenantPaymentVerified(
+        await this.notifications.notifyTenantPaymentReceived(
           invoiceWithContract.contract.tenantId,
-          confirmed.id,
-          confirmed.amount.toNumber(),
-          true,
-          undefined,
+          updated.id,
+          updated.amount.toNumber(),
+          'UZUM',
           unitName,
         );
       }
 
-      return { ok: true, alreadyConfirmed: true, message: 'Payment confirmed' };
+      const gateway = this.getChatGateway();
+      if (gateway) {
+        setImmediate(async () => {
+          try {
+            await gateway.emitPaymentUpdated(updated);
+          } catch (error) {
+            console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+          }
+        });
+      }
+
+      return { ok: true, pending: true, message: 'Payment received, awaiting admin verification' };
     }
 
     if (status === 'canceled' || status === 'cancelled') {
