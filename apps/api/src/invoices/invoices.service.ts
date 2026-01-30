@@ -19,9 +19,9 @@ export class InvoicesService {
     const skip = (safePage - 1) * safeLimit;
     const where: any = {};
 
-    // Archive filtering: query params come as strings; only treat explicit 'true' as true so archived are excluded by default
-    const onlyArchivedBool = onlyArchived === true || onlyArchived === 'true' || onlyArchived === '1';
-    const includeArchivedBool = includeArchived === true || includeArchived === 'true' || includeArchived === '1';
+    // Archive filtering: query params can come as strings; only treat explicit true/'true'/'1' as true so archived are excluded by default
+    const onlyArchivedBool = onlyArchived === true || String(onlyArchived) === 'true' || String(onlyArchived) === '1';
+    const includeArchivedBool = includeArchived === true || String(includeArchived) === 'true' || String(includeArchived) === '1';
     if (onlyArchivedBool) {
       where.isArchived = true;
     } else if (!includeArchivedBool) {

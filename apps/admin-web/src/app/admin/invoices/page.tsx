@@ -90,6 +90,7 @@ export default function AdminInvoicesPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<string | null>(null);
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null);
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const socketRef = useRef<Socket | null>(null);
 
