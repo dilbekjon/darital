@@ -359,7 +359,7 @@ const PaymentsPage = () => {
                             }`}>
                               {payment.method === 'ONLINE' ? '🌐 Online' : '💵 Naqd pul'}
                             </span>
-                            {payment.provider && payment.provider !== 'NONE' && (
+                            {payment.method === 'ONLINE' && payment.status === 'CONFIRMED' && payment.provider && payment.provider !== 'NONE' && (
                               <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium ${
                                 darkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700'
                               }`}>

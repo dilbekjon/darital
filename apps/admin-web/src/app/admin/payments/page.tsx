@@ -909,7 +909,7 @@ export default function AdminPaymentsPage() {
                             </span>
                           )}
                         </div>
-                        {payment.method === 'ONLINE' && payment.provider && payment.provider !== 'NONE' && (
+                        {payment.method === 'ONLINE' && payment.status === 'CONFIRMED' && payment.provider && payment.provider !== 'NONE' && (
                           <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                             {payment.provider}
                           </div>

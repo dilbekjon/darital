@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -970,13 +971,19 @@ export default function AdminInvoicesPage() {
                   </p>
                 </div>
                 {qrData.qrString ? (
-                  <div className={`p-4 rounded-lg border ${
-                    darkMode ? 'bg-black border-blue-600/30' : 'bg-gray-50 border-gray-200'
-                  }`}>
-                    <p className={`text-xs font-mono break-all ${
-                      darkMode ? 'text-gray-300' : 'text-gray-700'
+                  <div className="flex flex-col items-center gap-3">
+                    <div className={`p-4 rounded-xl border ${
+                      darkMode ? 'bg-white border-blue-600/30' : 'bg-gray-50 border-gray-200'
                     }`}>
-                      {qrData.qrString}
+                      <QRCodeSVG
+                        value={qrData.qrString}
+                        size={220}
+                        level="M"
+                        includeMargin={false}
+                      />
+                    </div>
+                    <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                      Telefoningiz bilan QR kodni skanerlang
                     </p>
                   </div>
                 ) : (

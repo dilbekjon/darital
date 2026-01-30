@@ -93,6 +93,43 @@ export default function AdminReportsPage() {
         useCORS: true,
         logging: false,
         backgroundColor: darkMode ? '#111827' : '#f9fafb',
+        onclone: (clonedDoc, clonedElement) => {
+          clonedDoc.body.classList.add('pdf-export-capture');
+          const style = clonedDoc.createElement('style');
+          style.textContent = `
+            body.pdf-export-capture, body.pdf-export-capture * {
+              color: rgb(30,41,59) !important;
+              background-color: rgb(255,255,255) !important;
+              border-color: rgb(226,232,240) !important;
+              fill: rgb(30,41,59) !important;
+              stroke: rgb(30,41,59) !important;
+            }
+            body.pdf-export-capture {
+              background-color: rgb(241,245,249) !important;
+            }
+            body.pdf-export-capture [class*="bg-gray-900"],
+            body.pdf-export-capture [class*="bg-black"] {
+              background-color: rgb(17,24,39) !important;
+            }
+            body.pdf-export-capture [class*="text-white"],
+            body.pdf-export-capture [class*="text-green-400"],
+            body.pdf-export-capture [class*="text-blue-400"],
+            body.pdf-export-capture [class*="text-yellow-400"],
+            body.pdf-export-capture [class*="text-red-400"],
+            body.pdf-export-capture [class*="text-gray-400"] {
+              color: rgb(255,255,255) !important;
+            }
+            body.pdf-export-capture [class*="text-green-600"],
+            body.pdf-export-capture [class*="text-green-400"] { color: rgb(34,197,94) !important; }
+            body.pdf-export-capture [class*="text-blue-600"],
+            body.pdf-export-capture [class*="text-blue-400"] { color: rgb(59,130,246) !important; }
+            body.pdf-export-capture [class*="text-yellow-600"],
+            body.pdf-export-capture [class*="text-yellow-400"] { color: rgb(234,179,8) !important; }
+            body.pdf-export-capture [class*="text-red-600"],
+            body.pdf-export-capture [class*="text-red-400"] { color: rgb(239,68,68) !important; }
+          `;
+          clonedDoc.head.appendChild(style);
+        },
       });
       const img = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -432,7 +469,7 @@ export default function AdminReportsPage() {
                             cx="50%"
                             cy="50%"
                             outerRadius={80}
-                            label={({ name, value }) => `${name}: ${value}`}
+                            label={({ value }) => value}
                             isAnimationActive
                             animationDuration={600}
                             animationEasing="ease-out"
@@ -477,7 +514,7 @@ export default function AdminReportsPage() {
                             cx="50%"
                             cy="50%"
                             outerRadius={80}
-                            label={({ name, value }) => `${name}: ${value}`}
+                            label={({ value }) => value}
                             isAnimationActive
                             animationDuration={600}
                             animationEasing="ease-out"
@@ -522,7 +559,7 @@ export default function AdminReportsPage() {
                             cx="50%"
                             cy="50%"
                             outerRadius={80}
-                            label={({ name, value }) => `${name}: ${value}`}
+                            label={({ value }) => value}
                             isAnimationActive
                             animationDuration={600}
                             animationEasing="ease-out"
