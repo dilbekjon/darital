@@ -26,7 +26,8 @@ export function AdminSidebar() {
   const { darkMode } = useTheme();
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { count: unreadCount } = useUnreadChatCount();
+  const canAccessChat = hasPermission('chat.read') && user?.role !== 'PAYMENT_COLLECTOR';
+  const { count: unreadCount } = useUnreadChatCount(canAccessChat);
   const { count: pendingPaymentsCount } = usePendingPaymentsCount();
 
   // Close mobile menu when route changes

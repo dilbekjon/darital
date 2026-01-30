@@ -7,17 +7,17 @@ import { io, Socket } from 'socket.io-client';
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001';
 
 /**
- * Hook to fetch and maintain unread chat count
- * Updates automatically when new messages are received via socket
+ * Hook to fetch and maintain unread chat count.
+ * Only fetches when enabled is true (e.g. user has chat.read permission).
  */
-export function useUnreadChatCount() {
+export function useUnreadChatCount(enabled: boolean = true) {
   const [count, setCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
-  // Fetch unread count
   const fetchCount = useCallback(async () => {
+    if (!enabled) return;
     try {
       setError(null);
       const unreadCount = await getUnreadCount();
@@ -29,63 +29,54 @@ export function useUnreadChatCount() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
-  // Initial fetch
   useEffect(() => {
-    fetchCount();
-  }, [fetchCount]);
-
-  // Set up socket connection to listen for new messages
-  useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-    
-    if (!token) {
+    if (!enabled) {
+      setCount(0);
+      setLoading(false);
+      setError(null);
       return;
     }
+    fetchCount();
+  }, [enabled, fetchCount]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (!token) return;
 
     const socket = io(`${SOCKET_URL}/chat`, {
       auth: { token },
       transports: ['websocket', 'polling'],
     });
 
-    socket.on('connected', () => {
-      console.log('[useUnreadChatCount] Socket connected');
-    });
-
-    // Listen for unread count updates (emitted when tenant sends message or admin reads)
     socket.on('unread_count_updated', () => {
-      console.log('[useUnreadChatCount] Unread count updated event received, refreshing count');
       fetchCount();
     });
-
-    // Also listen for new messages as backup
     socket.on('message_received', () => {
-      console.log('[useUnreadChatCount] New message received, refreshing count');
       fetchCount();
     });
 
     socketRef.current = socket;
-
     return () => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [fetchCount]);
+  }, [enabled, fetchCount]);
 
-  // Poll for updates every 30 seconds as a fallback
   useEffect(() => {
+    if (!enabled) return;
     const interval = setInterval(() => {
       fetchCount();
-    }, 30000); // 30 seconds
-
+    }, 30000);
     return () => clearInterval(interval);
-  }, [fetchCount]);
+  }, [enabled, fetchCount]);
 
   return {
-    count,
-    loading,
-    error,
+    count: enabled ? count : 0,
+    loading: enabled ? loading : false,
+    error: enabled ? error : null,
     refresh: fetchCount,
   };
 }
