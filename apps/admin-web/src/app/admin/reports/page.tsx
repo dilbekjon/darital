@@ -92,47 +92,81 @@ export default function AdminReportsPage() {
         scale: 2,
         useCORS: true,
         logging: false,
-        backgroundColor: darkMode ? '#111827' : '#f9fafb',
+        backgroundColor: '#f1f5f9',
         onclone: (clonedDoc, clonedElement) => {
           clonedDoc.body.classList.add('pdf-export-capture');
           const style = clonedDoc.createElement('style');
           style.textContent = `
-            body.pdf-export-capture, body.pdf-export-capture * {
-              color: rgb(30,41,59) !important;
-              background-color: rgb(255,255,255) !important;
-              border-color: rgb(226,232,240) !important;
-              fill: rgb(30,41,59) !important;
-              stroke: rgb(30,41,59) !important;
-            }
             body.pdf-export-capture {
-              background-color: rgb(241,245,249) !important;
+              background: #f1f5f9 !important;
+              font-size: 15px !important;
+              opacity: 1 !important;
             }
-            body.pdf-export-capture [class*="bg-gray-900"],
-            body.pdf-export-capture [class*="bg-black"] {
-              background-color: rgb(17,24,39) !important;
+            body.pdf-export-capture * {
+              opacity: 1 !important;
             }
-            body.pdf-export-capture [class*="text-white"],
-            body.pdf-export-capture [class*="text-green-400"],
-            body.pdf-export-capture [class*="text-blue-400"],
-            body.pdf-export-capture [class*="text-yellow-400"],
-            body.pdf-export-capture [class*="text-red-400"],
-            body.pdf-export-capture [class*="text-gray-400"] {
-              color: rgb(255,255,255) !important;
+            body.pdf-export-capture [class*="rounded-xl"],
+            body.pdf-export-capture [class*="rounded-lg"] {
+              background-color: #ffffff !important;
+              border: 1px solid #e2e8f0 !important;
             }
-            body.pdf-export-capture [class*="text-green-600"],
-            body.pdf-export-capture [class*="text-green-400"] { color: rgb(34,197,94) !important; }
-            body.pdf-export-capture [class*="text-blue-600"],
-            body.pdf-export-capture [class*="text-blue-400"] { color: rgb(59,130,246) !important; }
-            body.pdf-export-capture [class*="text-yellow-600"],
-            body.pdf-export-capture [class*="text-yellow-400"] { color: rgb(234,179,8) !important; }
-            body.pdf-export-capture [class*="text-red-600"],
-            body.pdf-export-capture [class*="text-red-400"] { color: rgb(239,68,68) !important; }
+            body.pdf-export-capture p, body.pdf-export-capture span, body.pdf-export-capture li {
+              color: #0f172a !important;
+            }
+            body.pdf-export-capture h1, body.pdf-export-capture h2, body.pdf-export-capture h3 {
+              color: #0f172a !important;
+              font-weight: 700 !important;
+            }
+            body.pdf-export-capture .tabular-nums {
+              color: #0f172a !important;
+            }
+            body.pdf-export-capture svg text,
+            body.pdf-export-capture svg tspan {
+              fill: #0f172a !important;
+              font-size: 11px !important;
+            }
+            body.pdf-export-capture .recharts-legend-item-text {
+              fill: #0f172a !important;
+              color: #0f172a !important;
+            }
+            body.pdf-export-capture .recharts-cartesian-axis-tick-value {
+              fill: #0f172a !important;
+            }
+            body.pdf-export-capture [class*="text-green"] { color: #15803d !important; }
+            body.pdf-export-capture [class*="text-blue"] { color: #1d4ed8 !important; }
+            body.pdf-export-capture [class*="text-yellow"] { color: #a16207 !important; }
+            body.pdf-export-capture [class*="text-red"] { color: #b91c1c !important; }
+            body.pdf-export-capture [class*="text-gray"] { color: #334155 !important; }
+            body.pdf-export-capture .report-pdf-content {
+              background: #ffffff !important;
+            }
+            body.pdf-export-capture .report-pdf-content p {
+              font-size: 14px !important;
+              font-weight: 500 !important;
+              color: #0f172a !important;
+            }
+            body.pdf-export-capture .report-pdf-content .tabular-nums,
+            body.pdf-export-capture .report-pdf-content [class*="font-bold"] {
+              font-size: 18px !important;
+              font-weight: 700 !important;
+              color: #0f172a !important;
+            }
+            body.pdf-export-capture .report-pdf-content h2 {
+              font-size: 20px !important;
+              color: #0f172a !important;
+            }
+            body.pdf-export-capture .report-pdf-content h3 {
+              font-size: 17px !important;
+              color: #0f172a !important;
+            }
           `;
           clonedDoc.head.appendChild(style);
+          clonedElement.style.fontSize = '15px';
+          clonedElement.style.background = '#f1f5f9';
         },
       });
       const img = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
       const pdfW = pdf.internal.pageSize.getWidth();
       const pdfH = pdf.internal.pageSize.getHeight();
       const ratio = canvas.width / canvas.height;
@@ -312,11 +346,11 @@ export default function AdminReportsPage() {
         <>
           <div
             ref={reportRef}
-            className={`rounded-xl border overflow-hidden transition-colors ${
+            className={`report-pdf-content rounded-xl border overflow-hidden transition-colors ${
               darkMode ? 'bg-gray-900/80 border-blue-600/20' : 'bg-white border-gray-200'
             }`}
           >
-            <div className="p-6 sm:p-8">
+            <div className="p-6 sm:p-8 text-base">
               <h2
                 className={`text-xl font-semibold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}
               >

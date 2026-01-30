@@ -74,6 +74,9 @@ export function useUntypedTranslations(): Record<string, string> {
     payBefore: 'Iltimos, muddatgacha to\'lang',
     paymentDue: 'To\'lov muddati',
     urgentPayment: 'Shoshilinch: To\'lov muddati o\'tdi!',
+    nextPaymentDue: 'Keyingi to\'lov muddati',
+    noUpcomingPayment: 'Barcha to\'lovlar to\'landi',
+    monthlyPayment: 'Oyiga to\'lov',
     
     // Payments
     paymentsHistory: 'To\'lovlar tarixi',

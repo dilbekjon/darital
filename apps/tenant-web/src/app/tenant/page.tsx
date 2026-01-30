@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getTenantProfile, getTenantBalance } from '../../lib/tenantApi';
+import { getTenantProfile, getTenantInvoices } from '../../lib/tenantApi';
 import { ApiError, fetchTenantApi } from '../../lib/api';
 import { useUntypedTranslations } from '../../i18n/useUntypedTranslations';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -21,9 +21,17 @@ interface ChartData {
   };
 }
 
+function toNumber(val: unknown): number {
+  if (typeof val === 'number' && !Number.isNaN(val)) return val;
+  if (typeof val === 'object' && val !== null && 'toNumber' in val && typeof (val as { toNumber: () => number }).toNumber === 'function') {
+    return (val as { toNumber: () => number }).toNumber();
+  }
+  return Number(val) || 0;
+}
+
 const TenantDashboard = () => {
   const [profile, setProfile] = useState<any>(null);
-  const [balance, setBalance] = useState<any>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -33,13 +41,13 @@ const TenantDashboard = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [profileData, balanceData, chartDataResult] = await Promise.all([
+        const [profileData, invoicesData, chartDataResult] = await Promise.all([
           getTenantProfile(),
-          getTenantBalance(),
+          getTenantInvoices().catch(() => []),
           fetchTenantApi('/tenant/receipts/chart-data').catch(() => null),
         ]);
         setProfile(profileData);
-        setBalance(balanceData);
+        setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
         setChartData(chartDataResult as ChartData | null);
       } catch (err) {
         console.error(err);
@@ -57,8 +65,12 @@ const TenantDashboard = () => {
     return <DaritalLoader darkMode={darkMode} />;
   }
 
-  const activeUnit = profile?.contracts?.[0]?.unit?.name || 'N/A';
-  const balanceAmount = balance?.current || 0;
+  const activeContract = profile?.contracts?.find((c: any) => c.status === 'ACTIVE') || profile?.contracts?.[0];
+  const activeUnit = activeContract?.unit?.name || 'N/A';
+  const monthlyAmount = activeContract ? toNumber(activeContract.amount) : 0;
+  const nextPendingInvoice = invoices.find((inv: any) => inv.status === 'PENDING' || inv.status === 'OVERDUE');
+  const nextDueDate = nextPendingInvoice?.dueDate ? new Date(nextPendingInvoice.dueDate) : null;
+  const hasOverdue = nextPendingInvoice?.status === 'OVERDUE';
 
   return (
     <>
@@ -94,8 +106,48 @@ const TenantDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {/* Balance Card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Keyingi to'lov muddati — eng asosiy */}
+          <div className={`group relative overflow-hidden rounded-2xl shadow-2xl transition-all duration-500 p-6 hover:-translate-y-2 md:col-span-2 ${
+            darkMode
+              ? 'bg-gradient-to-br from-amber-900/40 via-gray-900 to-black border-2 border-amber-500/50 hover:border-amber-400 hover:shadow-[0_0_30px_rgba(245,158,11,0.25)]'
+              : 'bg-white border-2 border-amber-200 hover:border-amber-400 hover:shadow-3xl'
+          }`}>
+            <div className={`absolute top-0 right-0 w-40 h-40 rounded-full blur-3xl ${
+              darkMode ? 'bg-amber-500 opacity-25' : 'bg-amber-400 opacity-20'
+            }`}></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className={`p-3 rounded-xl border ${
+                  darkMode ? 'bg-amber-500/20 border-amber-500/50' : 'bg-amber-100 border-amber-200'
+                }`}>
+                  <svg className={`w-6 h-6 ${darkMode ? 'text-amber-400' : 'text-amber-600'}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <span className={`text-sm font-semibold ${darkMode ? 'text-amber-400' : 'text-amber-700'}`}>{t.nextPaymentDue}</span>
+              </div>
+              {nextDueDate ? (
+                <>
+                  <h3 className={`text-2xl md:text-3xl font-bold mb-1 ${hasOverdue ? (darkMode ? 'text-red-400' : 'text-red-600') : (darkMode ? 'text-white' : 'text-gray-800')}`}>
+                    {nextDueDate.toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </h3>
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {hasOverdue ? t.overdue : t.pending}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 className={`text-xl md:text-2xl font-bold mb-1 ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
+                    {t.noUpcomingPayment}
+                  </h3>
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t.paid}</p>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Oyiga to'lov */}
           <div className={`group relative overflow-hidden rounded-2xl shadow-2xl transition-all duration-500 p-6 hover:-translate-y-2 ${
             darkMode
               ? 'bg-gradient-to-br from-gray-800 via-gray-900 to-black border-2 border-yellow-500/40 hover:border-yellow-400 hover:shadow-[0_0_30px_rgba(234,179,8,0.3)]'
@@ -107,24 +159,18 @@ const TenantDashboard = () => {
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-4">
                 <div className={`p-3 rounded-xl transition-all duration-300 group-hover:scale-110 border ${
-                  darkMode 
-                    ? 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border-yellow-500/50' 
-                    : 'bg-blue-100 group-hover:bg-blue-200 border-transparent'
+                  darkMode ? 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border-yellow-500/50' : 'bg-blue-100 group-hover:bg-blue-200 border-transparent'
                 }`}>
                   <svg className={`w-6 h-6 ${darkMode ? 'text-yellow-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <span className={`text-sm font-semibold ${darkMode ? 'text-yellow-400' : 'text-gray-500'}`}>{t.balance}</span>
+                <span className={`text-sm font-semibold ${darkMode ? 'text-yellow-400' : 'text-gray-500'}`}>{t.monthlyPayment}</span>
               </div>
-              <h3 className={`text-3xl font-bold mb-2 ${
-                darkMode
-                  ? balanceAmount >= 0 ? 'text-white' : 'text-red-400'
-                  : balanceAmount >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                UZS {balanceAmount.toLocaleString()}
+              <h3 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                UZS {monthlyAmount.toLocaleString()}
               </h3>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t.currentBalance}</p>
+              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t.monthlyRent}</p>
             </div>
           </div>
 

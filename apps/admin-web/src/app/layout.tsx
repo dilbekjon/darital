@@ -8,6 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Darital Admin',
   description: 'Admin dashboard for Darital Final',
+  icons: { icon: '/logo.png' },
 }
 
 export default function RootLayout({

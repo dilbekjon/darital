@@ -8,6 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Darital Tenant Portal',
   description: 'Tenant portal for Darital property management',
+  icons: { icon: '/logo.png' },
 }
 
 export default function RootLayout({
