@@ -61,6 +61,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       const botInfo = await this.bot.telegram.getMe();
       this.logger.log(`✅ Telegram bot initialized successfully: @${botInfo.username} (${botInfo.first_name})`);
       this.logger.log(`📱 Bot is ready to receive messages. Users can start chatting with @${botInfo.username}`);
+      // Clear bot menu commands so only our 4-button inline menu is used (no 6-button menu)
+      await this.bot.telegram.setMyCommands([]).catch(() => {});
     } catch (error: any) {
       // Handle conflict error gracefully - another instance might be running
       if (error?.response?.error_code === 409) {
@@ -136,7 +138,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Show main menu — 4 buttons only for easy use
+   * Show main menu — 4 buttons only for easy use.
+   * Removes any reply keyboard (6 buttons under input) so only inline menu is used.
    */
   private async showMainMenu(ctx: Context, chatId: string, lang: 'uz' | 'ru' | 'en' = 'uz') {
     const texts = this.getMenuTexts(lang);
@@ -157,6 +160,15 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     state.language = lang;
     this.conversationStates.set(chatId, state);
 
+    // Remove any reply keyboard (old 6 buttons under input) so only inline buttons show
+    try {
+      const sent = await ctx.telegram.sendMessage(chatId, '.', {
+        reply_markup: { remove_keyboard: true },
+      });
+      await ctx.telegram.deleteMessage(chatId, sent.message_id);
+    } catch {
+      // ignore if no keyboard to remove or delete fails
+    }
     await ctx.reply(texts.mainMenuTitle, keyboard);
   }
 
@@ -402,9 +414,13 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     }
 
     const texts = this.getMenuTexts(lang);
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.callback(texts.payInvoice, 'menu_pay'), Markup.button.callback(texts.myInfo, 'menu_my_info')],
+      [Markup.button.callback(texts.writeChat, 'menu_write_chat'), Markup.button.callback(texts.more, 'menu_more')],
+    ]);
     await ctx.editMessageText(
       texts.writeChat + '\n\n' + this.getText(lang, 'type_message'),
-      Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]])
+      keyboard
     );
   }
 
@@ -1149,7 +1165,15 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       // Add message to conversation
       await this.handleTenantInquiry(chatId, telegramUser.tenantId, caption || '📷 Photo', fileUrl);
 
-      await ctx.reply(`✅ Rasm qabul qilindi! Administrator tez orada javob beradi.`);
+      const state = this.conversationStates.get(chatId);
+      const lang = state?.language || 'uz';
+      state && (state.step = 'main_menu') && this.conversationStates.set(chatId, state);
+      const texts = this.getMenuTexts(lang);
+      const keyboard = Markup.inlineKeyboard([
+        [Markup.button.callback(texts.payInvoice, 'menu_pay'), Markup.button.callback(texts.myInfo, 'menu_my_info')],
+        [Markup.button.callback(texts.writeChat, 'menu_write_chat'), Markup.button.callback(texts.more, 'menu_more')],
+      ]);
+      await ctx.reply(`✅ Rasm qabul qilindi! Administrator tez orada javob beradi.`, keyboard);
     } catch (error: any) {
       this.logger.error(`Error handling photo: ${error.message}`);
       await ctx.reply(`❌ Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.`);
@@ -1205,7 +1229,15 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       await this.handleTenantInquiry(chatId, telegramUser.tenantId, `🎤 Voice message (${Math.floor(duration)}s)`, fileUrl);
 
       this.logger.log(`✅ Voice message added to conversation for tenant ${telegramUser.tenantId}`);
-      await ctx.reply(`✅ Ovozli xabar qabul qilindi! Administrator tez orada javob beradi.`);
+      const state = this.conversationStates.get(chatId);
+      const lang = state?.language || 'uz';
+      state && (state.step = 'main_menu') && this.conversationStates.set(chatId, state);
+      const texts = this.getMenuTexts(lang);
+      const keyboard = Markup.inlineKeyboard([
+        [Markup.button.callback(texts.payInvoice, 'menu_pay'), Markup.button.callback(texts.myInfo, 'menu_my_info')],
+        [Markup.button.callback(texts.writeChat, 'menu_write_chat'), Markup.button.callback(texts.more, 'menu_more')],
+      ]);
+      await ctx.reply(`✅ Ovozli xabar qabul qilindi! Administrator tez orada javob beradi.`, keyboard);
     } catch (error: any) {
       this.logger.error(`❌ Error handling voice message: ${error.message}`, error.stack);
       await ctx.reply(`❌ Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.`);
@@ -1245,7 +1277,15 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       // Add message to conversation
       await this.handleTenantInquiry(chatId, telegramUser.tenantId, `📹 Video note (${Math.floor(duration)}s)`, fileUrl);
 
-      await ctx.reply(`✅ Video xabar qabul qilindi! Administrator tez orada javob beradi.`);
+      const state = this.conversationStates.get(chatId);
+      const lang = state?.language || 'uz';
+      state && (state.step = 'main_menu') && this.conversationStates.set(chatId, state);
+      const texts = this.getMenuTexts(lang);
+      const keyboard = Markup.inlineKeyboard([
+        [Markup.button.callback(texts.payInvoice, 'menu_pay'), Markup.button.callback(texts.myInfo, 'menu_my_info')],
+        [Markup.button.callback(texts.writeChat, 'menu_write_chat'), Markup.button.callback(texts.more, 'menu_more')],
+      ]);
+      await ctx.reply(`✅ Video xabar qabul qilindi! Administrator tez orada javob beradi.`, keyboard);
     } catch (error: any) {
       this.logger.error(`Error handling video note: ${error.message}`);
       await ctx.reply(`❌ Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.`);
@@ -1289,7 +1329,15 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       // Add message to conversation
       await this.handleTenantInquiry(chatId, telegramUser.tenantId, caption || `🎥 Video (${Math.floor(duration)}s)`, fileUrl);
 
-      await ctx.reply(`✅ Video qabul qilindi! Administrator tez orada javob beradi.`);
+      const state = this.conversationStates.get(chatId);
+      const lang = state?.language || 'uz';
+      state && (state.step = 'main_menu') && this.conversationStates.set(chatId, state);
+      const texts = this.getMenuTexts(lang);
+      const keyboard = Markup.inlineKeyboard([
+        [Markup.button.callback(texts.payInvoice, 'menu_pay'), Markup.button.callback(texts.myInfo, 'menu_my_info')],
+        [Markup.button.callback(texts.writeChat, 'menu_write_chat'), Markup.button.callback(texts.more, 'menu_more')],
+      ]);
+      await ctx.reply(`✅ Video qabul qilindi! Administrator tez orada javob beradi.`, keyboard);
     } catch (error: any) {
       this.logger.error(`Error handling video: ${error.message}`);
       await ctx.reply(`❌ Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.`);
@@ -1332,7 +1380,15 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       // Add message to conversation
       await this.handleTenantInquiry(chatId, telegramUser.tenantId, caption || `📎 ${fileName}`, fileUrl);
 
-      await ctx.reply(`✅ Fayl qabul qilindi! Administrator tez orada javob beradi.`);
+      const state = this.conversationStates.get(chatId);
+      const lang = state?.language || 'uz';
+      state && (state.step = 'main_menu') && this.conversationStates.set(chatId, state);
+      const texts = this.getMenuTexts(lang);
+      const keyboard = Markup.inlineKeyboard([
+        [Markup.button.callback(texts.payInvoice, 'menu_pay'), Markup.button.callback(texts.myInfo, 'menu_my_info')],
+        [Markup.button.callback(texts.writeChat, 'menu_write_chat'), Markup.button.callback(texts.more, 'menu_more')],
+      ]);
+      await ctx.reply(`✅ Fayl qabul qilindi! Administrator tez orada javob beradi.`, keyboard);
     } catch (error: any) {
       this.logger.error(`Error handling document: ${error.message}`);
       await ctx.reply(`❌ Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.`);
@@ -1404,7 +1460,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           // Set state to writing_chat so next message is treated as chat message
           state.step = 'writing_chat';
           this.conversationStates.set(chatId, state);
-          await ctx.reply(this.getText(lang, 'type_message'));
+          const keyboard = Markup.inlineKeyboard([
+            [Markup.button.callback(texts.payInvoice, 'menu_pay'), Markup.button.callback(texts.myInfo, 'menu_my_info')],
+            [Markup.button.callback(texts.writeChat, 'menu_write_chat'), Markup.button.callback(texts.more, 'menu_more')],
+          ]);
+          await ctx.reply(this.getText(lang, 'type_message'), keyboard);
           return; // Exit early - don't send button text to conversation
         } else if (message === texts.checkStatus || message === texts.checkStatus.replace(/📊\s*/g, '').trim() || (message.includes('Status') && !message.includes(' ')) || message.includes('статус') || message.includes('Statusni')) {
           if (!telegramUser?.tenantId) {
@@ -1531,11 +1591,22 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
       // User is registered, create/find conversation and add message
       await this.handleTenantInquiry(chatId, telegramUser.tenantId, message);
-      
-      // Confirm message received
+
+      // Reset to main menu so next message is not treated as another chat message
+      state.step = 'main_menu';
+      this.conversationStates.set(chatId, state);
+
+      // Confirm message received and show 4-button navigation again
+      const lang = state?.language || 'uz';
+      const texts = this.getMenuTexts(lang);
+      const keyboard = Markup.inlineKeyboard([
+        [Markup.button.callback(texts.payInvoice, 'menu_pay'), Markup.button.callback(texts.myInfo, 'menu_my_info')],
+        [Markup.button.callback(texts.writeChat, 'menu_write_chat'), Markup.button.callback(texts.more, 'menu_more')],
+      ]);
       await ctx.reply(
         `✅ Xabaringiz qabul qilindi! Administrator tez orada javob beradi.\n\n` +
-        `Yaxshi xizmat uchun rahmat! 🙏`
+        `Yaxshi xizmat uchun rahmat! 🙏`,
+        keyboard
       );
     } catch (error: any) {
       this.logger.error(`Error handling tenant inquiry: ${error.message}`);
