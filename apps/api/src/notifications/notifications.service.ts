@@ -418,7 +418,15 @@ Darital
 
     await this.sendTelegramToTenant(tenantId, telegramMessage, imageUrl);
 
-    // Log notification
+    const inAppTitle = 'To\'lov muddati o\'tgan';
+    const inAppMessage = `To'lovingiz ${daysLate} kun kechikdi. Summa: ${prettyAmount} so'm`;
+    await this.inAppNotifications.create({
+      tenantId,
+      type: 'PAYMENT_DUE',
+      title: inAppTitle,
+      message: inAppMessage,
+      data: { daysLate, amount: prettyAmount },
+    });
     await this.prisma.notificationLog.create({
       data: {
         tenantId,
@@ -567,6 +575,16 @@ Darital Jamoasi
         pushBody,
       );
 
+      await this.inAppNotifications.create({
+        tenantId,
+        type: 'PAYMENT_CONFIRMED',
+        title: 'To\'lov qabul qilindi',
+        message: unitName
+          ? `${amount.toFixed(2)} UZS (${unitName}) - tekshiruv kutilmoqda`
+          : `${amount.toFixed(2)} UZS - tekshiruv kutilmoqda`,
+        data: { paymentId, amount, unitName },
+      });
+
       this.logger.log(`📧 Sent payment received notification to tenant ${tenantId}${unitName ? ` for unit ${unitName}` : ''}`);
     } catch (error: any) {
       this.logger.warn(`Failed to notify tenant payment received: ${error?.message || 'Unknown error'}`);
@@ -649,6 +667,7 @@ Darital Jamoasi
           'Payment Confirmed ✅',
           pushBody,
         );
+        await this.inAppNotifications.notifyPaymentConfirmed(tenantId, paymentId, amount);
       } else {
         const subject = 'Payment Verification - Action Required';
         const body = `
@@ -701,6 +720,15 @@ Darital Jamoasi
           'Payment Declined ❌',
           pushBodyDeclined,
         );
+        await this.inAppNotifications.create({
+          tenantId,
+          type: 'SYSTEM',
+          title: 'To\'lov tasdiqlanmadi',
+          message: reason
+            ? `${amount.toFixed(2)} UZS - rad etildi. Sabab: ${reason}`
+            : `${amount.toFixed(2)} UZS - rad etildi. Qo'llab-quvvatlash bilan bog'laning.`,
+          data: { paymentId, amount, verified: false, reason },
+        });
       }
 
       this.logger.log(`📧 Sent payment verification notification to tenant ${tenantId} (verified: ${verified})${unitName ? ` for unit ${unitName}` : ''}`);
