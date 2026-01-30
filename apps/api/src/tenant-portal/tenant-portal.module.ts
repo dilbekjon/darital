@@ -7,5 +7,6 @@ import { PaymentsModule } from '../payments/payments.module';
   imports: [PaymentsModule],
   controllers: [TenantPortalController],
   providers: [TenantPortalService],
+  exports: [TenantPortalService],
 })
 export class TenantPortalModule {}

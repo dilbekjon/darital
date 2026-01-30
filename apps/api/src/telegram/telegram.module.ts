@@ -4,11 +4,13 @@ import { TelegramService } from './telegram.service';
 import { TelegramController } from './telegram.controller';
 import { MinioModule } from '../minio/minio.module';
 import { ChatModule } from '../chat/chat.module';
+import { TenantPortalModule } from '../tenant-portal/tenant-portal.module';
 
 @Module({
   imports: [
     MinioModule,
     ChatModule, // Import ChatModule to access ChatGateway
+    TenantPortalModule,
     TelegrafModule.forRootAsync({
       useFactory: async () => {
         const logger = new Logger('TelegramModule');
