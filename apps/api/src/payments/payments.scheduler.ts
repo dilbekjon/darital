@@ -63,12 +63,13 @@ export class PaymentsScheduler {
         try {
           const result = await this.paymentsService.refreshCheckoutUzPayment(payment.id);
           // Payment is now kept as PENDING for admin verification
-          if (result?.pending || result?.alreadyConfirmed) {
-            if (result?.pending) {
+          const hasPending = result && 'pending' in result && result.pending;
+          const hasAlreadyConfirmed = result && 'alreadyConfirmed' in result && result.alreadyConfirmed;
+          if (hasPending || hasAlreadyConfirmed) {
+            if (hasPending) {
               receivedCount++;
               this.logger.log(`Payment ${payment.id} received, awaiting admin verification`);
-            } else if (result?.alreadyConfirmed) {
-              // Already confirmed (shouldn't happen for new flow, but handle gracefully)
+            } else if (hasAlreadyConfirmed) {
               receivedCount++;
               this.logger.log(`Payment ${payment.id} already confirmed`);
             }

@@ -113,10 +113,10 @@ const TenantDashboard = () => {
           <SystemStatus />
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {/* Keyingi to'lov muddati — eng asosiy */}
-          <div className={`group relative overflow-hidden rounded-2xl shadow-2xl transition-all duration-500 p-6 hover:-translate-y-2 md:col-span-2 ${
+        {/* Stats Grid — bitta qatorda */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-8">
+          {/* Keyingi to'lov muddati */}
+          <div className={`group relative overflow-hidden rounded-2xl shadow-2xl transition-all duration-500 p-4 sm:p-5 hover:-translate-y-2 ${
             darkMode
               ? 'bg-gradient-to-br from-amber-900/40 via-gray-900 to-black border-2 border-amber-500/50 hover:border-amber-400 hover:shadow-[0_0_30px_rgba(245,158,11,0.25)]'
               : 'bg-white border-2 border-amber-200 hover:border-amber-400 hover:shadow-3xl'
@@ -125,38 +125,38 @@ const TenantDashboard = () => {
               darkMode ? 'bg-amber-500 opacity-25' : 'bg-amber-400 opacity-20'
             }`}></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`p-3 rounded-xl border ${
+              <div className="flex items-center justify-between mb-2">
+                <div className={`p-2 sm:p-2.5 rounded-xl border ${
                   darkMode ? 'bg-amber-500/20 border-amber-500/50' : 'bg-amber-100 border-amber-200'
                 }`}>
-                  <svg className={`w-6 h-6 ${darkMode ? 'text-amber-400' : 'text-amber-600'}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <svg className={`w-5 h-5 sm:w-5 sm:h-5 ${darkMode ? 'text-amber-400' : 'text-amber-600'}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <span className={`text-sm font-semibold ${darkMode ? 'text-amber-400' : 'text-amber-700'}`}>{t.nextPaymentDue}</span>
+                <span className={`text-xs sm:text-sm font-medium ${darkMode ? 'text-amber-400' : 'text-amber-700'}`}>{t.nextPaymentDue}</span>
               </div>
               {nextDueDate ? (
                 <>
-                  <h3 className={`text-2xl md:text-3xl font-bold mb-1 ${hasOverdue ? (darkMode ? 'text-red-400' : 'text-red-600') : (darkMode ? 'text-white' : 'text-gray-800')}`}>
+                  <h3 className={`text-lg sm:text-xl font-semibold mb-0.5 ${hasOverdue ? (darkMode ? 'text-red-400' : 'text-red-600') : (darkMode ? 'text-white' : 'text-gray-800')}`}>
                     {formatDueDate(nextDueDate)}
                   </h3>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     {hasOverdue ? t.overdue : t.pending}
                   </p>
                 </>
               ) : (
                 <>
-                  <h3 className={`text-xl md:text-2xl font-bold mb-1 ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
+                  <h3 className={`text-base sm:text-lg font-semibold mb-0.5 ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
                     {t.noUpcomingPayment}
                   </h3>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t.paid}</p>
+                  <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t.paid}</p>
                 </>
               )}
             </div>
           </div>
 
           {/* Oyiga to'lov */}
-          <div className={`group relative overflow-hidden rounded-2xl shadow-2xl transition-all duration-500 p-6 hover:-translate-y-2 ${
+          <div className={`group relative overflow-hidden rounded-2xl shadow-2xl transition-all duration-500 p-4 sm:p-5 hover:-translate-y-2 ${
             darkMode
               ? 'bg-gradient-to-br from-gray-800 via-gray-900 to-black border-2 border-yellow-500/40 hover:border-yellow-400 hover:shadow-[0_0_30px_rgba(234,179,8,0.3)]'
               : 'bg-white border border-blue-100 hover:border-blue-300 hover:shadow-3xl'
@@ -165,25 +165,25 @@ const TenantDashboard = () => {
               darkMode ? 'bg-yellow-500 opacity-30' : 'bg-blue-500 opacity-20'
             }`}></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-xl transition-all duration-300 group-hover:scale-110 border ${
+              <div className="flex items-center justify-between mb-2">
+                <div className={`p-2 sm:p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110 border ${
                   darkMode ? 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border-yellow-500/50' : 'bg-blue-100 group-hover:bg-blue-200 border-transparent'
                 }`}>
-                  <svg className={`w-6 h-6 ${darkMode ? 'text-yellow-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <svg className={`w-5 h-5 ${darkMode ? 'text-yellow-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <span className={`text-sm font-semibold ${darkMode ? 'text-yellow-400' : 'text-gray-500'}`}>{t.monthlyPayment}</span>
+                <span className={`text-xs sm:text-sm font-medium ${darkMode ? 'text-yellow-400' : 'text-gray-500'}`}>{t.monthlyPayment}</span>
               </div>
-              <h3 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              <h3 className={`text-lg sm:text-xl font-bold mb-1 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
                 UZS {monthlyAmount.toLocaleString()}
               </h3>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t.monthlyRent}</p>
+              <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t.monthlyRent}</p>
             </div>
           </div>
 
           {/* Unit Card */}
-          <div className={`group relative overflow-hidden rounded-2xl shadow-2xl transition-all duration-500 p-6 hover:-translate-y-2 ${
+          <div className={`group relative overflow-hidden rounded-2xl shadow-2xl transition-all duration-500 p-4 sm:p-5 hover:-translate-y-2 ${
             darkMode
               ? 'bg-gradient-to-br from-gray-800 via-gray-900 to-black border-2 border-yellow-500/40 hover:border-yellow-400 hover:shadow-[0_0_30px_rgba(234,179,8,0.3)]'
               : 'bg-white border border-blue-100 hover:border-blue-300 hover:shadow-3xl'
@@ -192,20 +192,20 @@ const TenantDashboard = () => {
               darkMode ? 'bg-yellow-500 opacity-30' : 'bg-blue-500 opacity-20'
             }`}></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-xl transition-all duration-300 group-hover:scale-110 border ${
+              <div className="flex items-center justify-between mb-2">
+                <div className={`p-2 sm:p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110 border ${
                   darkMode 
                     ? 'bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border-yellow-500/50' 
                     : 'bg-blue-100 group-hover:bg-blue-200 border-transparent'
                 }`}>
-                  <svg className={`w-6 h-6 ${darkMode ? 'text-yellow-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <svg className={`w-5 h-5 ${darkMode ? 'text-yellow-400' : 'text-blue-600'}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
                 </div>
-                <span className={`text-sm font-semibold ${darkMode ? 'text-yellow-400' : 'text-gray-500'}`}>{t.property}</span>
+                <span className={`text-xs sm:text-sm font-medium ${darkMode ? 'text-yellow-400' : 'text-gray-500'}`}>{t.property}</span>
               </div>
-              <h3 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>{activeUnit}</h3>
-              <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t.yourActiveUnit}</p>
+              <h3 className={`text-lg sm:text-xl font-bold mb-1 ${darkMode ? 'text-white' : 'text-gray-800'}`}>{activeUnit}</h3>
+              <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t.yourActiveUnit}</p>
             </div>
           </div>
 
