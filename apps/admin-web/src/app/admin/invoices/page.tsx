@@ -90,7 +90,6 @@ export default function AdminInvoicesPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<string | null>(null);
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null);
-  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const socketRef = useRef<Socket | null>(null);
 
@@ -520,14 +519,6 @@ export default function AdminInvoicesPage() {
 
   const canCaptureOffline = hasPermission('payments.capture_offline');
 
-  useEffect(() => {
-    if (openDropdownId) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => { document.body.style.overflow = prev; };
-    }
-  }, [openDropdownId]);
-
   return (
     <div className={`p-4 sm:p-6 lg:p-8 h-full overflow-y-auto ${
       darkMode ? 'bg-black' : 'bg-gray-100'
@@ -813,133 +804,80 @@ export default function AdminInvoicesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="relative inline-block">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenDropdownId(openDropdownId === invoice.id ? null : invoice.id);
-                          }}
-                          className={`p-2 rounded-lg transition-colors ${
-                            darkMode
-                              ? 'hover:bg-gray-800 text-gray-400 hover:text-white'
-                              : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                          onClick={() => handleViewQr(invoice.id)}
+                          disabled={loadingQr}
+                          className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
+                            darkMode ? 'text-blue-400 hover:bg-blue-600/20' : 'text-blue-600 hover:bg-blue-100'
                           }`}
-                          aria-label={t.actions || 'Amallar'}
+                          title={t.viewQr}
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                          </svg>
+                          {loadingQr ? t.loading : 'QR'}
                         </button>
-                        {openDropdownId === invoice.id && (
+                        {hasPermission('contracts.update') && invoice.status !== 'PAID' && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditModal(invoice)}
+                            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                              darkMode ? 'text-amber-400 hover:bg-amber-600/20' : 'text-amber-600 hover:bg-amber-100'
+                            }`}
+                            title={t.edit || 'Tahrirlash'}
+                          >
+                            {t.edit || 'Tahrirlash'}
+                          </button>
+                        )}
+                        {canCaptureOffline && invoice.status !== 'PAID' && (
+                          <button
+                            type="button"
+                            onClick={() => handleMarkPaid(invoice)}
+                            disabled={markingPaid === invoice.id}
+                            className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
+                              darkMode ? 'text-green-400 hover:bg-green-600/20' : 'text-green-600 hover:bg-green-100'
+                            }`}
+                            title={t.markPaid}
+                          >
+                            {markingPaid === invoice.id ? t.processing : t.markPaid}
+                          </button>
+                        )}
+                        {showVerifyButtons && pendingPayment && (
                           <>
-                            <div
-                              className="fixed inset-0 z-40"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setOpenDropdownId(null);
-                              }}
-                              onMouseDown={(e) => e.preventDefault()}
-                              aria-hidden
-                            />
-                            <div
-                              className={`absolute right-0 mt-2 w-52 rounded-lg shadow-lg border py-1 z-50 ${
-                                darkMode ? 'bg-black border-blue-600/40' : 'bg-white border-gray-200'
+                            <button
+                              type="button"
+                              onClick={() => handleVerifyPayment(pendingPayment.id, true)}
+                              disabled={verifyingPaymentId === pendingPayment.id}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
+                                darkMode ? 'text-green-400 hover:bg-green-600/20' : 'text-green-600 hover:bg-green-100'
                               }`}
-                              onClick={(e) => e.stopPropagation()}
+                              title={t.confirmed || 'Tasdiqlash'}
                             >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenDropdownId(null);
-                                  handleViewQr(invoice.id);
-                                }}
-                                disabled={loadingQr}
-                                className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors disabled:opacity-50 ${
-                                  darkMode ? 'text-blue-400 hover:bg-blue-600/20' : 'text-blue-600 hover:bg-blue-50'
-                                }`}
-                              >
-                                <span>{loadingQr ? t.loading : t.viewQr}</span>
-                              </button>
-                              {hasPermission('contracts.update') && invoice.status !== 'PAID' && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenDropdownId(null);
-                                    handleOpenEditModal(invoice);
-                                  }}
-                                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors ${
-                                    darkMode ? 'text-yellow-400 hover:bg-yellow-600/20' : 'text-yellow-600 hover:bg-yellow-50'
-                                  }`}
-                                >
-                                  <span>{t.edit || 'Tahrirlash'}</span>
-                                </button>
-                              )}
-                              {canCaptureOffline && invoice.status !== 'PAID' && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenDropdownId(null);
-                                    handleMarkPaid(invoice);
-                                  }}
-                                  disabled={markingPaid === invoice.id}
-                                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors disabled:opacity-50 ${
-                                    darkMode ? 'text-green-400 hover:bg-green-600/20' : 'text-green-600 hover:bg-green-50'
-                                  }`}
-                                >
-                                  <span>{markingPaid === invoice.id ? t.processing : t.markPaid}</span>
-                                </button>
-                              )}
-                              {showVerifyButtons && pendingPayment && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenDropdownId(null);
-                                      handleVerifyPayment(pendingPayment.id, true);
-                                    }}
-                                    disabled={verifyingPaymentId === pendingPayment.id}
-                                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors disabled:opacity-50 ${
-                                      darkMode ? 'text-green-400 hover:bg-green-600/20' : 'text-green-600 hover:bg-green-50'
-                                    }`}
-                                  >
-                                    <span>{verifyingPaymentId === pendingPayment.id ? t.processing : (t.confirmed || 'Tasdiqlash')}</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenDropdownId(null);
-                                      handleVerifyPayment(pendingPayment.id, false);
-                                    }}
-                                    disabled={verifyingPaymentId === pendingPayment.id}
-                                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors disabled:opacity-50 ${
-                                      darkMode ? 'text-red-400 hover:bg-red-600/20' : 'text-red-600 hover:bg-red-50'
-                                    }`}
-                                  >
-                                    <span>{verifyingPaymentId === pendingPayment.id ? t.processing : (t.cancel || 'Rad etish')}</span>
-                                  </button>
-                                </>
-                              )}
-                              {hasPermission('contracts.update') && invoice.status !== 'PAID' && (
-                                <>
-                                  <div className={`border-t my-0.5 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`} />
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenDropdownId(null);
-                                      setDeleteConfirmOpen(invoice.id);
-                                    }}
-                                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-sm text-left transition-colors ${
-                                      darkMode ? 'text-red-400 hover:bg-red-600/20' : 'text-red-600 hover:bg-red-50'
-                                    }`}
-                                  >
-                                    <span>{t.delete || 'O\'chirish'}</span>
-                                  </button>
-                                </>
-                              )}
-                            </div>
+                              {verifyingPaymentId === pendingPayment.id ? t.processing : (t.confirmed || 'Tasdiqlash')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleVerifyPayment(pendingPayment.id, false)}
+                              disabled={verifyingPaymentId === pendingPayment.id}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
+                                darkMode ? 'text-red-400 hover:bg-red-600/20' : 'text-red-600 hover:bg-red-100'
+                              }`}
+                              title={t.cancel || 'Rad etish'}
+                            >
+                              {verifyingPaymentId === pendingPayment.id ? t.processing : (t.cancel || 'Rad etish')}
+                            </button>
                           </>
+                        )}
+                        {hasPermission('contracts.update') && invoice.status !== 'PAID' && (
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirmOpen(invoice.id)}
+                            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                              darkMode ? 'text-red-400 hover:bg-red-600/20' : 'text-red-600 hover:bg-red-100'
+                            }`}
+                            title={t.delete || 'O\'chirish'}
+                          >
+                            {t.delete || 'O\'chirish'}
+                          </button>
                         )}
                       </div>
                     </td>
