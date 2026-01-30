@@ -733,26 +733,22 @@ export default function AdminChatPage() {
                       {msg.fileUrl && !msg.fileUrl.startsWith('telegram:') && (
                         <div className="mb-2">
                           {(() => {
-                            // Build correct file URL
+                            // Static files are at origin root (no /api)
+                            const staticBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/api\/?$/, '');
                             let fileUrl: string;
                             if (msg.fileUrl.startsWith('http://') || msg.fileUrl.startsWith('https://')) {
-                              // Full URL (e.g., from MinIO)
                               fileUrl = msg.fileUrl;
                             } else if (msg.fileUrl.startsWith('/uploads/')) {
-                              // Relative path starting with /uploads/
-                              const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-                              fileUrl = `${apiBase}${msg.fileUrl}`;
+                              fileUrl = `${staticBase}${msg.fileUrl}`;
                             } else {
-                              // Other relative paths
-                              const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-                              fileUrl = `${apiBase}${msg.fileUrl.startsWith('/') ? '' : '/'}${msg.fileUrl}`;
+                              fileUrl = `${staticBase}${msg.fileUrl.startsWith('/') ? '' : '/'}${msg.fileUrl}`;
                             }
                             
                             const fileName = msg.fileUrl.split('/').pop() || 'file';
                             const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
+                            const looksLikePhoto = msg.content === '📷 Photo' || (msg.content && /^(📷|🖼)/.test(msg.content));
                             
-                            // Check if it's an image
-                            if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(fileExt)) {
+                            if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(fileExt) || (looksLikePhoto && !['mp3','wav','ogg','oga','m4a','mp4','webm'].includes(fileExt))) {
                               return (
                                 <img
                                   src={fileUrl}
@@ -782,8 +778,7 @@ export default function AdminChatPage() {
                               );
                             }
                             
-                            // Check if it's an audio/voice file
-                            if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(fileExt)) {
+                            if (['mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac'].includes(fileExt)) {
                               return (
                                 <div className="flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
                                   <svg className={`w-6 h-6 flex-shrink-0 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="currentColor" viewBox="0 0 24 24">
