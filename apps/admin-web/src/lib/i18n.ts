@@ -151,6 +151,7 @@ export interface Translations {
   exportCSV: string;
   poweredByDarital: string;
   reportSummary: string;
+  exportToPdf: string;
   selectDatesAndGenerate: string;
   captureOffline: string;
   totalRevenue: string;
@@ -617,6 +618,7 @@ const translations: Record<Language, Record<string, string>> = {
     exportCSV: 'Export CSV',
     poweredByDarital: 'Darital Search',
     reportSummary: 'Report Summary',
+    exportToPdf: 'Export to PDF',
     selectDatesAndGenerate: 'Select dates and generate a report',
     captureOffline: 'Capture Offline',
     totalRevenue: 'Total Revenue',
@@ -1083,6 +1085,7 @@ const translations: Record<Language, Record<string, string>> = {
     exportCSV: 'Экспорт CSV',
     poweredByDarital: 'Поиск Darital',
     reportSummary: 'Сводка отчета',
+    exportToPdf: 'Экспорт в PDF',
     selectDatesAndGenerate: 'Выберите даты и сгенерируйте отчет',
     captureOffline: 'Захватить офлайн',
     totalRevenue: 'Общий доход',
@@ -1546,6 +1549,7 @@ const translations: Record<Language, Record<string, string>> = {
     exportCSV: 'CSV ni eksport qilish',
     poweredByDarital: 'Darital qidiruv',
     reportSummary: 'Hisobot xulosa',
+    exportToPdf: 'PDF ga eksport qilish',
     selectDatesAndGenerate: 'Sanani tanlang va hisobot yarating',
     captureOffline: 'Oflayn to\'lash',
     totalRevenue: 'Jami daromad',
