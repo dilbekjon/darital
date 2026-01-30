@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { login, getMe, ApiError } from '@/lib/api'
 import { saveToken } from '@/lib/auth'
@@ -182,6 +183,11 @@ export default function LoginPage() {
               {isLoading ? t.loading : t.login}
             </button>
           </form>
+          <p className="mt-6 text-center">
+            <Link href="/docs" className={`text-sm ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'} transition-colors`}>
+              To‘liq qo‘llanma (Docs) →
+            </Link>
+          </p>
         </div>
       </div>
     </div>
