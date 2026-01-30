@@ -159,6 +159,24 @@ export default function AdminReportsPage() {
               font-size: 17px !important;
               color: #0f172a !important;
             }
+            body.pdf-export-capture .report-pdf-bottom-stats {
+              gap: 28px !important;
+              padding: 24px 28px !important;
+            }
+            body.pdf-export-capture .report-pdf-bottom-stats > div {
+              min-width: 0 !important;
+              padding-left: 8px !important;
+              padding-right: 8px !important;
+            }
+            body.pdf-export-capture .report-pdf-bottom-stats p {
+              white-space: normal !important;
+              word-wrap: break-word !important;
+              font-size: 13px !important;
+              line-height: 1.35 !important;
+            }
+            body.pdf-export-capture .report-pdf-bottom-stats .font-bold {
+              font-size: 18px !important;
+            }
           `;
           clonedDoc.head.appendChild(style);
           clonedElement.style.fontSize = '15px';
@@ -618,39 +636,39 @@ export default function AdminReportsPage() {
               </div>
 
               <div
-                className={`grid grid-cols-2 md:grid-cols-4 gap-4 rounded-xl p-5 border ${
+                className={`report-pdf-bottom-stats grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 rounded-xl p-6 border ${
                   darkMode ? 'border-blue-600/20 bg-black/30' : 'border-gray-200 bg-gray-50'
                 }`}
               >
-                <div>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <div className="min-w-0 px-1">
+                  <p className={`text-sm whitespace-normal ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     {t.contracts} — {t.total}
                   </p>
                   <p className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                     {reportData.contracts?.total ?? 0}
                   </p>
                 </div>
-                <div>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <div className="min-w-0 px-1">
+                  <p className={`text-sm whitespace-normal ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     {t.payments} — {t.total}
                   </p>
                   <p className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                     {reportData.payments?.total ?? 0}
                   </p>
                 </div>
-                <div>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <div className="min-w-0 px-1">
+                  <p className={`text-sm whitespace-normal ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     {t.invoices} — {t.total}
                   </p>
                   <p className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                     {reportData.invoices?.total ?? 0}
                   </p>
                 </div>
-                <div>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                <div className="min-w-0 px-1">
+                  <p className={`text-sm whitespace-normal ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     Darital
                   </p>
-                  <p className={`text-sm font-medium ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                  <p className={`text-sm font-medium whitespace-normal ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
                     {t.reportSummary}
                   </p>
                 </div>
