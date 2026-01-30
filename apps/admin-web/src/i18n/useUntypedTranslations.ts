@@ -490,7 +490,6 @@ export function useUntypedTranslations(): Record<string, string> {
     notApplicable: 'Mavjud emas',
     assignedToMe: 'Menga tayinlangan',
     me: 'Men',
-    assigned: 'Tayinlangan',
     paymentsHistory: 'To\'lovlar tarixi',
     createInvoice: 'Hisob-faktura yaratish',
     editInvoice: 'Hisob-fakturani tahrirlash',
