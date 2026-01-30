@@ -133,18 +133,26 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Show main menu with reply keyboard buttons (persistent at bottom)
+   * Show main menu with inline keyboard (tap = callback, no text message sent)
    */
   private async showMainMenu(ctx: Context, chatId: string, lang: 'uz' | 'ru' | 'en' = 'uz') {
     const texts = this.getMenuTexts(lang);
-    
-    const keyboard = Markup.keyboard([
-      [texts.writeChat, texts.checkStatus],
-      [texts.checkDeadlines, texts.checkBalance],
-      [texts.changeLanguage, texts.help],
-    ]).resize().persistent();
 
-    // Update conversation state to main_menu
+    const keyboard = Markup.inlineKeyboard([
+      [
+        Markup.button.callback(texts.writeChat, 'menu_write_chat'),
+        Markup.button.callback(texts.checkStatus, 'menu_check_status'),
+      ],
+      [
+        Markup.button.callback(texts.checkDeadlines, 'menu_check_deadlines'),
+        Markup.button.callback(texts.checkBalance, 'menu_check_balance'),
+      ],
+      [
+        Markup.button.callback(texts.changeLanguage, 'menu_change_lang'),
+        Markup.button.callback(texts.help, 'menu_help'),
+      ],
+    ]);
+
     const state = this.conversationStates.get(chatId) || { step: 'main_menu' as const, language: lang };
     state.step = 'main_menu';
     state.language = lang;
@@ -346,6 +354,22 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         `Enter your full name:`
       );
     }
+  }
+
+  @Action('menu_change_lang')
+  async onMenuChangeLang(@Ctx() ctx: Context) {
+    const chatId = ctx.chat?.id.toString();
+    if (!chatId) return;
+    await ctx.answerCbQuery();
+    const langKeyboard = Markup.inlineKeyboard([
+      [Markup.button.callback('🇺🇿 O\'zbek tili', 'lang_uz')],
+      [Markup.button.callback('🇷🇺 Русский язык', 'lang_ru')],
+      [Markup.button.callback('🇬🇧 English', 'lang_en')],
+    ]);
+    await ctx.reply(
+      `Iltimos, tilni tanlang / Пожалуйста, выберите язык / Please select a language:`,
+      langKeyboard
+    );
   }
 
   // Main menu handlers
