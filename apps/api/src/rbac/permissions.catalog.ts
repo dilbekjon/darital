@@ -72,14 +72,15 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
     'chat.read', 'chat.reply'
   ],
   
-  // Cashier - Verifies and approves all payments, cannot edit payment details
+  // Cashier - Verifies and approves all payments, cannot edit payment details; needs contracts + units for context
   CASHIER: [
     'payments.read',
     'payments.approve',
     'payments.capture_offline',
     'invoices.read',
     'tenants.read',
-    'contracts.read'
+    'contracts.read',
+    'units.read'
   ],
   
   // Payment Collector - Collects cash, records details, CANNOT approve

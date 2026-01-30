@@ -233,9 +233,9 @@ export class ChatService {
         const tenant = await this.resolveTenantForUser(user);
         where.tenantId = tenant.id;
         console.log(`[ChatService] Filtering by tenantId: ${tenant.id}`);
-      } else if (role === AdminRole.ADMIN || role === AdminRole.SUPER_ADMIN || role === AdminRole.SUPPORT) {
-        // Admins and Support see all conversations (or filtered by status)
-        console.log(`[ChatService] Admin/Support viewing conversations`);
+      } else if (role === AdminRole.ADMIN || role === AdminRole.SUPER_ADMIN || role === AdminRole.SUPPORT || role === AdminRole.USER_MANAGER) {
+        // Admins, Support, and User Manager see all conversations (or filtered by status)
+        console.log(`[ChatService] Admin/Support/UserManager viewing conversations`);
       } else {
         throw new ForbiddenException('ROLE_NOT_ALLOWED');
       }
@@ -641,8 +641,8 @@ export class ChatService {
 
     if (!conversation) return false;
 
-    // Admins and Support can access all conversations
-    if (role === AdminRole.ADMIN || role === AdminRole.SUPER_ADMIN || role === AdminRole.SUPPORT) return true;
+    // Admins, Support, and User Manager can access all conversations
+    if (role === AdminRole.ADMIN || role === AdminRole.SUPER_ADMIN || role === AdminRole.SUPPORT || role === AdminRole.USER_MANAGER) return true;
 
     // Tenant users can only access their own conversations
     if (role === AdminRole.TENANT_USER) {
@@ -664,8 +664,8 @@ export class ChatService {
   async getUnreadConversationsCount(user: any): Promise<number> {
     const role = user.role;
     
-    // Only admins and support can see unread counts
-    if (role !== AdminRole.ADMIN && role !== AdminRole.SUPER_ADMIN && role !== AdminRole.SUPPORT) {
+    // Admins, Support, and User Manager can see unread counts
+    if (role !== AdminRole.ADMIN && role !== AdminRole.SUPER_ADMIN && role !== AdminRole.SUPPORT && role !== AdminRole.USER_MANAGER) {
       return 0;
     }
 

@@ -73,7 +73,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Add admin users to 'admin' room for global notifications
       const role = String(payload.role).toUpperCase();
-      if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'SUPPORT') {
+      if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'SUPPORT' || role === 'USER_MANAGER') {
         client.join('admin');
         console.log(`✅ Admin client ${client.id} joined 'admin' room`);
       } else if (role === 'TENANT_USER' || role === 'TENANT') {
@@ -269,11 +269,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const authRole = String(client.data.role).toUpperCase();
       
       // Map roles for chat purposes:
-      // - SUPER_ADMIN -> ADMIN
+      // - SUPER_ADMIN, USER_MANAGER -> ADMIN (can reply as admin)
       // - TENANT_USER -> TENANT
       // - Other roles stay as-is
       let normalizedAuthRole = authRole;
-      if (authRole === 'SUPER_ADMIN') {
+      if (authRole === 'SUPER_ADMIN' || authRole === 'USER_MANAGER') {
         normalizedAuthRole = 'ADMIN';
       } else if (authRole === 'TENANT_USER') {
         normalizedAuthRole = 'TENANT';
@@ -364,7 +364,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // If admin marked messages as read, notify all admins about unread count update
       const role = String(client.data.role).toUpperCase();
-      if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'SUPPORT') {
+      if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'SUPPORT' || role === 'USER_MANAGER') {
         this.server.to('admin').emit('unread_count_updated');
         this.server.emit('unread_count_updated');
       }
