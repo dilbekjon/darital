@@ -9,6 +9,7 @@ import { Telegraf } from 'telegraf';
 import { Role } from '@prisma/client';
 import { MinioService } from '../minio/minio.service';
 import { Readable } from 'stream';
+import { InAppNotificationsService } from '../in-app-notifications/in-app-notifications.service';
 
 @Injectable()
 export class NotificationsService {
@@ -20,6 +21,7 @@ export class NotificationsService {
     private readonly fcmService: FcmService,
     private readonly smsService: SmsService,
     private readonly minioService: MinioService,
+    private readonly inAppNotifications: InAppNotificationsService,
     @Optional() @InjectBot() private readonly bot?: Telegraf,
   ) {}
 
@@ -101,7 +103,7 @@ export class NotificationsService {
       this.logger.warn(`⚠️ No notification channels available for tenant ${recipient.id}`);
     }
 
-    // Log notification to database for in-app feed
+    // Log notification to database
     try {
       await this.prisma.notificationLog.create({
         data: {
@@ -112,7 +114,14 @@ export class NotificationsService {
           body,
         },
       });
-      this.logger.debug(`📝 Notification logged to database for tenant ${recipient.id}`);
+      await this.inAppNotifications.create({
+        tenantId: recipient.id,
+        type: 'PAYMENT_DUE',
+        title,
+        message: body,
+        data: invoiceId ? { invoiceId } : undefined,
+      });
+      this.logger.debug(`📝 Notification logged and in-app created for tenant ${recipient.id}`);
     } catch (error: any) {
       this.logger.error(`Failed to log notification: ${error?.message || error}`);
     }
@@ -353,7 +362,15 @@ Darital
 
     await this.sendTelegramToTenant(tenantId, telegramMessage, imageUrl);
 
-    // Log notification
+    const inAppTitle = 'To\'lov eslatmasi';
+    const inAppMessage = `${unitName} uchun to'lovingiz ${due.toLocaleDateString('uz-UZ')} gacha. Summa: ${prettyAmount} so'm`;
+    await this.inAppNotifications.create({
+      tenantId,
+      type: 'PAYMENT_DUE',
+      title: inAppTitle,
+      message: inAppMessage,
+      data: { dueDate: due.toISOString(), amount: prettyAmount, unitName },
+    });
     await this.prisma.notificationLog.create({
       data: {
         tenantId,
