@@ -839,75 +839,39 @@ export class PaymentsService {
 
     // Checkout.uz uses "paid" status when payment is confirmed (matching Python pattern)
     if (status === 'paid') {
-      // Check if payment already has webhook data (idempotency check)
-      const existingRawPayload = (targetPayment as any).rawPayload;
-      const hasWebhookData = existingRawPayload?.webhook || 
-                            existingRawPayload?.checkoutUz?.payment?.status === 'paid' ||
-                            (existingRawPayload?.checkoutUz && existingRawPayload?.webhook);
-      
-      // Prepare raw payload with explicit webhook flag
       const rawWithWebhook = {
         ...raw,
-        webhook: true, // Explicit flag to indicate webhook/API confirmation was received
+        webhook: true,
         receivedAt: new Date().toISOString(),
       };
 
-      // Payment received successfully - keep as PENDING for admin verification
-      // Store provider info but don't auto-confirm (admin must verify)
-      const updated = await this.prisma.payment.update({
-        where: { id: targetPayment.id },
-        data: {
-          providerPaymentId: orderIdStr,
-          provider: PaymentProvider.UZUM,
-          rawPayload: rawWithWebhook,
-          // Keep status as PENDING - admin will verify
-        } as any,
-        include: {
-          invoice: {
-            include: {
-              contract: {
-                include: {
-                  tenant: true,
-                  unit: true,
-                },
-              },
-            },
-          },
-        },
+      // Auto-confirm payment so tenant sees it as paid and is not asked to pay again
+      const confirmed = await this.confirmPaymentTransaction({
+        paymentId: targetPayment.id,
+        providerPaymentId: orderIdStr,
+        provider: PaymentProvider.UZUM,
+        paidAt: new Date(),
+        rawPayload: rawWithWebhook,
       });
 
-      // Get tenant ID and unit name from invoice contract
+      // Notify tenant that payment was confirmed
       const invoiceWithContract = await this.prisma.invoice.findUnique({
         where: { id: targetPayment.invoiceId },
         include: { contract: { include: { unit: true } } },
       });
-
-      // Only send notification if this is the first time webhook data is being stored
-      // This prevents duplicate notifications from scheduler checks or webhook retries
-      if (invoiceWithContract && !hasWebhookData) {
+      if (invoiceWithContract) {
         const unitName = invoiceWithContract.contract?.unit?.name;
-        await this.notifications.notifyTenantPaymentReceived(
+        await this.notifications.notifyTenantPaymentVerified(
           invoiceWithContract.contract.tenantId,
-          updated.id,
-          updated.amount.toNumber(),
-          'UZUM',
+          confirmed.id,
+          confirmed.amount.toNumber(),
+          true,
+          undefined,
           unitName,
         );
       }
 
-      // Emit payment_updated event for real-time admin updates
-      const gateway = this.getChatGateway();
-      if (gateway) {
-        setImmediate(async () => {
-          try {
-            await gateway.emitPaymentUpdated(updated);
-          } catch (error) {
-            console.error('[PaymentsService] Failed to emit payment_updated event:', error);
-          }
-        });
-      }
-
-      return { ok: true, pending: true, message: 'Payment received, awaiting admin verification' };
+      return { ok: true, alreadyConfirmed: true, message: 'Payment confirmed' };
     }
 
     if (status === 'canceled' || status === 'cancelled') {

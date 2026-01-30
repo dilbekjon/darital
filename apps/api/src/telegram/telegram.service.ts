@@ -136,30 +136,19 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Show main menu with inline keyboard (tap = callback, no text message sent)
+   * Show main menu — 4 buttons only for easy use
    */
   private async showMainMenu(ctx: Context, chatId: string, lang: 'uz' | 'ru' | 'en' = 'uz') {
     const texts = this.getMenuTexts(lang);
 
     const keyboard = Markup.inlineKeyboard([
       [
-        Markup.button.callback(texts.writeChat, 'menu_write_chat'),
-        Markup.button.callback(texts.checkStatus, 'menu_check_status'),
-      ],
-      [
-        Markup.button.callback(texts.checkDeadlines, 'menu_check_deadlines'),
-        Markup.button.callback(texts.checkBalance, 'menu_check_balance'),
-      ],
-      [
         Markup.button.callback(texts.payInvoice, 'menu_pay'),
-        Markup.button.callback(texts.contracts, 'menu_contracts'),
+        Markup.button.callback(texts.myInfo, 'menu_my_info'),
       ],
       [
-        Markup.button.callback(texts.paymentHistory, 'menu_payment_history'),
-      ],
-      [
-        Markup.button.callback(texts.changeLanguage, 'menu_change_lang'),
-        Markup.button.callback(texts.help, 'menu_help'),
+        Markup.button.callback(texts.writeChat, 'menu_write_chat'),
+        Markup.button.callback(texts.more, 'menu_more'),
       ],
     ]);
 
@@ -177,44 +166,49 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   private getMenuTexts(lang: 'uz' | 'ru' | 'en') {
     if (lang === 'ru') {
       return {
-        mainMenuTitle: '🏠 Главное меню\n\nВыберите действие:',
-        writeChat: '💬 Написать в чат',
-        checkStatus: '📊 Проверить статус',
-        checkDeadlines: '📅 Проверить сроки',
-        checkBalance: '💰 Проверить баланс',
-        payInvoice: '💳 Оплатить счёт',
+        mainMenuTitle: '🏠 Darital\n\nВыберите действие:',
+        myInfo: '📋 Мой обзор',
+        more: '⋯ Ещё',
+        writeChat: '💬 Чат',
+        checkStatus: '📊 Статус',
+        checkDeadlines: '📅 Сроки',
+        checkBalance: '💰 Баланс',
+        payInvoice: '💳 Оплатить',
         contracts: '📄 Договоры',
-        paymentHistory: '📋 История платежей',
-        changeLanguage: '🌐 Изменить язык',
+        paymentHistory: '📋 Платежи',
+        changeLanguage: '🌐 Язык',
         help: '❓ Помощь',
         back: '⬅️ Назад',
       };
     } else if (lang === 'en') {
       return {
-        mainMenuTitle: '🏠 Main Menu\n\nChoose an action:',
-        writeChat: '💬 Write a Chat',
-        checkStatus: '📊 Check Status',
-        checkDeadlines: '📅 Check Deadlines',
-        checkBalance: '💰 Check Balance',
-        payInvoice: '💳 Pay Invoice',
+        mainMenuTitle: '🏠 Darital\n\nChoose an action:',
+        myInfo: '📋 My overview',
+        more: '⋯ More',
+        writeChat: '💬 Chat',
+        checkStatus: '📊 Status',
+        checkDeadlines: '📅 Deadlines',
+        checkBalance: '💰 Balance',
+        payInvoice: '💳 Pay',
         contracts: '📄 Contracts',
-        paymentHistory: '📋 Payment History',
-        changeLanguage: '🌐 Change Language',
+        paymentHistory: '📋 Payments',
+        changeLanguage: '🌐 Language',
         help: '❓ Help',
         back: '⬅️ Back',
       };
     } else {
-      // Uzbek (default)
       return {
-        mainMenuTitle: '🏠 Bosh menyu\n\nAmalni tanlang:',
-        writeChat: '💬 Chatga yozish',
-        checkStatus: '📊 Statusni tekshirish',
-        checkDeadlines: '📅 Muddatlarni tekshirish',
-        checkBalance: '💰 Balansni tekshirish',
-        payInvoice: '💳 To\'lov qilish',
+        mainMenuTitle: '🏠 Darital\n\nAmalni tanlang:',
+        myInfo: '📋 Mening ma\'lumotim',
+        more: '⋯ Boshqa',
+        writeChat: '💬 Chat',
+        checkStatus: '📊 Status',
+        checkDeadlines: '📅 Muddatlar',
+        checkBalance: '💰 Balans',
+        payInvoice: '💳 To\'lov',
         contracts: '📄 Shartnomalar',
-        paymentHistory: '📋 To\'lovlar tarixi',
-        changeLanguage: '🌐 Tilni o\'zgartirish',
+        paymentHistory: '📋 To\'lovlar',
+        changeLanguage: '🌐 Til',
         help: '❓ Yordam',
         back: '⬅️ Orqaga',
       };
@@ -475,7 +469,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           `Kutilayotgan: ${pendingInvoices}\n` +
           `To'langan: ${paidInvoices}`;
 
-      await ctx.reply(statusText);
+      const texts = this.getMenuTexts(lang);
+      await ctx.reply(statusText, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
     } catch (error: any) {
       this.logger.error(`Error checking status: ${error.message}`);
       await ctx.reply(this.getText(lang, 'error_occurred'));
@@ -490,6 +485,109 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const state = this.conversationStates.get(chatId);
     const lang = state?.language || 'uz';
     await this.handleCheckStatus(ctx, chatId, lang);
+  }
+
+  /**
+   * Combined: status + deadlines + balance in one message (My info)
+   */
+  private async handleMyInfo(ctx: Context, chatId: string, lang: 'uz' | 'ru' | 'en') {
+    const telegramUser = await this.prisma.telegramUser.findUnique({ where: { chatId } });
+    if (!telegramUser?.tenantId) {
+      await ctx.reply(this.getText(lang, 'not_registered'));
+      return;
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: telegramUser.tenantId },
+      include: {
+        contracts: {
+          include: {
+            unit: true,
+            invoices: { include: { payments: true }, orderBy: { dueDate: 'asc' } },
+          },
+        },
+      },
+    });
+    if (!tenant) {
+      await ctx.reply(this.getText(lang, 'tenant_not_found'));
+      return;
+    }
+
+    const balance = await this.prisma.balance.findUnique({
+      where: { tenantId: telegramUser.tenantId },
+    });
+    const balanceNum = balance?.current.toNumber() ?? 0;
+    const totalInvoices = tenant.contracts.flatMap((c) => c.invoices).length;
+    const pendingInvoices = tenant.contracts.flatMap((c) => c.invoices).filter((inv) => inv.status === 'PENDING' || inv.status === 'OVERDUE');
+    const paidCount = tenant.contracts.flatMap((c) => c.invoices).filter((inv) => inv.status === 'PAID').length;
+    const now = new Date();
+
+    let text =
+      lang === 'ru'
+        ? `📋 Ваш обзор\n\nИмя: ${tenant.fullName}\nEmail: ${tenant.email || 'N/A'}\n\n`
+        : lang === 'en'
+          ? `📋 Your overview\n\nName: ${tenant.fullName}\nEmail: ${tenant.email || 'N/A'}\n\n`
+          : `📋 Sizning ma'lumotingiz\n\nIsm: ${tenant.fullName}\nEmail: ${tenant.email || 'N/A'}\n\n`;
+
+    text +=
+      lang === 'ru'
+        ? `📊 Счета: всего ${totalInvoices}, ожидают ${pendingInvoices.length}, оплачено ${paidCount}\n`
+        : lang === 'en'
+          ? `📊 Invoices: ${totalInvoices} total, ${pendingInvoices.length} pending, ${paidCount} paid\n`
+          : `📊 Hisoblar: jami ${totalInvoices}, kutilmoqda ${pendingInvoices.length}, to'langan ${paidCount}\n`;
+
+    if (pendingInvoices.length > 0) {
+      text += lang === 'ru' ? '\n📅 Ближайшие сроки:\n' : lang === 'en' ? '\n📅 Upcoming:\n' : '\n📅 Kelgusi muddatlar:\n';
+      for (const inv of pendingInvoices.slice(0, 3)) {
+        const contract = tenant.contracts.find((c) => c.invoices.some((i) => i.id === inv.id));
+        const unitName = contract?.unit?.name || 'N/A';
+        const due = new Date(inv.dueDate);
+        const days = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const amount = inv.amount.toNumber();
+        text += `• ${unitName}: ${amount.toLocaleString()} UZS — ${days < 0 ? (lang === 'ru' ? `просрочено ${Math.abs(days)} дн.` : lang === 'en' ? `overdue ${Math.abs(days)} days` : `muddati o'tgan ${Math.abs(days)} kun`) : (lang === 'ru' ? `осталось ${days} дн.` : lang === 'en' ? `${days} days left` : `${days} kun`)}\n`;
+      }
+    }
+
+    text +=
+      lang === 'ru'
+        ? `\n💰 Баланс: ${balanceNum.toLocaleString()} UZS`
+        : lang === 'en'
+          ? `\n💰 Balance: ${balanceNum.toLocaleString()} UZS`
+          : `\n💰 Balans: ${balanceNum.toLocaleString()} UZS`;
+
+    const texts = this.getMenuTexts(lang);
+    await ctx.reply(text, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
+  }
+
+  @Action('menu_my_info')
+  async onMenuMyInfo(@Ctx() ctx: Context) {
+    const chatId = ctx.chat?.id.toString();
+    if (!chatId) return;
+    await ctx.answerCbQuery();
+    const state = this.conversationStates.get(chatId);
+    const lang = state?.language || 'uz';
+    await this.handleMyInfo(ctx, chatId, lang);
+  }
+
+  private async showMoreMenu(ctx: Context, chatId: string, lang: 'uz' | 'ru' | 'en') {
+    const texts = this.getMenuTexts(lang);
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.callback(texts.contracts, 'menu_contracts'), Markup.button.callback(texts.paymentHistory, 'menu_payment_history')],
+      [Markup.button.callback(texts.changeLanguage, 'menu_change_lang'), Markup.button.callback(texts.help, 'menu_help')],
+      [Markup.button.callback(texts.back, 'menu_main')],
+    ]);
+    const moreTitle = lang === 'ru' ? '⋯ Ещё' : lang === 'en' ? '⋯ More' : '⋯ Boshqa';
+    await ctx.reply(moreTitle, keyboard);
+  }
+
+  @Action('menu_more')
+  async onMenuMore(@Ctx() ctx: Context) {
+    const chatId = ctx.chat?.id.toString();
+    if (!chatId) return;
+    await ctx.answerCbQuery();
+    const state = this.conversationStates.get(chatId);
+    const lang = state?.language || 'uz';
+    await this.showMoreMenu(ctx, chatId, lang);
   }
 
   /**
@@ -576,7 +674,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         }
       }
 
-      await ctx.reply(deadlinesText);
+      const texts = this.getMenuTexts(lang);
+      await ctx.reply(deadlinesText, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
     } catch (error: any) {
       this.logger.error(`Error checking deadlines: ${error.message}`);
       await ctx.reply(this.getText(lang, 'error_occurred'));
@@ -632,7 +731,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           ? '✅ You have no invoices to pay.'
           : '✅ To\'lov qiladigan hisob-fakturalar yo\'q.';
     if (pendingInvoices.length === 0) {
-      await ctx.reply(noPending);
+      const texts = this.getMenuTexts(lang);
+      await ctx.reply(noPending, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
       return;
     }
 
@@ -752,13 +852,14 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         where: { tenantId: telegramUser.tenantId },
       });
 
-      const balanceText = lang === 'ru'
-        ? `💰 Ваш баланс:\n\n${(balance?.current.toNumber() || 0).toLocaleString()} UZS`
-        : lang === 'en'
-        ? `💰 Your Balance:\n\n${(balance?.current.toNumber() || 0).toLocaleString()} UZS`
-        : `💰 Sizning balansingiz:\n\n${(balance?.current.toNumber() || 0).toLocaleString()} UZS`;
+    const balanceText = lang === 'ru'
+      ? `💰 Ваш баланс:\n\n${(balance?.current.toNumber() || 0).toLocaleString()} UZS`
+      : lang === 'en'
+      ? `💰 Your Balance:\n\n${(balance?.current.toNumber() || 0).toLocaleString()} UZS`
+      : `💰 Sizning balansingiz:\n\n${(balance?.current.toNumber() || 0).toLocaleString()} UZS`;
 
-      await ctx.reply(balanceText);
+    const texts = this.getMenuTexts(lang);
+    await ctx.reply(balanceText, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
     } catch (error: any) {
       this.logger.error(`Error checking balance: ${error.message}`);
       await ctx.reply(this.getText(lang, 'error_occurred'));
@@ -809,7 +910,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         `• Balansingizni tekshirish\n\n` +
         `Navigatsiya uchun menyu tugmalaridan foydalaning.`;
 
-    await ctx.reply(helpText);
+    const texts = this.getMenuTexts(lang);
+    await ctx.reply(helpText, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
   }
 
   @Action('menu_help')
@@ -855,7 +957,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           : lang === 'en'
             ? 'You have no contracts yet.'
             : 'Sizda hali shartnomalar yo\'q.';
-      await ctx.reply(noContracts);
+      const texts = this.getMenuTexts(lang);
+      await ctx.reply(noContracts, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
       return;
     }
 
@@ -881,7 +984,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         text += `• ${unitName}\n  Holat: ${status} | ${start} — ${end}\n  Summa: ${amount.toLocaleString()} UZS\n\n`;
       }
     }
-    await ctx.reply(text);
+    const texts = this.getMenuTexts(lang);
+    await ctx.reply(text, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
   }
 
   @Action('menu_contracts')
@@ -925,7 +1029,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           : lang === 'en'
             ? 'You have no payments yet.'
             : 'Sizda hali to\'lovlar yo\'q.';
-      await ctx.reply(noPayments);
+      const texts = this.getMenuTexts(lang);
+      await ctx.reply(noPayments, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
       return;
     }
 
@@ -951,7 +1056,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         text += `• ${amount.toLocaleString()} UZS | ${status} | ${date}\n  ${unitName}\n\n`;
       }
     }
-    await ctx.reply(text);
+    const texts = this.getMenuTexts(lang);
+    await ctx.reply(text, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
   }
 
   @Action('menu_payment_history')
@@ -1321,6 +1427,16 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           }
           await this.handleCheckBalance(ctx, chatId, lang);
           return; // Exit early - don't send button text to conversation
+        } else if (message === texts.myInfo || message === texts.myInfo.replace(/📋\s*/g, '').trim() || message.includes('My overview') || message.includes('Мой обзор') || message.includes('ma\'lumotim')) {
+          if (!telegramUser?.tenantId) {
+            await ctx.reply(this.getText(lang, 'not_registered'));
+            return;
+          }
+          await this.handleMyInfo(ctx, chatId, lang);
+          return;
+        } else if (message === texts.more || message === texts.more.replace(/⋯\s*/g, '').trim() || message.includes('More') || message.includes('Ещё') || message.includes('Boshqa')) {
+          await this.showMoreMenu(ctx, chatId, lang);
+          return;
         } else if (message === texts.payInvoice || message === texts.payInvoice.replace(/💳\s*/g, '').trim() || message.includes('Pay Invoice') || message.includes('Оплатить') || message.includes('To\'lov')) {
           if (!telegramUser?.tenantId) {
             await ctx.reply(this.getText(lang, 'not_registered'));
