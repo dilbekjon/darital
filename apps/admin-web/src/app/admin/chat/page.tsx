@@ -733,15 +733,15 @@ export default function AdminChatPage() {
                       {msg.fileUrl && !msg.fileUrl.startsWith('telegram:') && (
                         <div className="mb-2">
                           {(() => {
-                            // Static files are at origin root (no /api)
-                            const staticBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/api\/?$/, '');
+                            // Use API base so /api/uploads/... works (voice/photo from Telegram)
+                            const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/?$/, '');
                             let fileUrl: string;
                             if (msg.fileUrl.startsWith('http://') || msg.fileUrl.startsWith('https://')) {
                               fileUrl = msg.fileUrl;
                             } else if (msg.fileUrl.startsWith('/uploads/')) {
-                              fileUrl = `${staticBase}${msg.fileUrl}`;
+                              fileUrl = `${apiBase}${msg.fileUrl.startsWith('/') ? '' : '/'}${msg.fileUrl}`;
                             } else {
-                              fileUrl = `${staticBase}${msg.fileUrl.startsWith('/') ? '' : '/'}${msg.fileUrl}`;
+                              fileUrl = `${apiBase}${msg.fileUrl.startsWith('/') ? '' : '/'}${msg.fileUrl}`;
                             }
                             
                             const fileName = msg.fileUrl.split('/').pop() || 'file';
@@ -775,11 +775,19 @@ export default function AdminChatPage() {
                                   </svg>
                                   <div className="flex-1 min-w-0">
                                     <p className={`text-xs mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                                      {looksLikeVoice ? (t.typeMessageHere || 'Ovozli xabar') : fileName}
+                                      {looksLikeVoice ? (msg.content || 'Ovozli xabar') : fileName}
                                     </p>
-                                    <audio controls className="w-full" preload="metadata" crossOrigin="anonymous">
+                                    <audio
+                                      controls
+                                      className="w-full"
+                                      preload="auto"
+                                      src={fileUrl}
+                                    >
                                       <source src={fileUrl} type={mimeType} />
                                       {t.browserNoAudioSupport}
+                                      <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">
+                                        Yuklab olish
+                                      </a>
                                     </audio>
                                   </div>
                                 </div>

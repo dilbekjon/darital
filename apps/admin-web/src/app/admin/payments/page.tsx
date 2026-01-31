@@ -204,9 +204,9 @@ export default function AdminPaymentsPage() {
     setRecordOfflineModalOpen(true);
   };
 
-  // Handle payment verification (Accept/Decline)
+  // Handle payment verification (Accept/Decline) — Cashier/Admin/Super Admin
   const handleVerifyPayment = async (paymentId: string, accept: boolean) => {
-    if (!hasPermission('payments.capture_offline')) {
+    if (!hasPermission('payments.approve')) {
       setError('You do not have permission to verify payments');
       return;
     }
@@ -533,6 +533,7 @@ export default function AdminPaymentsPage() {
   }
 
   const canCaptureOffline = hasPermission('payments.capture_offline');
+  const canApprovePayments = hasPermission('payments.approve');
 
   const getStatusColor = (status: string, payment: Payment) => {
     const paymentReceived = isPaymentReceived(payment);
@@ -930,10 +931,10 @@ export default function AdminPaymentsPage() {
                           {(() => {
                             // Check if payment was actually received (using helper function)
                             const paymentReceived = isPaymentReceived(payment);
-                            const showButtons = canCaptureOffline && 
-                                              payment.status === 'PENDING' && 
-                                              payment.method === 'ONLINE' && 
-                                              paymentReceived; // Only show buttons if payment was received
+                            // Accept/Decline: for ONLINE PENDING (when received) OR for OFFLINE PENDING (collector added, needs cashier approval)
+                            const showButtons = canApprovePayments &&
+                                              payment.status === 'PENDING' &&
+                                              ((payment.method === 'ONLINE' && paymentReceived) || payment.method === 'OFFLINE');
                             
                             return (
                               <>

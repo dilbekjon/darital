@@ -53,11 +53,11 @@ async function bootstrap() {
     fs.mkdirSync(uploadsDir, { recursive: true });
   }
   
-  // Serve static files from uploads directory
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-    prefix: '/uploads/',
-  });
-  
+  // Serve static files from uploads directory (both /uploads/ and /api/uploads/ for cross-origin chat media)
+  const uploadsPath = join(__dirname, '..', 'uploads');
+  app.useStaticAssets(uploadsPath, { prefix: '/uploads/' });
+  app.useStaticAssets(uploadsPath, { prefix: '/api/uploads/' });
+
   // AllExceptionsFilter is now registered via APP_FILTER in AppModule
   // No need to manually register it here
   

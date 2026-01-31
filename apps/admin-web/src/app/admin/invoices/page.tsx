@@ -237,7 +237,7 @@ export default function AdminInvoicesPage() {
   };
 
   const handleVerifyPayment = async (paymentId: string, accept: boolean) => {
-    if (!hasPermission('payments.capture_offline')) {
+    if (!hasPermission('payments.approve')) {
       setError('You do not have permission to verify payments');
       return;
     }
@@ -410,6 +410,20 @@ export default function AdminInvoicesPage() {
     );
     if (pendingOnline.length === 0) return null;
     return pendingOnline
+      .slice()
+      .sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      })[0];
+  };
+
+  // Latest PENDING payment (online or offline) for Accept/Decline
+  const getLatestPendingPayment = (invoice: Invoice) => {
+    const payments = invoice.payments || [];
+    const pending = payments.filter((p) => p.status === 'PENDING');
+    if (pending.length === 0) return null;
+    return pending
       .slice()
       .sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -753,12 +767,13 @@ export default function AdminInvoicesPage() {
               }`}>
                 {sortedInvoices.map((invoice, index) => {
                   const displayStatus = getInvoiceDisplayStatus(invoice);
-                  const pendingPayment = getLatestPendingOnlinePayment(invoice);
+                  const pendingPayment = getLatestPendingPayment(invoice);
+                  const paymentReceived = pendingPayment ? isPaymentReceived(pendingPayment) : false;
                   const showVerifyButtons =
                     !!pendingPayment &&
-                    isPaymentReceived(pendingPayment) &&
-                    canCaptureOffline &&
-                    pendingPayment.status === 'PENDING';
+                    pendingPayment.status === 'PENDING' &&
+                    hasPermission('payments.approve') &&
+                    ((pendingPayment.method === 'ONLINE' && paymentReceived) || pendingPayment.method === 'OFFLINE');
 
                   return (
                     <tr
