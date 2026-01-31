@@ -62,8 +62,9 @@ export class PaymentsService {
     amount?: number | string | Decimal;
     rawPayload?: any;
     provider?: PaymentProviderEnum | PaymentProvider;
+    approvedBy?: string;
   }) {
-    const { paymentId, providerPaymentId, paidAt, amount, rawPayload, provider } = params;
+    const { paymentId, providerPaymentId, paidAt, amount, rawPayload, provider, approvedBy } = params;
 
     const confirmed = await this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
@@ -613,7 +614,7 @@ export class PaymentsService {
    * Accept: Confirms payment and marks invoice as paid
    * Decline: Cancels payment
    */
-  async verifyPayment(paymentId: string, accept: boolean, declineReason?: string) {
+  async verifyPayment(paymentId: string, accept: boolean, declineReason?: string, approverId?: string) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
       include: {
@@ -650,7 +651,7 @@ export class PaymentsService {
     if (accept) {
       const confirmed = await this.confirmPaymentTransaction({
         paymentId,
-        approvedBy: approverId,
+        ...(approverId ? { approvedBy: approverId } : {}),
       });
 
       // Fetch full payment details for notification and WebSocket
