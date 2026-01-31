@@ -47,21 +47,7 @@ async function bootstrap() {
     logger: ['log', 'error', 'warn', 'debug', 'verbose'],
   });
   
-  // Ensure uploads directory exists
-  const uploadsDir = join(__dirname, '..', 'uploads', 'chat');
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-  
-  // Serve static files from uploads directory (both /uploads/ and /api/uploads/ for cross-origin chat media)
-  const uploadsPath = join(__dirname, '..', 'uploads');
-  app.useStaticAssets(uploadsPath, { prefix: '/uploads/' });
-  app.useStaticAssets(uploadsPath, { prefix: '/api/uploads/' });
-
-  // AllExceptionsFilter is now registered via APP_FILTER in AppModule
-  // No need to manually register it here
-  
-  // Enable CORS - supports both development and production
+  // Enable CORS first so static file responses (e.g. /api/uploads/ voice messages) include CORS headers for cross-origin playback
   const corsOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
     : [
@@ -69,33 +55,29 @@ async function bootstrap() {
         'http://localhost:3001',  // API (dev)
         'http://localhost:3002',  // Tenant portal (dev)
       ];
-  
-  // Log CORS configuration for debugging
   console.log('🌐 CORS Origins configured:', corsOrigins);
-  
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or Postman)
-      if (!origin) {
-        return callback(null, true);
-      }
-      
-      // Check if origin is in allowed list
-      if (corsOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      
-      // Log blocked origins for debugging
+      if (!origin) return callback(null, true);
+      if (corsOrigins.includes(origin)) return callback(null, true);
       console.warn(`🚫 CORS blocked origin: ${origin}`);
-      console.warn(`   Allowed origins: ${corsOrigins.join(', ')}`);
-      
       return callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Range'],
   });
-  
+
+  // Ensure uploads directory exists
+  const uploadsDir = join(__dirname, '..', 'uploads', 'chat');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  // Serve static files (after CORS so media responses get CORS headers for in-page playback)
+  const uploadsPath = join(__dirname, '..', 'uploads');
+  app.useStaticAssets(uploadsPath, { prefix: '/uploads/' });
+  app.useStaticAssets(uploadsPath, { prefix: '/api/uploads/' });
+
   // Set global prefix for all routes
   app.setGlobalPrefix('api');
   
