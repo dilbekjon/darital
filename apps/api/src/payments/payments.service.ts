@@ -109,16 +109,21 @@ export class PaymentsService {
         }
       }
 
-      // Update payment to CONFIRMED
+      const now = new Date();
+      const updateData: any = {
+        status: PaymentStatus.CONFIRMED,
+        paidAt: paidAt ? new Date(paidAt) : now,
+        providerPaymentId: providerPaymentId ?? paymentWithMeta.providerPaymentId,
+        provider: this.mapProviderEnum(provider ?? paymentWithMeta.provider),
+        rawPayload: rawPayload ?? paymentWithMeta.rawPayload,
+      };
+      if (approvedBy) {
+        updateData.approvedBy = approvedBy;
+        updateData.approvedAt = now;
+      }
       const confirmed = await tx.payment.update({
         where: { id: payment.id },
-        data: {
-          status: PaymentStatus.CONFIRMED,
-          paidAt: paidAt ? new Date(paidAt) : new Date(),
-          providerPaymentId: providerPaymentId ?? paymentWithMeta.providerPaymentId,
-          provider: this.mapProviderEnum(provider ?? paymentWithMeta.provider),
-          rawPayload: rawPayload ?? paymentWithMeta.rawPayload,
-        } as any,
+        data: updateData,
       });
 
       // Check total confirmed payments for this invoice
@@ -494,7 +499,7 @@ export class PaymentsService {
 
   /**
    * Record offline payment - Used by PAYMENT_COLLECTOR
-   * Creates a CONFIRMED payment immediately since cash was received
+   * Creates a PENDING payment. Cashier must approve via verify/accept to confirm.
    */
   async recordOfflinePayment(
     dto: { invoiceId: string; amount: string; collectorNote?: string; collectedAt?: string },
@@ -502,15 +507,14 @@ export class PaymentsService {
   ) {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id: dto.invoiceId },
-      include: { 
+      include: {
         contract: { include: { tenant: true } },
         payments: { where: { status: PaymentStatus.CONFIRMED } },
       },
     });
-    
+
     if (!invoice) throw new NotFoundException('Invoice not found');
-    
-    // Check if invoice is already fully paid
+
     const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount.toNumber(), 0);
     if (totalPaid >= invoice.amount.toNumber()) {
       throw new ConflictException('This invoice is already fully paid');
@@ -519,56 +523,30 @@ export class PaymentsService {
     const collectedAt = dto.collectedAt ? new Date(dto.collectedAt) : new Date();
     const amount = new Decimal(dto.amount);
 
-    // Create and confirm payment in a transaction
-    const payment = await this.prisma.$transaction(async (tx) => {
-      // Create payment with CONFIRMED status
-      const newPayment = await tx.payment.create({
-        data: {
-          invoiceId: dto.invoiceId,
-          method: PaymentMethod.OFFLINE,
-          amount,
-          status: PaymentStatus.CONFIRMED,
-          paidAt: collectedAt,
-          collectedBy: collectorId,
-          collectedAt,
-          collectorNote: dto.collectorNote,
-        },
-        include: {
-          invoice: {
-            include: {
-              contract: {
-                include: {
-                  tenant: {
-                    select: { id: true, fullName: true, email: true },
-                  },
-                  unit: {
-                    select: { id: true, name: true },
-                  },
-                },
+    const payment = await this.prisma.payment.create({
+      data: {
+        invoiceId: dto.invoiceId,
+        method: PaymentMethod.OFFLINE,
+        amount,
+        status: PaymentStatus.PENDING,
+        collectedBy: collectorId,
+        collectedAt,
+        collectorNote: dto.collectorNote,
+      },
+      include: {
+        invoice: {
+          include: {
+            contract: {
+              include: {
+                tenant: { select: { id: true, fullName: true, email: true } },
+                unit: { select: { id: true, name: true } },
               },
             },
           },
         },
-      });
-
-      // Update invoice status to PAID
-      await tx.invoice.update({
-        where: { id: dto.invoiceId },
-        data: { status: InvoiceStatus.PAID },
-      });
-
-      return newPayment;
+      },
     });
 
-    // Send notifications
-    await this.notifications.notifyAdminNewPayment(
-      payment.id,
-      invoice.contract.tenant.fullName,
-      amount.toNumber(),
-      PaymentMethod.OFFLINE,
-    );
-
-    // Emit WebSocket event
     const gateway = this.getChatGateway();
     if (gateway) {
       setImmediate(async () => {
@@ -582,7 +560,7 @@ export class PaymentsService {
 
     return {
       ...payment,
-      message: 'Offline payment recorded and confirmed successfully',
+      message: 'Offline payment recorded. Kassir tasdiqlashi kerak.',
     };
   }
 
@@ -670,8 +648,10 @@ export class PaymentsService {
     }
 
     if (accept) {
-      // Accept payment: confirm it
-      const confirmed = await this.confirmPaymentTransaction({ paymentId });
+      const confirmed = await this.confirmPaymentTransaction({
+        paymentId,
+        approvedBy: approverId,
+      });
 
       // Fetch full payment details for notification and WebSocket
       const confirmedWithRelations = await this.prisma.payment.findUnique({

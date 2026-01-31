@@ -747,6 +747,7 @@ export default function AdminChatPage() {
                             const fileName = msg.fileUrl.split('/').pop() || 'file';
                             const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
                             const looksLikePhoto = msg.content === '📷 Photo' || (msg.content && /^(📷|🖼)/.test(msg.content));
+                            const looksLikeVoice = msg.content && /(Voice message|Ovozli xabar|🎤)/i.test(msg.content);
                             
                             if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(fileExt) || (looksLikePhoto && !['mp3','wav','ogg','oga','m4a','mp4','webm'].includes(fileExt))) {
                               return (
@@ -763,8 +764,29 @@ export default function AdminChatPage() {
                               );
                             }
                             
-                            // Check if it's a video
-                            if (['mp4', 'webm', 'ogg', 'mov', 'avi'].includes(fileExt)) {
+                            // Audio first (Telegram voice is .ogg — do not treat as video)
+                            const isAudio = ['mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac'].includes(fileExt) || looksLikeVoice;
+                            if (isAudio) {
+                              const mimeType = fileExt === 'ogg' || fileExt === 'oga' ? 'audio/ogg' : fileExt === 'm4a' ? 'audio/mp4' : fileExt === 'mp3' ? 'audio/mpeg' : 'audio/ogg';
+                              return (
+                                <div className="flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                                  <svg className={`w-6 h-6 flex-shrink-0 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+                                  </svg>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-xs mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                                      {looksLikeVoice ? (t.typeMessageHere || 'Ovozli xabar') : fileName}
+                                    </p>
+                                    <audio controls className="w-full" preload="metadata" crossOrigin="anonymous">
+                                      <source src={fileUrl} type={mimeType} />
+                                      {t.browserNoAudioSupport}
+                                    </audio>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            // Video (ogg excluded — voice is audio)
+                            if (['mp4', 'webm', 'mov', 'avi'].includes(fileExt)) {
                               return (
                                 <video
                                   src={fileUrl}
@@ -775,29 +797,6 @@ export default function AdminChatPage() {
                                   {t.browserNoVideoSupport}
                                   <a href={fileUrl} className="text-blue-500 underline">Download video</a>
                                 </video>
-                              );
-                            }
-                            
-                            if (['mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac'].includes(fileExt)) {
-                              return (
-                                <div className="flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                                  <svg className={`w-6 h-6 flex-shrink-0 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
-                                  </svg>
-                                  <div className="flex-1">
-                                    <p className={`text-xs mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                                      {fileName}
-                                    </p>
-                                    <audio
-                                      src={fileUrl}
-                                      controls
-                                      className="w-full"
-                                      preload="metadata"
-                                    >
-                                      {t.browserNoAudioSupport}
-                                    </audio>
-                                  </div>
-                                </div>
                               );
                             }
                             

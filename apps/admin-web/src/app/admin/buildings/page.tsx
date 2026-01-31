@@ -17,6 +17,8 @@ interface Unit {
   status: string;
   price: number;
   floor: number | null;
+  area?: number;
+  contracts?: { tenant?: { fullName: string } }[];
 }
 
 interface Building {
@@ -28,6 +30,8 @@ interface Building {
   occupiedUnits: number;
   freeUnits: number;
   units: Unit[];
+  areaType?: 'OPEN_AREA' | 'BUILDING';
+  floorsCount?: number;
   createdAt: string;
 }
 
@@ -43,8 +47,20 @@ export default function BuildingsPage() {
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [formData, setFormData] = useState({ name: '', address: '', description: '' });
+  const [formData, setFormData] = useState({
+    name: '',
+    address: '',
+    description: '',
+    areaType: 'BUILDING' as 'OPEN_AREA' | 'BUILDING',
+    floorsCount: 0,
+  });
   const [saving, setSaving] = useState(false);
+  const [detailBuilding, setDetailBuilding] = useState<Building | null>(null);
+  const [detailUnitsByFloor, setDetailUnitsByFloor] = useState<Record<number, Unit[]>>({});
+  const [addUnitsFloor, setAddUnitsFloor] = useState<number>(0);
+  const [addUnitsRows, setAddUnitsRows] = useState<Array<{ name: string; area: string; price: string }>>([{ name: '', area: '', price: '' }]);
+  const [showAddUnitsModal, setShowAddUnitsModal] = useState(false);
+  const [addingUnits, setAddingUnits] = useState(false);
 
   const loadBuildings = async () => {
     try {
@@ -83,10 +99,16 @@ export default function BuildingsPage() {
     try {
       await fetchApi('/buildings', {
         method: 'POST',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          address: formData.address || undefined,
+          description: formData.description || undefined,
+          areaType: formData.areaType,
+          floorsCount: formData.areaType === 'BUILDING' ? formData.floorsCount : 0,
+        }),
       });
       setShowCreateModal(false);
-      setFormData({ name: '', address: '', description: '' });
+      setFormData({ name: '', address: '', description: '', areaType: 'BUILDING', floorsCount: 0 });
       loadBuildings();
     } catch (err) {
       console.error(err);
@@ -102,17 +124,78 @@ export default function BuildingsPage() {
     try {
       await fetchApi(`/buildings/${selectedBuilding.id}`, {
         method: 'PUT',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          address: formData.address || undefined,
+          description: formData.description || undefined,
+          areaType: formData.areaType,
+          floorsCount: formData.areaType === 'BUILDING' ? formData.floorsCount : 0,
+        }),
       });
       setShowEditModal(false);
       setSelectedBuilding(null);
-      setFormData({ name: '', address: '', description: '' });
+      setFormData({ name: '', address: '', description: '', areaType: 'BUILDING', floorsCount: 0 });
       loadBuildings();
     } catch (err) {
       console.error(err);
       alert('Failed to update building');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const openDetail = async (building: Building) => {
+    setDetailBuilding(building);
+    try {
+      const data = await fetchApi<{
+        unitsByFloor: Record<string, Unit[]>;
+        units: Unit[];
+      }>(`/buildings/${building.id}`);
+      const byFloor: Record<number, Unit[]> = {};
+      if (data.unitsByFloor) {
+        for (const [f, list] of Object.entries(data.unitsByFloor)) {
+          byFloor[Number(f)] = list || [];
+        }
+      }
+      setDetailUnitsByFloor(byFloor);
+    } catch {
+      setDetailUnitsByFloor({});
+    }
+  };
+
+  const openAddUnitsModal = (floor: number) => {
+    setAddUnitsFloor(floor);
+    setAddUnitsRows([{ name: '', area: '', price: '' }]);
+    setShowAddUnitsModal(true);
+  };
+
+  const handleBulkAddUnits = async () => {
+    if (!detailBuilding) return;
+    const units = addUnitsRows
+      .filter((r) => r.name.trim() && r.price.trim())
+      .map((r) => ({
+        name: r.name.trim(),
+        area: r.area ? parseFloat(r.area) : undefined,
+        price: parseFloat(r.price),
+      }));
+    if (units.length === 0) {
+      alert('Kamida bitta xona nomi va narxini kiriting.');
+      return;
+    }
+    setAddingUnits(true);
+    try {
+      await fetchApi(`/buildings/${detailBuilding.id}/units/bulk`, {
+        method: 'POST',
+        body: JSON.stringify({ floor: addUnitsFloor, units }),
+      });
+      setShowAddUnitsModal(false);
+      openDetail(detailBuilding);
+      loadBuildings();
+    } catch (err) {
+      console.error(err);
+      alert('Xonalarni qo\'shishda xato');
+    } finally {
+      setAddingUnits(false);
     }
   };
 
@@ -133,6 +216,8 @@ export default function BuildingsPage() {
       name: building.name,
       address: building.address || '',
       description: building.description || '',
+      areaType: building.areaType || 'BUILDING',
+      floorsCount: building.floorsCount ?? 0,
     });
     setShowEditModal(true);
   };
@@ -297,12 +382,22 @@ export default function BuildingsPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => openDetail(building)}
+                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                          darkMode
+                            ? 'bg-blue-600/20 hover:bg-blue-600/30 text-blue-400'
+                            : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
+                        }`}
+                      >
+                        Xonalar / Batafsil
+                      </button>
                       <button
                         onClick={() => openEditModal(building)}
-                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                          darkMode 
-                            ? 'bg-gray-800 hover:bg-gray-700 text-white' 
+                        className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                          darkMode
+                            ? 'bg-gray-800 hover:bg-gray-700 text-white'
                             : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                         }`}
                       >
@@ -312,8 +407,8 @@ export default function BuildingsPage() {
                         <button
                           onClick={() => handleDelete(building.id)}
                           className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                            darkMode 
-                              ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400' 
+                            darkMode
+                              ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400'
                               : 'bg-red-100 hover:bg-red-200 text-red-600'
                           }`}
                         >
@@ -337,40 +432,68 @@ export default function BuildingsPage() {
           }`}>
             <div className={`p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                🏢 {t.addBuilding || 'Add Building'}
+                Hudud qo'shish (ochiq maydon yoki bino)
               </h2>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {t.fullName || 'Name'} *
+                <label className={`block text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  1. Hudud turi
+                </label>
+                <select
+                  value={formData.areaType}
+                  onChange={(e) => setFormData({ ...formData, areaType: e.target.value as 'OPEN_AREA' | 'BUILDING' })}
+                  className={`w-full px-4 py-3 rounded-xl border-2 ${
+                    darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                >
+                  <option value="OPEN_AREA">Ochiq maydon</option>
+                  <option value="BUILDING">Bino</option>
+                </select>
+              </div>
+              {formData.areaType === 'BUILDING' && (
+                <div>
+                  <label className={`block text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    2. Qavatlar soni (0 = qavatsiz)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={formData.floorsCount}
+                    onChange={(e) => setFormData({ ...formData, floorsCount: parseInt(e.target.value, 10) || 0 })}
+                    className={`w-full px-4 py-3 rounded-xl border-2 ${
+                      darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    placeholder="0"
+                  />
+                </div>
+              )}
+              <div>
+                <label className={`block text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {formData.areaType === 'BUILDING' ? '3. ' : '2. '}Nomi *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className={`w-full px-4 py-3 rounded-xl border ${
-                    darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-white' 
-                      : 'bg-white border-gray-300 text-gray-800'
+                    darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder={(t as any).buildingName || 'Building name'}
+                  placeholder="Hudud yoki bino nomi"
                 />
               </div>
               <div>
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {t.address || 'Address'}
+                  Manzil
                 </label>
                 <input
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   className={`w-full px-4 py-3 rounded-xl border ${
-                    darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-white' 
-                      : 'bg-white border-gray-300 text-gray-800'
+                    darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder={t.addressPlaceholder || 'Street address'}
+                  placeholder={t.addressPlaceholder || 'Manzil'}
                 />
               </div>
               <div>
@@ -380,13 +503,11 @@ export default function BuildingsPage() {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
+                  rows={2}
                   className={`w-full px-4 py-3 rounded-xl border ${
-                    darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-white' 
-                      : 'bg-white border-gray-300 text-gray-800'
+                    darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder={t.descriptionPlaceholder || 'Optional description'}
+                  placeholder={t.descriptionPlaceholder || 'Ixtiyoriy'}
                 />
               </div>
             </div>
@@ -419,10 +540,41 @@ export default function BuildingsPage() {
           }`}>
             <div className={`p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                ✏️ {t.editBuilding || 'Edit Building'}
+                Hududni tahrirlash
               </h2>
             </div>
             <div className="p-6 space-y-4">
+              <div>
+                <label className={`block text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Hudud turi
+                </label>
+                <select
+                  value={formData.areaType}
+                  onChange={(e) => setFormData({ ...formData, areaType: e.target.value as 'OPEN_AREA' | 'BUILDING' })}
+                  className={`w-full px-4 py-3 rounded-xl border ${
+                    darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
+                  } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                >
+                  <option value="OPEN_AREA">Ochiq maydon</option>
+                  <option value="BUILDING">Bino</option>
+                </select>
+              </div>
+              {formData.areaType === 'BUILDING' && (
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Qavatlar soni (0 = qavatsiz)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={formData.floorsCount}
+                    onChange={(e) => setFormData({ ...formData, floorsCount: parseInt(e.target.value, 10) || 0 })}
+                    className={`w-full px-4 py-3 rounded-xl border ${
+                      darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                </div>
+              )}
               <div>
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   {t.fullName || 'Name'} *
@@ -432,9 +584,7 @@ export default function BuildingsPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className={`w-full px-4 py-3 rounded-xl border ${
-                    darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-white' 
-                      : 'bg-white border-gray-300 text-gray-800'
+                    darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
               </div>
@@ -447,9 +597,7 @@ export default function BuildingsPage() {
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   className={`w-full px-4 py-3 rounded-xl border ${
-                    darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-white' 
-                      : 'bg-white border-gray-300 text-gray-800'
+                    darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
               </div>
@@ -460,11 +608,9 @@ export default function BuildingsPage() {
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
+                  rows={2}
                   className={`w-full px-4 py-3 rounded-xl border ${
-                    darkMode 
-                      ? 'bg-gray-800 border-gray-700 text-white' 
-                      : 'bg-white border-gray-300 text-gray-800'
+                    darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                 />
               </div>
@@ -484,6 +630,173 @@ export default function BuildingsPage() {
                 className="flex-1 py-3 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 disabled:opacity-50"
               >
                 {saving ? '...' : (t.save || 'Save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal: Hudud → Qavatlar → Xonalar */}
+      {detailBuilding && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+          <div className={`w-full max-w-2xl rounded-2xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col ${
+            darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white'
+          }`}>
+            <div className={`p-4 border-b flex justify-between items-center ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                {detailBuilding.areaType === 'OPEN_AREA' ? 'Ochiq maydon' : 'Bino'}: {detailBuilding.name}
+              </h2>
+              <button
+                onClick={() => { setDetailBuilding(null); setDetailUnitsByFloor({}); }}
+                className={`p-2 rounded-lg ${darkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              <p className={`text-sm mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {detailBuilding.areaType === 'BUILDING' && (detailBuilding.floorsCount ?? 0) > 0
+                  ? `${detailBuilding.floorsCount} qavat. Har qavatda xonalarni ketma-ket qo'shing.`
+                  : 'Qavatsiz yoki ochiq maydon. Xonalarni qo\'shing.'}
+              </p>
+              {(() => {
+                const floors = detailBuilding.areaType === 'BUILDING' && (detailBuilding.floorsCount ?? 0) > 0
+                  ? Array.from({ length: (detailBuilding.floorsCount ?? 0) + 1 }, (_, i) => i)
+                  : [0];
+                return floors.map((floorNum) => {
+                  const units = detailUnitsByFloor[floorNum] || [];
+                  const free = units.filter((u) => u.status === 'FREE').length;
+                  const busy = units.filter((u) => u.status === 'BUSY').length;
+                  return (
+                    <div key={floorNum} className={`mb-4 rounded-xl border ${darkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                      <div className={`px-4 py-2 flex justify-between items-center ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                        <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                          {floorNum === 0 && (detailBuilding.floorsCount ?? 0) === 0 ? 'Xonalar (qavatsiz)' : `Qavat ${floorNum}`}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-green-600">{busy} band</span>
+                          <span className="text-sm text-blue-600">{free} bo'sh</span>
+                          {hasPermission('units.create') && (
+                            <button
+                              onClick={() => openAddUnitsModal(floorNum)}
+                              className="px-3 py-1 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
+                            >
+                              + Xona qo'shish
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-3 flex flex-wrap gap-2">
+                        {units.length === 0 ? (
+                          <span className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Hona yo'q</span>
+                        ) : (
+                          units.map((u) => (
+                            <span
+                              key={u.id}
+                              className={`px-2 py-1 rounded text-sm ${
+                                u.status === 'BUSY'
+                                  ? darkMode ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-800'
+                                  : u.status === 'MAINTENANCE'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : darkMode ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-blue-800'
+                              }`}
+                            >
+                              {u.name} {u.area ? `(${u.area} m²)` : ''} — {u.status === 'BUSY' ? (u.contracts?.[0]?.tenant?.fullName || 'Band') : u.status === 'FREE' ? 'Bo\'sh' : 'Ta\'mir'}
+                            </span>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add units modal (ketma-ket) */}
+      {showAddUnitsModal && detailBuilding && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className={`w-full max-w-lg rounded-2xl shadow-2xl ${darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white'}`}>
+            <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h2 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                Xona qo'shish — {addUnitsFloor === 0 && (detailBuilding.floorsCount ?? 0) === 0 ? 'Qavatsiz' : `Qavat ${addUnitsFloor}`}
+              </h2>
+            </div>
+            <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
+              {addUnitsRows.map((row, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                  <input
+                    placeholder="Xona nomi"
+                    value={row.name}
+                    onChange={(e) => {
+                      const next = [...addUnitsRows];
+                      next[idx] = { ...next[idx], name: e.target.value };
+                      setAddUnitsRows(next);
+                    }}
+                    className={`col-span-4 px-3 py-2 rounded-lg border text-sm ${
+                      darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
+                    }`}
+                  />
+                  <input
+                    type="number"
+                    placeholder="m²"
+                    value={row.area}
+                    onChange={(e) => {
+                      const next = [...addUnitsRows];
+                      next[idx] = { ...next[idx], area: e.target.value };
+                      setAddUnitsRows(next);
+                    }}
+                    className={`col-span-3 px-3 py-2 rounded-lg border text-sm ${
+                      darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
+                    }`}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Narx"
+                    value={row.price}
+                    onChange={(e) => {
+                      const next = [...addUnitsRows];
+                      next[idx] = { ...next[idx], price: e.target.value };
+                      setAddUnitsRows(next);
+                    }}
+                    className={`col-span-4 px-3 py-2 rounded-lg border text-sm ${
+                      darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAddUnitsRows(addUnitsRows.filter((_, i) => i !== idx))}
+                    className="col-span-1 p-2 rounded text-red-500 hover:bg-red-500/10"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setAddUnitsRows([...addUnitsRows, { name: '', area: '', price: '' }])}
+                className={`w-full py-2 rounded-lg border border-dashed ${darkMode ? 'border-gray-600 text-gray-400 hover:bg-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+              >
+                + Qator qo'shish
+              </button>
+            </div>
+            <div className={`p-4 border-t flex gap-3 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <button
+                onClick={() => setShowAddUnitsModal(false)}
+                className={`flex-1 py-2 rounded-xl font-medium ${
+                  darkMode ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-700'
+                }`}
+              >
+                Bekor
+              </button>
+              <button
+                onClick={handleBulkAddUnits}
+                disabled={addingUnits || addUnitsRows.every((r) => !r.name.trim() || !r.price.trim())}
+                className="flex-1 py-2 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {addingUnits ? '...' : 'Qo\'shish'}
               </button>
             </div>
           </div>

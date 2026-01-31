@@ -48,11 +48,11 @@ export class PaymentsController {
   @Post('offline')
   @Permissions('payments.record_offline')
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  @ApiOperation({ 
-    summary: 'Record offline cash payment (Payment Collector)',
-    description: 'Records an offline cash payment received from tenant. Payment is immediately confirmed. Accessible by: PAYMENT_COLLECTOR, CASHIER, ADMIN, SUPER_ADMIN.'
+  @ApiOperation({
+    summary: 'Oflayn to\'lovni qayd etish (To\'lov yig\'uvchi)',
+    description: 'To\'lov yig\'uvchi naqd to\'lovni saytga qo\'shadi. Keyin kassir tasdiqlashi kerak (verify/accept). PAYMENT_COLLECTOR, CASHIER, ADMIN, SUPER_ADMIN.',
   })
-  @ApiResponse({ status: 201, description: 'Offline payment recorded and confirmed' })
+  @ApiResponse({ status: 201, description: 'Offline payment recorded (PENDING until cashier approves)' })
   @ApiResponse({ status: 404, description: 'Invoice not found' })
   @ApiResponse({ status: 409, description: 'Invoice already paid' })
   async recordOfflinePayment(
@@ -81,8 +81,9 @@ export class PaymentsController {
     description: 'Verifies and approves a payment (online or offline). Only CASHIER, ADMIN, SUPER_ADMIN can approve payments.'
   })
   @ApiResponse({ status: 200, description: 'Payment verified and confirmed' })
-  async acceptPayment(@Param('id') id: string) {
-    return this.paymentsService.verifyPayment(id, true);
+  async acceptPayment(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as { id: string };
+    return this.paymentsService.verifyPayment(id, true, undefined, user?.id);
   }
 
   @Patch(':id/verify/decline')
@@ -103,8 +104,9 @@ export class PaymentsController {
     description: 'Cashier marks that cash has been received from Payment Collector. Accessible by: CASHIER, ADMIN, SUPER_ADMIN.'
   })
   @ApiResponse({ status: 200, description: 'Payment marked as cash received' })
-  async captureOffline(@Param('id') id: string) {
-    return this.paymentsService.verifyPayment(id, true);
+  async captureOffline(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as { id: string };
+    return this.paymentsService.verifyPayment(id, true, undefined, user?.id);
   }
 
   @Delete(':id')

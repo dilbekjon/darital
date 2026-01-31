@@ -191,6 +191,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         changeLanguage: '🌐 Язык',
         help: '❓ Помощь',
         back: '⬅️ Назад',
+        logout: '🚪 Выйти',
       };
     } else if (lang === 'en') {
       return {
@@ -207,6 +208,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         changeLanguage: '🌐 Language',
         help: '❓ Help',
         back: '⬅️ Back',
+        logout: '🚪 Log out',
       };
     } else {
       return {
@@ -223,6 +225,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         changeLanguage: '🌐 Til',
         help: '❓ Yordam',
         back: '⬅️ Orqaga',
+        logout: '🚪 Chiqish',
       };
     }
   }
@@ -590,6 +593,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const keyboard = Markup.inlineKeyboard([
       [Markup.button.callback(texts.contracts, 'menu_contracts'), Markup.button.callback(texts.paymentHistory, 'menu_payment_history')],
       [Markup.button.callback(texts.changeLanguage, 'menu_change_lang'), Markup.button.callback(texts.help, 'menu_help')],
+      [Markup.button.callback(texts.logout, 'menu_logout')],
       [Markup.button.callback(texts.back, 'menu_main')],
     ]);
     const moreTitle = lang === 'ru' ? '⋯ Ещё' : lang === 'en' ? '⋯ More' : '⋯ Boshqa';
@@ -604,6 +608,43 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const state = this.conversationStates.get(chatId);
     const lang = state?.language || 'uz';
     await this.showMoreMenu(ctx, chatId, lang);
+  }
+
+  @Action('menu_logout')
+  @Command('logout')
+  async onLogout(@Ctx() ctx: Context) {
+    const chatId = ctx.chat?.id.toString();
+    if (!chatId) return;
+    if ('answerCbQuery' in ctx && typeof (ctx as any).answerCbQuery === 'function') {
+      await (ctx as any).answerCbQuery();
+    }
+    const state = this.conversationStates.get(chatId);
+    const lang = state?.language || 'uz';
+    try {
+      await this.prisma.telegramUser.updateMany({
+        where: { chatId },
+        data: { tenantId: null },
+      });
+      this.conversationStates.delete(chatId);
+      const msg =
+        lang === 'ru'
+          ? '✅ Вы вышли из аккаунта. Нажмите /start чтобы войти снова.'
+          : lang === 'en'
+            ? '✅ You have been logged out. Send /start to sign in again.'
+            : '✅ Siz hisobdan chiqdingiz. Qayta kirish uchun /start bosing.';
+      await ctx.reply(msg);
+      await this.showLanguageSelection(ctx);
+      this.conversationStates.set(chatId, { step: 'choosing_language' });
+    } catch (error: any) {
+      this.logger.error(`Logout error: ${error?.message}`);
+      const err =
+        lang === 'ru'
+          ? '❌ Не удалось выйти. Попробуйте позже.'
+          : lang === 'en'
+            ? '❌ Failed to log out. Please try again.'
+            : '❌ Chiqish amalga oshmadi. Keyinroq urinib ko\'ring.';
+      await ctx.reply(err);
+    }
   }
 
   /**
