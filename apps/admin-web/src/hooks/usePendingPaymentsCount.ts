@@ -37,8 +37,7 @@ export function usePendingPaymentsCount() {
       setError(null);
       const data = await fetchApi<any>('/payments?limit=1000&status=PENDING');
       const payments = normalizeListResponse<Payment>(data).items;
-      const pendingOnlineCount = payments.filter(p => p.method === 'ONLINE').length;
-      setCount(pendingOnlineCount);
+      setCount(payments.length);
     } catch (err: any) {
       console.error('[usePendingPaymentsCount] Error fetching pending payments count:', err);
       setError(err.message || 'Failed to fetch pending payments count');

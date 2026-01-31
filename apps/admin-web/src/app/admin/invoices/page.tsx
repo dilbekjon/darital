@@ -64,7 +64,7 @@ export default function AdminInvoicesPage() {
   const [contractIdFilter, setContractIdFilter] = useState<string>('');
   const [dueFromFilter, setDueFromFilter] = useState<string>('');
   const [dueToFilter, setDueToFilter] = useState<string>('');
-  const [sortByDeadline, setSortByDeadline] = useState<boolean>(false);
+  const [sortByDeadline, setSortByDeadline] = useState<boolean>(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(20);
   const [meta, setMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
@@ -471,40 +471,45 @@ export default function AdminInvoicesPage() {
     });
   }, [invoices, searchQuery]);
 
-  // Sort invoices by importance: OVERDUE > PAYMENT_RECEIVED > PENDING > PAID
-  // Or by closest deadline if sortByDeadline is enabled
+  // Sort invoices: default by closest deadline first; optional sort by status priority
   const sortedInvoices = useMemo(() => {
     if (sortByDeadline) {
-      // Sort purely by deadline (closest first), regardless of status
       return [...searchFilteredInvoices].sort((a, b) => {
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       });
     }
-    
-    const statusPriority: Record<string, number> = { 
-      OVERDUE: 0, 
+    const statusPriority: Record<string, number> = {
+      OVERDUE: 0,
       PAYMENT_RECEIVED: 1,
-      PENDING: 2, 
-      PAID: 3 
+      PENDING: 2,
+      PAID: 3,
     };
-    
     return [...searchFilteredInvoices].sort((a, b) => {
-      // Get display status which accounts for payment received state
       const displayA = getInvoiceDisplayStatus(a);
       const displayB = getInvoiceDisplayStatus(b);
-      
       const priorityA = statusPriority[displayA] ?? statusPriority[a.status] ?? 4;
       const priorityB = statusPriority[displayB] ?? statusPriority[b.status] ?? 4;
-      
       if (priorityA !== priorityB) return priorityA - priorityB;
-      
-      // Within same status, sort by due date (earlier first for unpaid, later first for paid)
       if (a.status === 'PAID') {
         return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
       }
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
   }, [searchFilteredInvoices, sortByDeadline]);
+
+  const todayStart = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, []);
+
+  const isWithinThreeDaysOfDeadline = useCallback((dueDate: string) => {
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    const dueTime = due.getTime();
+    const diffDays = Math.ceil((dueTime - todayStart) / (24 * 60 * 60 * 1000));
+    return diffDays >= 0 && diffDays <= 3;
+  }, [todayStart]);
 
   const getInvoiceStatusText = (displayStatus: string) => {
     switch (displayStatus) {
@@ -775,14 +780,19 @@ export default function AdminInvoicesPage() {
                     hasPermission('payments.approve') &&
                     ((pendingPayment.method === 'ONLINE' && paymentReceived) || pendingPayment.method === 'OFFLINE');
 
+                  const withinThreeDays = invoice.status !== 'PAID' && isWithinThreeDaysOfDeadline(invoice.dueDate);
                   return (
                     <tr
                       key={invoice.id}
                       className={`transition-colors ${
-                          index % 2 === 0 
-                            ? (darkMode ? 'bg-black' : 'bg-white') 
+                        withinThreeDays
+                          ? darkMode
+                            ? 'bg-amber-500/20 border-l-4 border-amber-500'
+                            : 'bg-amber-50 border-l-4 border-amber-400'
+                          : index % 2 === 0
+                            ? (darkMode ? 'bg-black' : 'bg-white')
                             : (darkMode ? 'bg-blue-600/5' : 'bg-gray-50')
-                        } ${darkMode ? 'hover:bg-blue-600/10' : 'hover:bg-gray-50'}`}
+                      } ${darkMode ? 'hover:bg-blue-600/10' : 'hover:bg-gray-50'}`}
                     >
                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
