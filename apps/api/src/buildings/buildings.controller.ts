@@ -44,17 +44,43 @@ export class BuildingsController {
 
   @Post()
   @Permissions('buildings.create')
-  @ApiOperation({ summary: 'Create a new building (User Manager, Admin, Super Admin)' })
-  create(@Body() data: { name: string; address?: string; description?: string }) {
+  @ApiOperation({ summary: 'Create a new building (hudud)' })
+  create(
+    @Body()
+    data: {
+      name: string;
+      address?: string;
+      description?: string;
+      areaType?: 'OPEN_AREA' | 'BUILDING';
+      floorsCount?: number;
+    },
+  ) {
     return this.buildingsService.create(data);
+  }
+
+  @Post(':id/units/bulk')
+  @Permissions('units.create')
+  @ApiOperation({ summary: 'Create multiple units for a building (ketma-ket hona qoshish)' })
+  bulkCreateUnits(
+    @Param('id') id: string,
+    @Body() payload: { floor?: number; units: Array<{ name: string; area?: number; price: number }> },
+  ) {
+    return this.buildingsService.bulkCreateUnits(id, payload);
   }
 
   @Put(':id')
   @Permissions('buildings.update')
-  @ApiOperation({ summary: 'Update a building (User Manager, Admin, Super Admin)' })
+  @ApiOperation({ summary: 'Update a building (hudud)' })
   update(
     @Param('id') id: string,
-    @Body() data: { name?: string; address?: string; description?: string },
+    @Body()
+    data: {
+      name?: string;
+      address?: string;
+      description?: string;
+      areaType?: 'OPEN_AREA' | 'BUILDING';
+      floorsCount?: number;
+    },
   ) {
     return this.buildingsService.update(id, data);
   }

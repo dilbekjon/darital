@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class BuildingsService {
@@ -53,8 +54,22 @@ export class BuildingsService {
       throw new NotFoundException('Building not found');
     }
 
+    const mapUnit = (u: (typeof building.units)[0]) => ({
+      ...u,
+      price: typeof u.price === 'object' && u.price !== null && 'toNumber' in u.price ? (u.price as Decimal).toNumber() : Number(u.price),
+    });
+
+    const unitsByFloor: Record<number, ReturnType<typeof mapUnit>[]> = {};
+    for (const u of building.units) {
+      const f = u.floor ?? 0;
+      if (!unitsByFloor[f]) unitsByFloor[f] = [];
+      unitsByFloor[f].push(mapUnit(u));
+    }
+
     return {
       ...building,
+      units: building.units.map(mapUnit),
+      unitsByFloor,
       stats: {
         totalUnits: building.units.length,
         occupied: building.units.filter((u) => u.status === 'BUSY').length,
@@ -64,17 +79,34 @@ export class BuildingsService {
     };
   }
 
-  async create(data: { name: string; address?: string; description?: string }) {
+  async create(data: {
+    name: string;
+    address?: string;
+    description?: string;
+    areaType?: 'OPEN_AREA' | 'BUILDING';
+    floorsCount?: number;
+  }) {
     return this.prisma.building.create({
       data: {
         name: data.name,
         address: data.address,
         description: data.description,
+        areaType: data.areaType ?? 'BUILDING',
+        floorsCount: data.floorsCount ?? 0,
       },
     });
   }
 
-  async update(id: string, data: { name?: string; address?: string; description?: string }) {
+  async update(
+    id: string,
+    data: {
+      name?: string;
+      address?: string;
+      description?: string;
+      areaType?: 'OPEN_AREA' | 'BUILDING';
+      floorsCount?: number;
+    },
+  ) {
     const building = await this.prisma.building.findUnique({ where: { id } });
     if (!building) {
       throw new NotFoundException('Building not found');
@@ -84,6 +116,39 @@ export class BuildingsService {
       where: { id },
       data,
     });
+  }
+
+  async bulkCreateUnits(
+    buildingId: string,
+    payload: { floor?: number; units: Array<{ name: string; area?: number; price: number }> },
+  ) {
+    const building = await this.prisma.building.findUnique({ where: { id: buildingId } });
+    if (!building) {
+      throw new NotFoundException('Building not found');
+    }
+
+    const floor = payload.floor ?? 0;
+    const created = await this.prisma.$transaction(
+      payload.units.map((u) =>
+        this.prisma.unit.create({
+          data: {
+            name: u.name,
+            price: new Decimal(u.price),
+            area: u.area ?? null,
+            floor,
+            buildingId,
+          },
+        }),
+      ),
+    );
+
+    const newTotal = (building.totalUnits ?? 0) + created.length;
+    await this.prisma.building.update({
+      where: { id: buildingId },
+      data: { totalUnits: newTotal },
+    });
+
+    return created;
   }
 
   async remove(id: string) {

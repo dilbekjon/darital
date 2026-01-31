@@ -107,14 +107,22 @@ model User {
   @@map("users")
 }
 
+// Hudud turi: ochiq maydon yoki bino
+enum AreaType {
+  OPEN_AREA  // Ochiq maydon
+  BUILDING   // Bino (qavatli yoki qavatsiz)
+}
+
 model Building {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
   address     String?
   description String?
-  totalUnits  Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  totalUnits  Int       @default(0)
+  areaType    AreaType  @default(BUILDING)  // Hudud turi
+  floorsCount Int       @default(0)          // Qavatlar soni (0 = qavatsiz / bitta qavat)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   units       Unit[]
 
   @@map("buildings")
