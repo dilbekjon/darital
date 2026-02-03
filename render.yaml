@@ -76,7 +76,6 @@ services:
   - type: web
     name: darital-mobile
     runtime: static
-    plan: free
     buildCommand: npm install -g pnpm@10.19.0 && pnpm install && cd apps/mobile && npx expo export --platform web
     staticPublishPath: apps/mobile/dist
     envVars:
