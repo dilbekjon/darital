@@ -36,7 +36,7 @@ services:
           name: darital-redis
           property: connectionString
       - key: CORS_ORIGINS
-        value: https://admin.yourdomain.uz,https://tenant.yourdomain.uz,https://yourdomain.uz
+        value: https://darital-admin-web.onrender.com,https://darital-tenant-web.onrender.com,https://darital-mobile.onrender.com,http://localhost:3000,http://localhost:8081
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
@@ -70,4 +70,15 @@ services:
       - key: PORT
         value: 10000
       - key: NEXT_PUBLIC_API_URL
+        value: https://darital-api.onrender.com/api
+
+  # Mobile App (Expo web build – tenant app in browser)
+  - type: web
+    name: darital-mobile
+    runtime: static
+    plan: free
+    buildCommand: npm install -g pnpm@10.19.0 && pnpm install && cd apps/mobile && npx expo export --platform web
+    staticPublishPath: apps/mobile/dist
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
         value: https://darital-api.onrender.com/api
