@@ -48,14 +48,21 @@ async function bootstrap() {
   });
   
   // Enable CORS first so static file responses (e.g. /api/uploads/ voice messages) include CORS headers for cross-origin playback
-  const corsOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
-    : [
-        'http://localhost:3000',  // Admin panel (dev)
-        'http://localhost:3001',  // API (dev)
-        'http://localhost:3002',  // Tenant portal (dev)
-        'http://localhost:8081',  // Expo / Metro (web dev)
-      ];
+  const envOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()).filter(Boolean)
+    : [];
+  const defaultOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://localhost:8081',
+    'https://darital-admin-web.onrender.com',
+    'https://darital-tenant-web.onrender.com',
+    'https://darital-mobile.onrender.com',
+  ];
+  const corsOrigins = envOrigins.length
+    ? [...new Set([...envOrigins, ...defaultOrigins])]
+    : defaultOrigins;
   console.log('🌐 CORS Origins configured:', corsOrigins);
   app.enableCors({
     origin: (origin, callback) => {
