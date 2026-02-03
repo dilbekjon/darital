@@ -36,15 +36,11 @@ export default function ChatRoomScreen({ route, navigation }: any) {
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  // Load messages and join room when screen is focused; poll for new messages (real-time fallback)
+  // Load messages and join room when screen is focused (real-time via socket; no polling to avoid interrupting typing)
   useFocusEffect(
     useCallback(() => {
       if (conversationId) {
         refreshMessages(conversationId);
-        const pollInterval = setInterval(() => {
-          refreshMessages(conversationId);
-        }, 4000);
-        return () => clearInterval(pollInterval);
       }
     }, [conversationId, refreshMessages])
   );
