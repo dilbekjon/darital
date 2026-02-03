@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Platform } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
@@ -263,8 +263,18 @@ function AppContent() {
     );
   }
 
+  const rootStyle: any = {
+    flex: 1,
+    backgroundColor: darkMode ? '#000000' : '#F0F9FF',
+  };
+  if (Platform.OS === 'web') {
+    rootStyle.height = '100vh';
+    rootStyle.maxHeight = '100vh';
+    rootStyle.overflow = 'hidden';
+  }
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: darkMode ? '#000000' : '#F0F9FF' }}>
+    <SafeAreaView style={rootStyle}>
       <NavigationContainer ref={navigationRef}>
         {authed ? (
           <Tab.Navigator
