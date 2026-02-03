@@ -4,8 +4,8 @@
   "description": "Darital Final API - NestJS Backend",
   "private": true,
   "scripts": {
-    "dev": "nest start --watch",
-    "build": "tsc -p tsconfig.build.json",
+    "dev": "pnpm run build && nest start --watch",
+    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc -p tsconfig.build.json --incremental false",
     "postinstall": "prisma generate",
     "prestart": "prisma migrate deploy --schema=prisma/schema.prisma && node dist/rbac/seed.js",
     "start": "node dist/main",

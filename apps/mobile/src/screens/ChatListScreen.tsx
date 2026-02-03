@@ -8,14 +8,16 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useTenantChat } from '../hooks/useTenantChat';
-import { useLanguage } from '../contexts/LanguageContext';
+import { t } from '../lib/i18n';
 import type { Conversation } from '../lib/chatApi';
 
 export default function ChatListScreen({ navigation }: any) {
-  const { t } = useLanguage(); // Safe hook that always returns translations
-  
   const {
     loading,
     error,
@@ -27,6 +29,8 @@ export default function ChatListScreen({ navigation }: any) {
 
   const [refreshing, setRefreshing] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [showTopicModal, setShowTopicModal] = useState(false);
+  const [topicInput, setTopicInput] = useState('');
 
   // Load conversations on mount
   useEffect(() => {
@@ -39,47 +43,37 @@ export default function ChatListScreen({ navigation }: any) {
     setRefreshing(false);
   };
 
-  const handleStartNewChat = async () => {
+  const handleStartNewChat = () => {
     if (creating) return;
-    
-    // Prompt user for topic
-    Alert.prompt(
-      t.startNewChat,
-      t.enterChatTopic,
-      [
-        {
-          text: t.cancel,
-          style: 'cancel',
-        },
-        {
-          text: t.ok,
-          onPress: async (topic) => {
-            setCreating(true);
-            try {
-              const chatTopic = topic?.trim() || '';
-              const newConv = await createConversation(chatTopic || undefined, 'Hello, I need assistance');
-              
-              if (newConv) {
-                navigation.navigate('ChatRoom', { 
-                  conversationId: newConv.id,
-                  topic: chatTopic || t.supportChat,
-                });
-              } else {
-                Alert.alert('Error', 'Failed to start chat. Please try again.');
-              }
-            } catch (err) {
-              console.warn('[ChatListScreen] Failed to create conversation:', err);
-              Alert.alert('Error', 'Failed to start chat');
-            } finally {
-              setCreating(false);
-            }
-          },
-        },
-      ],
-      'plain-text',
-      '',
-      'default'
-    );
+    setTopicInput('');
+    setShowTopicModal(true);
+  };
+
+  const handleConfirmNewChat = async () => {
+    setCreating(true);
+    setShowTopicModal(false);
+    try {
+      const chatTopic = topicInput?.trim() || '';
+      const newConv = await createConversation(chatTopic || undefined, 'Salom, yordam kerak');
+      if (newConv) {
+        navigation.navigate('ChatRoom', {
+          conversationId: newConv.id,
+          topic: chatTopic || t.supportChat,
+        });
+      } else {
+        Alert.alert(t.error, 'Chatni boshlash amalga oshmadi.');
+      }
+    } catch (err) {
+      console.warn('[ChatListScreen] Failed to create conversation:', err);
+      Alert.alert(t.error, 'Chatni boshlash amalga oshmadi.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleCancelNewChat = () => {
+    setShowTopicModal(false);
+    setTopicInput('');
   };
 
   const formatTime = (dateString: string) => {
@@ -209,6 +203,52 @@ export default function ChatListScreen({ navigation }: any) {
           </View>
         }
       />
+
+      <Modal
+        visible={showTopicModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelNewChat}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={handleCancelNewChat}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalKeyboard}
+          >
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>{t.startNewChat}</Text>
+                <Text style={styles.modalHint}>{t.enterChatTopic}</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={topicInput}
+                  onChangeText={setTopicInput}
+                  placeholder={t.enterChatTopic}
+                  placeholderTextColor="#9ca3af"
+                  autoFocus
+                  editable={!creating}
+                />
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity style={styles.modalButtonCancel} onPress={handleCancelNewChat}>
+                    <Text style={styles.modalButtonCancelText}>{t.cancel}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.modalButtonOk}
+                    onPress={handleConfirmNewChat}
+                    disabled={creating}
+                  >
+                    <Text style={styles.modalButtonOkText}>{t.ok}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -376,6 +416,71 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalKeyboard: {
+    width: '100%',
+    maxWidth: 340,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  modalHint: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 12,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#111827',
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'flex-end',
+  },
+  modalButtonCancel: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+  },
+  modalButtonCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  modalButtonOk: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#3b82f6',
+  },
+  modalButtonOkText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });
 

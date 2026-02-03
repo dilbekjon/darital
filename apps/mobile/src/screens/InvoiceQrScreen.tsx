@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { apiGet } from '../api/client';
-import { useLanguage } from '../contexts/LanguageContext';
+import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
 
@@ -24,7 +24,6 @@ export default function InvoiceQrScreen({ route, navigation }: InvoiceQrScreenPr
   const [checking, setChecking] = useState(false);
   const [qrData, setQrData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const { t } = useLanguage();
   const { darkMode } = useTheme();
 
   const invoiceId = route?.params?.invoiceId;

@@ -11,7 +11,7 @@ import {
 import * as LocalAuthentication from 'expo-local-authentication';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { t } from '../lib/i18n';
 import { attemptBiometricUnlock, checkBiometricAvailable } from '../security/biometricAuth';
 
 interface PasscodeScreenProps {
@@ -33,7 +33,6 @@ export default function PasscodeScreen({
   const [error, setError] = useState('');
   const [hasBiometrics, setHasBiometrics] = useState(false);
   const { darkMode } = useTheme();
-  const { t } = useLanguage();
 
   useEffect(() => {
     const init = async () => {

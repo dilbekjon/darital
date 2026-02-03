@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import LoginScreen from './src/screens/LoginScreen';
@@ -15,8 +16,13 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import ChatListScreen from './src/screens/ChatListScreen';
 import ChatRoomScreen from './src/screens/ChatRoomScreen';
-import { getToken, clearToken, hasPasscode, getPasscode, setPasscode, clearPasscode, getUserData, setUserData, isBiometricEnabled, getEncryptedToken, clearAllAuthData } from './src/state/authStore';
-import { LanguageProvider, useLanguage } from './src/contexts/LanguageContext';
+import MoreScreen from './src/screens/MoreScreen';
+import ContractsScreen from './src/screens/ContractsScreen';
+import ContractDetailScreen from './src/screens/ContractDetailScreen';
+import DocumentsScreen from './src/screens/DocumentsScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import { getToken, setToken, clearToken, hasPasscode, getPasscode, setPasscode, clearPasscode, getUserData, setUserData, isBiometricEnabled, getEncryptedToken, clearAllAuthData } from './src/state/authStore';
+import { t } from './src/lib/i18n';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import PasscodeScreen from './src/screens/PasscodeScreen';
 import { useNotifications } from './src/hooks/useNotifications';
@@ -26,6 +32,7 @@ const Tab = createBottomTabNavigator();
 const InvoicesStack = createNativeStackNavigator();
 const PaymentsStack = createNativeStackNavigator();
 const ChatStack = createNativeStackNavigator();
+const MoreStack = createNativeStackNavigator();
 
 function InvoicesStackNavigator() {
   return (
@@ -54,7 +61,20 @@ function ChatStackNavigator() {
   );
 }
 
+function MoreStackNavigator() {
+  return (
+    <MoreStack.Navigator screenOptions={{ headerShown: false }}>
+      <MoreStack.Screen name="MoreMenu" component={MoreScreen} />
+      <MoreStack.Screen name="Contracts" component={ContractsScreen} />
+      <MoreStack.Screen name="ContractDetail" component={ContractDetailScreen} />
+      <MoreStack.Screen name="Documents" component={DocumentsScreen} />
+      <MoreStack.Screen name="Settings" component={SettingsScreen} />
+    </MoreStack.Navigator>
+  );
+}
+
 function AppContent() {
+  const insets = useSafeAreaInsets();
   const [showSplash, setShowSplash] = useState(true);
   const [booting, setBooting] = useState(true);
   const [authed, setAuthed] = useState(false);
@@ -64,7 +84,6 @@ function AppContent() {
   const [storedPasscode, setStoredPasscode] = useState<string | null>(null);
   const [biometricAttempted, setBiometricAttempted] = useState(false);
   const [biometricError, setBiometricError] = useState<string | null>(null);
-  const { t } = useLanguage();
   const { darkMode } = useTheme();
   
   // Navigation ref for push notification handling
@@ -251,20 +270,24 @@ function AppContent() {
           <Tab.Navigator
             screenOptions={{
               headerShown: false,
+              tabBarScrollEnabled: true,
               tabBarStyle: {
                 backgroundColor: darkMode ? '#111827' : '#FFFFFF',
                 borderTopColor: darkMode ? '#374151' : '#E5E7EB',
                 borderTopWidth: 1,
-                paddingBottom: 8,
                 paddingTop: 8,
-                height: 65,
+                paddingBottom: Math.max(insets.bottom, 8) + 6,
+                height: 56 + Math.max(insets.bottom, 8) + 6,
               },
               tabBarActiveTintColor: darkMode ? '#FBBF24' : '#3B82F6',
               tabBarInactiveTintColor: darkMode ? '#6B7280' : '#9CA3AF',
               tabBarLabelStyle: {
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: '600',
-                marginTop: 4,
+                marginTop: 2,
+              },
+              tabBarItemStyle: {
+                minWidth: 64,
               },
             }}
           >
@@ -275,7 +298,7 @@ function AppContent() {
               tabBarLabel: t.home,
             }}
           >
-            {() => <HomeScreen onSetupPasscode={() => setPasscodeSetupMode(true)} />}
+            {({ navigation }) => <HomeScreen navigation={navigation} onSetupPasscode={() => setPasscodeSetupMode(true)} />}
           </Tab.Screen>
             <Tab.Screen
               name="Invoices"
@@ -298,7 +321,7 @@ function AppContent() {
               component={NotificationsScreen}
               options={{
                 tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="bell-outline" size={size} color={color} />,
-                tabBarLabel: 'Notifications',
+                tabBarLabel: t.notifications,
                 tabBarBadge: notification ? '•' : undefined,
               }}
             />
@@ -308,6 +331,14 @@ function AppContent() {
               options={{
                 tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="chat-outline" size={size} color={color} />,
                 tabBarLabel: t.support,
+              }}
+            />
+            <Tab.Screen
+              name="More"
+              component={MoreStackNavigator}
+              options={{
+                tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="menu" size={size} color={color} />,
+                tabBarLabel: t.more,
               }}
             />
             <Tab.Screen
@@ -338,10 +369,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <LanguageProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
         <AppContent />
-      </LanguageProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStoreSafe from '../lib/secureStoreSafe';
 
 // Keys for AsyncStorage (non-sensitive data)
 const TOKEN_KEY = 'accessToken';
@@ -67,7 +67,7 @@ export async function clearToken(): Promise<void> {
 export async function setPasscode(passcode: string, userId?: string): Promise<void> {
   const sanitizedUserId = sanitizeSecureStoreKey(userId);
   const key = `${PASSCODE_KEY_PREFIX}${sanitizedUserId}`;
-  await SecureStore.setItemAsync(key, passcode);
+  await SecureStoreSafe.setItemAsync(key, passcode);
 }
 
 /**
@@ -77,7 +77,7 @@ export async function setPasscode(passcode: string, userId?: string): Promise<vo
 export async function getPasscode(userId?: string): Promise<string | null> {
   const sanitizedUserId = sanitizeSecureStoreKey(userId);
   const key = `${PASSCODE_KEY_PREFIX}${sanitizedUserId}`;
-  return await SecureStore.getItemAsync(key);
+  return await SecureStoreSafe.getItemAsync(key);
 }
 
 /**
@@ -86,7 +86,7 @@ export async function getPasscode(userId?: string): Promise<string | null> {
 export async function clearPasscode(userId?: string): Promise<void> {
   const sanitizedUserId = sanitizeSecureStoreKey(userId);
   const key = `${PASSCODE_KEY_PREFIX}${sanitizedUserId}`;
-  await SecureStore.deleteItemAsync(key);
+  await SecureStoreSafe.deleteItemAsync(key);
 }
 
 /**
@@ -106,14 +106,14 @@ export async function hasPasscode(userId?: string): Promise<boolean> {
  * Stores preference in SecureStore.
  */
 export async function setBiometricEnabled(enabled: boolean): Promise<void> {
-  await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, enabled ? 'true' : 'false');
+  await SecureStoreSafe.setItemAsync(BIOMETRIC_ENABLED_KEY, enabled ? 'true' : 'false');
 }
 
 /**
  * Check if user has enabled biometric authentication.
  */
 export async function isBiometricEnabled(): Promise<boolean> {
-  const value = await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY);
+  const value = await SecureStoreSafe.getItemAsync(BIOMETRIC_ENABLED_KEY);
   return value === 'true';
 }
 
@@ -121,7 +121,7 @@ export async function isBiometricEnabled(): Promise<boolean> {
  * Clear biometric setting.
  */
 export async function clearBiometricEnabled(): Promise<void> {
-  await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
+  await SecureStoreSafe.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
 }
 
 // ============================================
@@ -138,22 +138,21 @@ export async function clearBiometricEnabled(): Promise<void> {
  * @param token - Auth token to encrypt and store
  */
 export async function setEncryptedToken(token: string): Promise<void> {
-  // expo-secure-store automatically encrypts data on device
-  await SecureStore.setItemAsync(ENCRYPTED_TOKEN_KEY, token);
+  await SecureStoreSafe.setItemAsync(ENCRYPTED_TOKEN_KEY, token);
 }
 
 /**
  * Retrieve encrypted token after biometric success.
  */
 export async function getEncryptedToken(): Promise<string | null> {
-  return await SecureStore.getItemAsync(ENCRYPTED_TOKEN_KEY);
+  return await SecureStoreSafe.getItemAsync(ENCRYPTED_TOKEN_KEY);
 }
 
 /**
  * Clear encrypted token.
  */
 export async function clearEncryptedToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(ENCRYPTED_TOKEN_KEY);
+  await SecureStoreSafe.deleteItemAsync(ENCRYPTED_TOKEN_KEY);
 }
 
 // ============================================

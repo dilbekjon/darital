@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,19 @@ import {
   FlatList,
   Animated,
   TouchableOpacity,
+  Linking,
+  Alert,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiGet } from '../api/client';
-import { useLanguage } from '../contexts/LanguageContext';
+import { createTenantPaymentIntent, refreshTenantPayment } from '../api/tenantApi';
+import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
+
+const LAST_PAYMENT_ID_KEY = 'lastPaymentId';
+const LAST_PAYMENT_INVOICE_ID_KEY = 'lastPaymentInvoiceId';
 
 const INVOICES_CACHE_KEY = 'invoicesCache';
 
@@ -26,14 +33,10 @@ export default function InvoicesScreen({ navigation }: InvoicesScreenProps) {
   const [paginationMeta, setPaginationMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
-  const { t } = useLanguage();
+  const [payingInvoiceId, setPayingInvoiceId] = useState<string | null>(null);
   const { darkMode } = useTheme();
 
-  useEffect(() => {
-    loadInvoices();
-  }, []);
-
-  const loadInvoices = async () => {
+  const loadInvoices = useCallback(async () => {
     try {
       setError(null);
       setIsOffline(false);
@@ -85,6 +88,75 @@ export default function InvoicesScreen({ navigation }: InvoicesScreenProps) {
       }
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInvoices();
+  }, [loadInvoices]);
+
+  useEffect(() => {
+    const unsub = navigation?.addListener?.('focus', async () => {
+      const lastPaymentId = await AsyncStorage.getItem(LAST_PAYMENT_ID_KEY);
+      const lastInvoiceId = await AsyncStorage.getItem(LAST_PAYMENT_INVOICE_ID_KEY);
+      if (lastPaymentId && lastInvoiceId) {
+        try {
+          await refreshTenantPayment(lastPaymentId);
+        } catch (_) {}
+        await AsyncStorage.multiRemove([LAST_PAYMENT_ID_KEY, LAST_PAYMENT_INVOICE_ID_KEY]);
+        await loadInvoices();
+      }
+    });
+    return () => unsub?.();
+  }, [navigation, loadInvoices]);
+
+  const openCheckoutUrl = (url: string) => {
+    const trimmed = (url || '').trim();
+    if (!trimmed || (!trimmed.startsWith('http://') && !trimmed.startsWith('https://'))) {
+      Alert.alert(t.error, 'To\'lov havolasi noto\'g\'ri. Keyinroq urinib ko\'ring.');
+      return;
+    }
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const w = window.open(trimmed, '_blank', 'noopener,noreferrer');
+      if (w == null) {
+        window.location.href = trimmed;
+      }
+    } else {
+      Linking.openURL(trimmed).catch(() => Alert.alert(t.error, t.paymentFailed));
+    }
+  };
+
+  const handlePayOnline = async (invoiceId: string) => {
+    setPayingInvoiceId(invoiceId);
+    try {
+      const intent = await createTenantPaymentIntent(invoiceId, 'UZUM');
+      if (intent.alreadyPaid) {
+        Alert.alert(t.error, t.alreadyPaid, [{ text: t.ok, onPress: loadInvoices }]);
+        loadInvoices();
+        return;
+      }
+      const checkoutUrl = intent.checkoutUrl != null ? String(intent.checkoutUrl).trim() : '';
+      if (checkoutUrl && (checkoutUrl.startsWith('http://') || checkoutUrl.startsWith('https://'))) {
+        await AsyncStorage.setItem(LAST_PAYMENT_ID_KEY, intent.paymentId || '');
+        await AsyncStorage.setItem(LAST_PAYMENT_INVOICE_ID_KEY, intent.invoiceId || '');
+        openCheckoutUrl(checkoutUrl);
+      } else {
+        const msg =
+          intent.error === 'PAYMENT_NOT_CONFIGURED'
+            ? 'To\'lov tizimi hozircha sozlanmagan. Administrator bilan bog\'laning.'
+            : (intent.message || intent.error || t.paymentFailed);
+        Alert.alert(t.error, msg);
+      }
+    } catch (e: any) {
+      const msg = e?.message || '';
+      const isAlreadyPaid = String(msg).toLowerCase().includes('already paid');
+      Alert.alert(
+        t.error,
+        isAlreadyPaid ? t.alreadyPaid : (msg || t.paymentFailed),
+        isAlreadyPaid ? [{ text: t.ok, onPress: loadInvoices }] : undefined
+      );
+    } finally {
+      setPayingInvoiceId(null);
     }
   };
 
@@ -208,6 +280,8 @@ export default function InvoicesScreen({ navigation }: InvoicesScreenProps) {
               getStatusColor={getStatusColor}
               getStatusText={getStatusText}
               navigation={navigation}
+              onPayOnline={handlePayOnline}
+              payingInvoiceId={payingInvoiceId}
             />
           )}
           ListEmptyComponent={
@@ -230,7 +304,7 @@ export default function InvoicesScreen({ navigation }: InvoicesScreenProps) {
   );
 }
 
-function InvoiceCard({ item, index, darkMode, t, getStatusColor, getStatusText, navigation }: any) {
+function InvoiceCard({ item, index, darkMode, t, getStatusColor, getStatusText, navigation, onPayOnline, payingInvoiceId }: any) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -335,18 +409,16 @@ function InvoiceCard({ item, index, darkMode, t, getStatusColor, getStatusText, 
         </View>
       </View>
 
-      {/* Pay via QR Button */}
+      {/* Pay Online only */}
       {isPending && navigation && (
         <TouchableOpacity
-          onPress={() => navigation.navigate('InvoiceQr', { invoiceId: item.id })}
-          style={[
-            styles.qrButton,
-            {
-              backgroundColor: darkMode ? '#8B5CF6' : '#8B5CF6',
-            },
-          ]}
+          onPress={() => onPayOnline(item.id)}
+          disabled={payingInvoiceId === item.id}
+          style={[styles.payButton, { backgroundColor: darkMode ? '#EAB308' : '#3B82F6', marginTop: 12 }]}
         >
-          <Text style={styles.qrButtonText}>📱 Pay via QR</Text>
+          <Text style={styles.payButtonText}>
+            {payingInvoiceId === item.id ? t.loading : `💳 ${t.payOnline}`}
+          </Text>
         </TouchableOpacity>
       )}
     </Animated.View>
@@ -466,19 +538,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  qrButton: {
-    marginTop: 12,
+  payButton: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
-  qrButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
+  payButtonText: { color: '#FFF', fontSize: 15, fontWeight: 'bold' },
   offlineBanner: {
     paddingVertical: 12,
     paddingHorizontal: 16,

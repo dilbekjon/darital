@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiGet } from '../api/client';
-import { useLanguage } from '../contexts/LanguageContext';
+import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
 import { hasPasscode } from '../state/authStore';
@@ -31,12 +31,10 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
   const [error, setError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [hasPass, setHasPass] = useState(false);
-  const { t } = useLanguage();
   const { darkMode } = useTheme();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnims = useRef([
-    new Animated.Value(30),
     new Animated.Value(30),
     new Animated.Value(30),
     new Animated.Value(30),
@@ -192,7 +190,7 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
               { color: darkMode ? '#000000' : '#FFFFFF' },
             ]}
           >
-            Retry
+            {t.retry}
           </Text>
         </TouchableOpacity>
       </View>
@@ -201,7 +199,6 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
 
   const tenantName = profile?.fullName || '—';
   const unitName = profile?.contracts?.[0]?.unit?.name || '—';
-  const bal = balance?.current ?? 0;
 
   // Find next due invoice
   const now = new Date();
@@ -209,10 +206,21 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
     ?.filter((inv: any) => new Date(inv.dueDate) >= now && inv.status === 'PENDING')
     ?.sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   const nextInvoice = upcomingInvoices?.[0];
-  const nextAmount = nextInvoice?.amount || 0;
-  const nextDueDate = nextInvoice?.dueDate 
-    ? new Date(nextInvoice.dueDate).toLocaleDateString('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric' })
+  const nextDueDateFormatted = nextInvoice?.dueDate
+    ? (() => {
+        const d = new Date(nextInvoice.dueDate);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = String(d.getFullYear()).slice(-2);
+        return `${day}/${month}/${year}`;
+      })()
     : '—';
+
+  // Monthly payment: from contract amount or next invoice amount
+  const contractAmount = profile?.contracts?.[0]?.amount;
+  const monthlyAmount = typeof contractAmount === 'object' && contractAmount?.toNumber
+    ? contractAmount.toNumber()
+    : Number(contractAmount ?? nextInvoice?.amount ?? 0);
 
   return (
     <View
@@ -267,13 +275,14 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
             </Text>
           </View>
 
-          {/* Balance Card */}
+          {/* Card 1: Keyingi to'lov muddati */}
           <Animated.View
             style={[
               styles.card,
               {
-                backgroundColor: darkMode ? '#1F2937' : '#FFFFFF',
-                borderColor: darkMode ? '#EAB308' : '#E5E7EB',
+                backgroundColor: nextInvoice ? (darkMode ? '#422006' : '#FEF3C7') : (darkMode ? '#1F2937' : '#FFFFFF'),
+                borderColor: nextInvoice ? (darkMode ? '#F97316' : '#FCD34D') : (darkMode ? '#374151' : '#E5E7EB'),
+                borderWidth: nextInvoice ? 2 : 1,
                 transform: [{ translateY: slideAnims[0] }],
               },
             ]}
@@ -282,35 +291,27 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
               <View
                 style={[
                   styles.iconContainer,
-                  {
-                    backgroundColor: darkMode ? '#EAB308' : '#3B82F6',
-                  },
+                  { backgroundColor: nextInvoice ? '#F97316' : (darkMode ? '#6B7280' : '#9CA3AF') },
                 ]}
               >
-                <Text style={styles.icon}>💰</Text>
+                <Text style={styles.icon}>📅</Text>
               </View>
               <Text
                 style={[
                   styles.cardLabel,
-                  { color: darkMode ? '#FBBF24' : '#6B7280' },
+                  { color: darkMode ? '#9CA3AF' : '#6B7280' },
                 ]}
               >
-                {t.balance}
+                Keyingi to'lov muddati
               </Text>
             </View>
             <Text
               style={[
                 styles.cardValue,
-                {
-                  color: bal >= 0
-                    ? darkMode
-                      ? '#FFFFFF'
-                      : '#1F2937'
-                    : '#EF4444',
-                },
+                { color: darkMode ? '#FFFFFF' : '#1F2937' },
               ]}
             >
-              UZS {bal.toLocaleString()}
+              {nextDueDateFormatted}
             </Text>
             <Text
               style={[
@@ -318,11 +319,11 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
                 { color: darkMode ? '#6B7280' : '#9CA3AF' },
               ]}
             >
-              {t.currentBalance}
+              {nextInvoice ? t.pending : '—'}
             </Text>
           </Animated.View>
 
-          {/* Tenant Card */}
+          {/* Card 2: Oyiga to'lov */}
           <Animated.View
             style={[
               styles.card,
@@ -337,12 +338,10 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
               <View
                 style={[
                   styles.iconContainer,
-                  {
-                    backgroundColor: darkMode ? '#10B981' : '#10B981',
-                  },
+                  { backgroundColor: darkMode ? '#3B82F6' : '#DBEAFE' },
                 ]}
               >
-                <Text style={styles.icon}>👤</Text>
+                <Text style={styles.icon}>💰</Text>
               </View>
               <Text
                 style={[
@@ -350,7 +349,7 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
                   { color: darkMode ? '#9CA3AF' : '#6B7280' },
                 ]}
               >
-                Tenant
+                Oyiga to'lov
               </Text>
             </View>
             <Text
@@ -359,7 +358,7 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
                 { color: darkMode ? '#FFFFFF' : '#1F2937' },
               ]}
             >
-              {tenantName}
+              UZS {monthlyAmount.toLocaleString()}
             </Text>
             <Text
               style={[
@@ -367,11 +366,11 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
                 { color: darkMode ? '#6B7280' : '#9CA3AF' },
               ]}
             >
-              {profile?.phone || '—'}
+              {t.monthlyRent}
             </Text>
           </Animated.View>
 
-          {/* Unit Card */}
+          {/* Card 3: Mulk */}
           <Animated.View
             style={[
               styles.card,
@@ -386,9 +385,7 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
               <View
                 style={[
                   styles.iconContainer,
-                  {
-                    backgroundColor: darkMode ? '#8B5CF6' : '#8B5CF6',
-                  },
+                  { backgroundColor: darkMode ? '#3B82F6' : '#DBEAFE' },
                 ]}
               >
                 <Text style={styles.icon}>🏠</Text>
@@ -420,116 +417,16 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
             </Text>
           </Animated.View>
 
-          {/* Next Invoice Card */}
-          <Animated.View
-            style={[
-              styles.card,
-              {
-                backgroundColor: darkMode ? '#1F2937' : '#FFFFFF',
-                borderColor: nextInvoice ? (darkMode ? '#F97316' : '#FB923C') : (darkMode ? '#374151' : '#E5E7EB'),
-                transform: [{ translateY: slideAnims[3] }],
-              },
-            ]}
-          >
-            <View style={styles.cardHeader}>
-              <View
-                style={[
-                  styles.iconContainer,
-                  {
-                    backgroundColor: nextInvoice ? '#F97316' : (darkMode ? '#6B7280' : '#9CA3AF'),
-                  },
-                ]}
-              >
-                <Text style={styles.icon}>📅</Text>
-              </View>
-              <Text
-                style={[
-                  styles.cardLabel,
-                  { color: darkMode ? '#9CA3AF' : '#6B7280' },
-                ]}
-              >
-                Keyingi to'lov
-              </Text>
-            </View>
-            <Text
-              style={[
-                styles.cardValue,
-                { color: nextInvoice ? (darkMode ? '#FB923C' : '#F97316') : (darkMode ? '#FFFFFF' : '#1F2937') },
-              ]}
-            >
-              {nextInvoice ? `UZS ${nextAmount.toLocaleString()}` : 'Yo\'q'}
-            </Text>
-            <Text
-              style={[
-                styles.cardSubtext,
-                { color: darkMode ? '#6B7280' : '#9CA3AF' },
-              ]}
-            >
-              {nextInvoice ? `Muddat: ${nextDueDate}` : 'Hozircha to\'lovlar yo\'q'}
-            </Text>
-          </Animated.View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity
-              onPress={() => navigation?.navigate('Invoices')}
-              style={[
-                styles.actionButton,
-                {
-                  backgroundColor: darkMode ? '#1F2937' : '#FFFFFF',
-                  borderColor: darkMode ? '#3B82F6' : '#3B82F6',
-                },
-              ]}
-            >
-              <View style={[styles.actionIconContainer, { backgroundColor: '#3B82F6' }]}>
-                <Text style={styles.actionIcon}>📄</Text>
-              </View>
-              <Text style={[styles.actionText, { color: darkMode ? '#FFFFFF' : '#1F2937' }]}>
-                View Invoices
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => navigation?.navigate('Payments')}
-              style={[
-                styles.actionButton,
-                {
-                  backgroundColor: darkMode ? '#1F2937' : '#FFFFFF',
-                  borderColor: darkMode ? '#10B981' : '#10B981',
-                },
-              ]}
-            >
-              <View style={[styles.actionIconContainer, { backgroundColor: '#10B981' }]}>
-                <Text style={styles.actionIcon}>💳</Text>
-              </View>
-              <Text style={[styles.actionText, { color: darkMode ? '#FFFFFF' : '#1F2937' }]}>
-                View Payments
-              </Text>
-            </TouchableOpacity>
-
-            {nextInvoice && (
-              <TouchableOpacity
-                onPress={() => navigation?.navigate('Invoices')}
-                style={[
-                  styles.payNowButton,
-                  { backgroundColor: darkMode ? '#F97316' : '#F97316' },
-                ]}
-              >
-                <Text style={styles.payNowText}>💰 Pay Now</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
           {/* Passcode Setup Button */}
           {!hasPass && onSetupPasscode && (
             <TouchableOpacity
               onPress={() => {
                 Alert.alert(
-                  'Security',
-                  'Set up a passcode to protect your account?',
+                  t.settings,
+                  'Hisobingizni himoya qilish uchun kod-parol o\'rnatilsinmi?',
                   [
-                    { text: 'Later', style: 'cancel' },
-                    { text: 'Set Up', onPress: onSetupPasscode },
+                    { text: t.cancel, style: 'cancel' },
+                    { text: t.setUpPasscode, onPress: onSetupPasscode },
                   ]
                 );
               }}
@@ -557,7 +454,7 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
                       { color: darkMode ? '#FFFFFF' : '#1F2937' },
                     ]}
                   >
-                    Set Up Passcode
+                    {t.setUpPasscode}
                   </Text>
                   <Text
                     style={[
@@ -565,7 +462,7 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
                       { color: darkMode ? '#6B7280' : '#9CA3AF' },
                     ]}
                   >
-                    Add extra security with Face ID
+                    {t.useBiometrics}
                   </Text>
                 </View>
                 <Text style={{ fontSize: 20, color: darkMode ? '#FBBF24' : '#3B82F6' }}>›</Text>
@@ -698,53 +595,5 @@ const styles = StyleSheet.create({
   offlineText: {
     fontSize: 14,
     fontWeight: '700',
-  },
-  actionsContainer: {
-    marginTop: 8,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 18,
-    borderRadius: 16,
-    borderWidth: 2,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  actionIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  actionIcon: {
-    fontSize: 18,
-  },
-  actionText: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  payNowButton: {
-    padding: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  payNowText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
   },
 });

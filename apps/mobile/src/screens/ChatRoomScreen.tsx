@@ -14,13 +14,11 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 // Constants import removed - using constants-fallback instead
 import { useTenantChat } from '../hooks/useTenantChat';
-import { useLanguage } from '../contexts/LanguageContext';
+import { t } from '../lib/i18n';
 import type { Message } from '../lib/chatApi';
 
 export default function ChatRoomScreen({ route, navigation }: any) {
   const { conversationId, topic } = route.params;
-  const { t } = useLanguage(); // Safe hook that always returns translations
-  
   const {
     loading,
     error,

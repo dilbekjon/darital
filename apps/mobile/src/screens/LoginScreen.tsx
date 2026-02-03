@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { loginRequest } from '../api/client';
 import { setToken, hasPasscode, setUserData } from '../state/authStore';
-import { useLanguage } from '../contexts/LanguageContext';
+import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
 import SetPasscodeScreen from './SetPasscodeScreen';
@@ -29,7 +29,6 @@ export default function LoginScreen({ onLoggedIn }: Props) {
   const [loading, setLoading] = useState(false);
   const [showSetPasscode, setShowSetPasscode] = useState(false);
   const [authToken, setAuthToken] = useState<string>('');
-  const { t } = useLanguage();
   const { darkMode } = useTheme();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;

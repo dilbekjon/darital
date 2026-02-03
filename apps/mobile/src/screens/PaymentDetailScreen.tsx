@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Animated,
+  Alert,
 } from 'react-native';
 import { apiGet } from '../api/client';
-import { useLanguage } from '../contexts/LanguageContext';
+import { refreshTenantPayment, getReceiptForPayment } from '../api/tenantApi';
+import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
 
@@ -27,7 +29,8 @@ export default function PaymentDetailScreen({ route, navigation }: PaymentDetail
   const [loading, setLoading] = useState(true);
   const [payment, setPayment] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const { t } = useLanguage();
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingReceipt, setLoadingReceipt] = useState(false);
   const { darkMode } = useTheme();
 
   // Animation values
@@ -65,6 +68,35 @@ export default function PaymentDetailScreen({ route, navigation }: PaymentDetail
       setError(e?.message || 'Failed to load payment details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefreshStatus = async () => {
+    setRefreshing(true);
+    try {
+      await refreshTenantPayment(paymentId);
+      await loadPaymentDetail();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to refresh');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleViewReceipt = async () => {
+    setLoadingReceipt(true);
+    try {
+      const data = await getReceiptForPayment(paymentId);
+      const msg = [
+        data?.paymentId && `ID: ${String(data.paymentId).slice(0, 12)}...`,
+        data?.amount != null && `Amount: ${Number(data.amount).toLocaleString()} UZS`,
+        data?.paidAt && `Paid: ${new Date(data.paidAt).toLocaleString()}`,
+      ].filter(Boolean).join('\n');
+      Alert.alert(t.receipt || 'Receipt', msg || 'Receipt data');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message || 'Failed to load receipt');
+    } finally {
+      setLoadingReceipt(false);
     }
   };
 
@@ -275,7 +307,7 @@ export default function PaymentDetailScreen({ route, navigation }: PaymentDetail
               darkMode={darkMode}
             />
             <DetailRow
-              label={t.unit || 'Unit'}
+              label={t.unit}
               value={payment.invoice.unitName}
               darkMode={darkMode}
             />
@@ -302,7 +334,6 @@ export default function PaymentDetailScreen({ route, navigation }: PaymentDetail
                 { backgroundColor: darkMode ? '#EAB308' : '#3B82F6' },
               ]}
               onPress={() => {
-                // Navigate to invoice detail or QR screen
                 navigation.navigate('InvoiceQr', { invoiceId: payment.invoice.id });
               }}
             >
@@ -310,6 +341,29 @@ export default function PaymentDetailScreen({ route, navigation }: PaymentDetail
                 📄 {t.viewInvoice || 'View Invoice'}
               </Text>
             </TouchableOpacity>
+
+            {payment.status === 'PENDING' && (
+              <TouchableOpacity
+                style={[styles.viewInvoiceButton, { backgroundColor: darkMode ? '#6B7280' : '#9CA3AF', marginTop: 8 }]}
+                onPress={handleRefreshStatus}
+                disabled={refreshing}
+              >
+                <Text style={styles.viewInvoiceText}>
+                  {refreshing ? '...' : '🔄 Refresh status'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {payment.status === 'CONFIRMED' && (
+              <TouchableOpacity
+                style={[styles.viewInvoiceButton, { backgroundColor: '#10B981', marginTop: 8 }]}
+                onPress={handleViewReceipt}
+                disabled={loadingReceipt}
+              >
+                <Text style={styles.viewInvoiceText}>
+                  {loadingReceipt ? '...' : '📥 ' + (t.receipt || 'Receipt')}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Back Button */}

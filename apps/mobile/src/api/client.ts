@@ -69,17 +69,31 @@ async function apiRequest(
   return res;
 }
 
+/** Error with HTTP status for callers to handle 4xx/5xx */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number,
+    public code?: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 /**
  * Parse JSON response with error handling
  */
 async function parseJsonResponse(res: Response): Promise<any> {
   if (!res.ok) {
     let errorMessage = `API error ${res.status}`;
+    let code: string | undefined;
     try {
       const contentType = res.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         const errorData = await res.json();
         errorMessage = errorData.message || errorMessage;
+        code = errorData.code;
       } else {
         const text = await res.text();
         if (text) errorMessage = text;
@@ -87,9 +101,9 @@ async function parseJsonResponse(res: Response): Promise<any> {
     } catch {
       // Ignore JSON parsing errors, use default message
     }
-    throw new Error(errorMessage);
+    throw new ApiError(errorMessage, res.status, code);
   }
-  
+
   try {
     return await res.json();
   } catch (error: any) {

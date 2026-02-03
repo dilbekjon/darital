@@ -54,6 +54,7 @@ async function bootstrap() {
         'http://localhost:3000',  // Admin panel (dev)
         'http://localhost:3001',  // API (dev)
         'http://localhost:3002',  // Tenant portal (dev)
+        'http://localhost:8081',  // Expo / Metro (web dev)
       ];
   console.log('🌐 CORS Origins configured:', corsOrigins);
   app.enableCors({
@@ -107,8 +108,8 @@ async function bootstrap() {
     res.redirect(302, '/docs');
   });
   
-  // Use Render-provided port or fallback to 3000
-  const port = process.env.PORT || 3000;
+  // Use Render-provided port or fallback to 3001 (mobile app expects 3001)
+  const port = process.env.PORT || 3001;
   
   try {
     await app.listen(port, '0.0.0.0');

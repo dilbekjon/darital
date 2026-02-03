@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { t } from '../lib/i18n';
 import { setPasscode, setBiometricEnabled, setEncryptedToken } from '../state/authStore';
 import { isBiometricAvailable, getBiometricType } from '../security/biometricAuth';
 
@@ -49,7 +49,6 @@ export default function SetPasscodeScreen({
   const [biometricType, setBiometricType] = useState('Face ID');
   
   const { darkMode } = useTheme();
-  const { t } = useLanguage();
 
   // Load biometric type when component mounts
   useEffect(() => {
@@ -90,7 +89,7 @@ export default function SetPasscodeScreen({
           } else {
             // Mismatch - restart
             Vibration.vibrate(500);
-            setError('Passcodes do not match. Try again.');
+            setError(t.passcodeMismatch);
             setTimeout(() => {
               setPasscodeValue('');
               setConfirmPasscodeValue('');
@@ -167,7 +166,7 @@ export default function SetPasscodeScreen({
       );
     } catch (error: any) {
       console.error('❌ Error enabling biometric:', error);
-      Alert.alert('Error', 'Failed to enable biometric. You can enable it later in settings.');
+      Alert.alert(t.error, t.biometricsNotAvailable);
       onComplete();
     } finally {
       setIsProcessing(false);

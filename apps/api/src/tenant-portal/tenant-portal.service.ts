@@ -288,7 +288,14 @@ export class TenantPortalService {
     });
     if (!invoice) throw new ForbiddenException('Invoice not found or access denied');
     if (invoice.status === 'PAID') {
-      throw new ConflictException('Invoice already paid');
+      return {
+        paymentId: '',
+        invoiceId: invoice.id,
+        amount: 0,
+        provider: dto.provider ?? 'UZUM',
+        checkoutUrl: null,
+        alreadyPaid: true,
+      };
     }
 
     // Check if there's already a pending payment for this invoice to prevent duplicates
@@ -329,10 +336,23 @@ export class TenantPortalService {
     }
 
     // Use Checkout.uz for both CLICK and UZUM providers (Checkout.uz handles both)
-    if (dto.provider === PaymentProviderEnum.CLICK || dto.provider === PaymentProviderEnum.UZUM) {
-      // Map CLICK to UZUM for Checkout.uz integration
+    const providerStr = String(dto.provider || '').toUpperCase();
+    const useCheckoutUz = providerStr === 'CLICK' || providerStr === 'UZUM';
+    if (useCheckoutUz) {
       const targetProvider = PaymentProviderEnum.UZUM;
-      
+
+      if (!this.checkoutUzService.isConfigured()) {
+        return {
+          paymentId: payment.id,
+          invoiceId: invoice.id,
+          amount: typeof payment.amount === 'object' && 'toNumber' in payment.amount ? payment.amount.toNumber() : Number(payment.amount),
+          provider: targetProvider,
+          checkoutUrl: null,
+          alreadyPaid: false,
+          error: 'PAYMENT_NOT_CONFIGURED',
+        };
+      }
+
       // If payment already has a providerPaymentId (from previous call), reuse it
       if ((payment as any).providerPaymentId && (payment as any).rawPayload?.pay_url) {
         return {
@@ -345,13 +365,23 @@ export class TenantPortalService {
         };
       }
 
+      const failPayload = (message: string) => ({
+        paymentId: payment.id,
+        invoiceId: invoice.id,
+        amount: typeof payment.amount === 'object' && 'toNumber' in payment.amount ? payment.amount.toNumber() : Number(payment.amount),
+        provider: targetProvider,
+        checkoutUrl: null,
+        alreadyPaid: false,
+        error: 'CHECKOUT_ERROR',
+        message,
+      });
+
       try {
         this.logger.log(`Creating CheckoutUz invoice for payment ${payment.id}, amount: ${invoice.amount}`);
         const checkoutResponse = await this.checkoutUzService.createInvoice(invoice.amount);
-        
+
         this.logger.log(`CheckoutUz response:`, JSON.stringify(checkoutResponse));
-        
-        // Check if response is valid
+
         if (!checkoutResponse || typeof checkoutResponse !== 'object') {
           this.logger.error(`Invalid CheckoutUz response type: ${typeof checkoutResponse}`);
           await this.prisma.payment.update({
@@ -361,48 +391,40 @@ export class TenantPortalService {
               rawPayload: { error: 'Invalid response from CheckoutUz', response: checkoutResponse },
             } as any,
           });
-          throw new ConflictException('Invalid response from payment provider. Please check your CheckoutUz API configuration.');
+          return failPayload('To\'lov tizimi javob bermadi. Keyinroq urinib ko\'ring.');
         }
-        
-        // Check for error in response
+
         if (checkoutResponse.error) {
           this.logger.error(`CheckoutUz API error: ${checkoutResponse.error.message || JSON.stringify(checkoutResponse.error)}`);
           await this.prisma.payment.update({
             where: { id: payment.id },
-            data: {
-              status: PaymentStatus.CANCELLED,
-              rawPayload: checkoutResponse,
-            } as any,
+            data: { status: PaymentStatus.CANCELLED, rawPayload: checkoutResponse } as any,
           });
-          throw new ConflictException(checkoutResponse.error.message || 'Payment provider returned an error. Please try again.');
+          return failPayload(checkoutResponse.error?.message || 'To\'lov tizimi xato qaytardi. Keyinroq urinib ko\'ring.');
         }
-        
-        // Validate required fields
+
         if (!checkoutResponse.ok) {
           this.logger.error(`CheckoutUz response not ok:`, JSON.stringify(checkoutResponse));
           await this.prisma.payment.update({
             where: { id: payment.id },
-            data: {
-              status: PaymentStatus.CANCELLED,
-              rawPayload: checkoutResponse,
-            } as any,
+            data: { status: PaymentStatus.CANCELLED, rawPayload: checkoutResponse } as any,
           });
-          throw new ConflictException('Payment provider returned an unsuccessful response. Please try again.');
+          return failPayload('To\'lov tizimi muvaffaqiyatsiz javob qaytardi. Keyinroq urinib ko\'ring.');
         }
-        
-        if (!checkoutResponse.order_id || !checkoutResponse.pay_url) {
-          this.logger.error(`CheckoutUz response missing required fields:`, JSON.stringify(checkoutResponse));
+
+        const payUrl = checkoutResponse.pay_url != null ? String(checkoutResponse.pay_url).trim() : '';
+        if (!checkoutResponse.order_id || !payUrl || !payUrl.startsWith('http')) {
+          this.logger.error(`CheckoutUz response missing required fields or invalid pay_url:`, JSON.stringify(checkoutResponse));
           await this.prisma.payment.update({
             where: { id: payment.id },
             data: {
               status: PaymentStatus.CANCELLED,
-              rawPayload: { ...checkoutResponse, error: 'Missing order_id or pay_url in response' },
-            } as any,
+              rawPayload: { ...checkoutResponse, error: 'Missing order_id or pay_url' } as any,
+            },
           });
-          throw new ConflictException('Payment provider response is incomplete. Please check your CheckoutUz API configuration.');
+          return failPayload('To\'lov havolasi olinmadi. Keyinroq urinib ko\'ring.');
         }
 
-        // Update payment with CheckoutUz data
         await this.prisma.payment.update({
           where: { id: payment.id },
           data: {
@@ -417,24 +439,30 @@ export class TenantPortalService {
         return {
           paymentId: payment.id,
           invoiceId: invoice.id,
-          amount: typeof payment.amount === 'object' && 'toNumber' in payment.amount 
-            ? payment.amount.toNumber() 
+          amount: typeof payment.amount === 'object' && 'toNumber' in payment.amount
+            ? payment.amount.toNumber()
             : Number(payment.amount),
           provider: targetProvider,
           providerPaymentId: String(checkoutResponse.order_id),
-          checkoutUrl: checkoutResponse.pay_url,
+          checkoutUrl: payUrl,
         };
       } catch (error: any) {
         this.logger.error(`CheckoutUz create invoice failed for payment ${payment.id}:`, error?.message || error);
-        
-        // If it's already a ConflictException, rethrow it
-        if (error instanceof ConflictException) {
-          throw error;
-        }
-        
-        // For other errors, wrap in ConflictException with a user-friendly message
+        try {
+          await this.prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+              status: PaymentStatus.CANCELLED,
+              rawPayload: { error: error?.message || 'Unknown error' } as any,
+            },
+          });
+        } catch (_) {}
         const errorMessage = error?.message || 'Unknown error occurred';
-        throw new ConflictException(`Unable to create payment intent: ${errorMessage}. Please check your CheckoutUz API configuration or try again later.`);
+        return failPayload(
+          errorMessage.includes('CHECKOUTUZ_API_KEY') || errorMessage.includes('not configured')
+            ? 'To\'lov tizimi hozircha sozlanmagan. Administrator bilan bog\'laning.'
+            : 'To\'lovni boshlash amalga oshmadi. Keyinroq urinib ko\'ring.'
+        );
       }
     }
 

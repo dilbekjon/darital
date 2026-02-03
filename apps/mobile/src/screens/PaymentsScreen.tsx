@@ -7,10 +7,11 @@ import {
   FlatList,
   Animated,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiGet } from '../api/client';
-import { useLanguage } from '../contexts/LanguageContext';
+import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
 
@@ -26,12 +27,18 @@ export default function PaymentsScreen({ navigation }: PaymentsScreenProps) {
   const [paginationMeta, setPaginationMeta] = useState<{ page: number; limit: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
-  const { t } = useLanguage();
+  const [refreshing, setRefreshing] = useState(false);
   const { darkMode } = useTheme();
 
   useEffect(() => {
     loadPayments();
   }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadPayments();
+    setRefreshing(false);
+  };
 
   const loadPayments = async () => {
     try {
@@ -195,6 +202,9 @@ export default function PaymentsScreen({ navigation }: PaymentsScreenProps) {
         <FlatList
           data={payments}
           keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={darkMode ? '#FBBF24' : '#3B82F6'} />
+          }
           renderItem={({ item, index }) => (
             <PaymentCard
               item={item}
