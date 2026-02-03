@@ -439,28 +439,28 @@ export class ChatService {
   }
 
   /**
-   * Send admin reply via Telegram if conversation originated from Telegram
+   * Send admin reply via Telegram only if the conversation was started from Telegram.
+   * We check the first (oldest) message: if it has fileUrl "telegram:chatId", the conversation
+   * originated from Telegram and replies should go to Telegram. Otherwise (e.g. started from
+   * mobile or web) we do not send to Telegram so the reply only appears in the app.
    */
   private async sendTelegramReplyIfNeeded(conversationId: string, messageContent: string) {
     try {
-      // First, try to find a message with telegram: prefix (text messages or messages without files)
-      let telegramMessage = await this.prisma.message.findFirst({
-        where: {
-          conversationId,
-          fileUrl: { startsWith: 'telegram:' },
-        },
+      const firstMessage = await this.prisma.message.findFirst({
+        where: { conversationId },
+        orderBy: { createdAt: 'asc' },
+        select: { fileUrl: true },
       });
 
-      let chatId: string | null = null;
-
-      if (telegramMessage) {
-        // Extract chatId from fileUrl (format: "telegram:chatId") — only send to Telegram when this conversation has Telegram-originated messages
-        chatId = telegramMessage.fileUrl?.replace('telegram:', '') || null;
+      const isTelegramOrigin = firstMessage?.fileUrl?.startsWith?.('telegram:');
+      if (!isTelegramOrigin || !firstMessage?.fileUrl) {
+        console.debug(`[ChatService] Conversation ${conversationId} did not originate from Telegram, skipping Telegram reply`);
+        return;
       }
 
+      const chatId = firstMessage.fileUrl.replace('telegram:', '').trim();
       if (!chatId) {
-        // Not a Telegram conversation, skip
-        console.debug(`[ChatService] No Telegram chatId found for conversation ${conversationId}, skipping Telegram reply`);
+        console.debug(`[ChatService] No Telegram chatId in first message for conversation ${conversationId}, skipping`);
         return;
       }
 

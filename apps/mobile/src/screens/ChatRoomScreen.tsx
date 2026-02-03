@@ -36,12 +36,15 @@ export default function ChatRoomScreen({ route, navigation }: any) {
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  // Load messages and join room when screen is focused (real-time via socket; no polling to avoid interrupting typing)
+  // Load messages and join room when focused; socket gives real-time; silent refetch every 8s is fallback if socket misses
   useFocusEffect(
     useCallback(() => {
-      if (conversationId) {
-        refreshMessages(conversationId);
-      }
+      if (!conversationId) return;
+      refreshMessages(conversationId);
+      const fallbackInterval = setInterval(() => {
+        refreshMessages(conversationId, { silent: true });
+      }, 8000);
+      return () => clearInterval(fallbackInterval);
     }, [conversationId, refreshMessages])
   );
 

@@ -249,13 +249,14 @@ export function useTenantChat(): UseTenantChatReturn {
     }
   }, []);
 
-  // Load messages for a conversation
-  const refreshMessages = useCallback(async (conversationId: string) => {
+  // Load messages for a conversation. Options.silent: true = no loading spinner (e.g. for background refetch).
+  const refreshMessages = useCallback(async (conversationId: string, options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
     try {
-      setLoading(true);
-      setError(null);
-      
-      // Leave previous conversation room if switching
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
       const socket = socketRef.current || socketInstance;
       if (socket && socket.connected && activeConversationId.current && activeConversationId.current !== conversationId) {
         socket.emit('leave_conversation', { conversationId: activeConversationId.current });
@@ -264,15 +265,13 @@ export function useTenantChat(): UseTenantChatReturn {
 
       activeConversationId.current = conversationId;
 
-      // Join room immediately so we don't miss real-time messages while loading
       if (socket) {
         if (socket.connected) {
           socket.emit('join_conversation', { conversationId });
-          console.log(`[useTenantChat] 📥 Joined conversation room: conversation:${conversationId}`);
+          if (!silent) console.log(`[useTenantChat] 📥 Joined conversation room: conversation:${conversationId}`);
         } else {
           const onConnect = () => {
             socket.emit('join_conversation', { conversationId });
-            console.log(`[useTenantChat] 📥 Joined room after reconnect: conversation:${conversationId}`);
             socket.off('connect', onConnect);
           };
           socket.once('connect', onConnect);
@@ -291,17 +290,18 @@ export function useTenantChat(): UseTenantChatReturn {
       }
 
       const data = await response.json();
-      // Hide Telegram-originated messages in mobile (only show app messages)
       const appMessages = Array.isArray(data)
         ? data.filter((m: Message) => !m.fileUrl?.startsWith('telegram:'))
         : [];
       setMessages(appMessages);
-      console.log(`[useTenantChat] ✅ Loaded ${appMessages.length} messages for conversation ${conversationId}`);
+      if (!silent) console.log(`[useTenantChat] ✅ Loaded ${appMessages.length} messages for conversation ${conversationId}`);
     } catch (err: any) {
-      console.warn('[useTenantChat] Error loading messages:', err);
-      setError(err.message || 'Failed to load messages');
+      if (!silent) {
+        console.warn('[useTenantChat] Error loading messages:', err);
+        setError(err.message || 'Failed to load messages');
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
