@@ -51,6 +51,16 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   let token: string | null = null;
 
   try {
+    const { Platform } = require('react-native');
+    if (Platform?.OS === 'web') {
+      const { getConstantsSafe } = require('./constants-fallback');
+      const constants = getConstantsSafe();
+      const vapidKey = constants?.expoConfig?.notification?.vapidPublicKey;
+      if (!vapidKey) {
+        return null;
+      }
+    }
+
     if (!Device.isDevice) {
       console.log('📱 Push notifications require a physical device or Expo Go');
       return null;

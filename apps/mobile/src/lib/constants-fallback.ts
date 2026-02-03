@@ -22,6 +22,9 @@ export function getConstantsSafe() {
       eas: {
         projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID || undefined,
       },
+      notification: {
+        vapidPublicKey: process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY || undefined,
+      },
     },
   };
 }

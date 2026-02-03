@@ -44,6 +44,9 @@ export default {
     web: {
       favicon: "./assets/favicon.png"
     },
+    notification: {
+      vapidPublicKey: process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY || null
+    },
     extra: {
       // API URL must be set via EXPO_PUBLIC_API_URL env var
       // In dev, defaults to http://localhost:3001/api (see constants-fallback.ts)
