@@ -259,8 +259,23 @@ export function useTenantChat(): UseTenantChatReturn {
         socket.emit('leave_conversation', { conversationId: activeConversationId.current });
         console.log(`[useTenantChat] 📤 Left previous conversation room: ${activeConversationId.current}`);
       }
-      
+
       activeConversationId.current = conversationId;
+
+      // Join room immediately so we don't miss real-time messages while loading
+      if (socket) {
+        if (socket.connected) {
+          socket.emit('join_conversation', { conversationId });
+          console.log(`[useTenantChat] 📥 Joined conversation room: conversation:${conversationId}`);
+        } else {
+          const onConnect = () => {
+            socket.emit('join_conversation', { conversationId });
+            console.log(`[useTenantChat] 📥 Joined room after reconnect: conversation:${conversationId}`);
+            socket.off('connect', onConnect);
+          };
+          socket.once('connect', onConnect);
+        }
+      }
 
       const headers = await getAuthHeaders();
       const response = await fetch(`${getApiBase()}/conversations/${conversationId}/messages`, {
@@ -275,24 +290,7 @@ export function useTenantChat(): UseTenantChatReturn {
 
       const data = await response.json();
       setMessages(data);
-      
       console.log(`[useTenantChat] ✅ Loaded ${data.length} messages for conversation ${conversationId}`);
-
-      // Join conversation room via socket (ensure we're connected first)
-      if (socket) {
-        if (socket.connected) {
-          socket.emit('join_conversation', { conversationId });
-          console.log(`[useTenantChat] 📥 Joined conversation room: conversation:${conversationId}`);
-        } else {
-          // If not connected, wait for connection then join
-          const onConnect = () => {
-            socket.emit('join_conversation', { conversationId });
-            console.log(`[useTenantChat] 📥 Joined conversation room after reconnect: conversation:${conversationId}`);
-            socket.off('connect', onConnect);
-          };
-          socket.once('connect', onConnect);
-        }
-      }
     } catch (err: any) {
       console.warn('[useTenantChat] Error loading messages:', err);
       setError(err.message || 'Failed to load messages');

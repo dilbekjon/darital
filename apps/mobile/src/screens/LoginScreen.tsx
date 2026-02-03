@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   Animated,
   KeyboardAvoidingView,
@@ -17,6 +16,7 @@ import { setToken, hasPasscode, setUserData } from '../state/authStore';
 import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
+import { DaritalLoader } from '../components/DaritalLoader';
 import SetPasscodeScreen from './SetPasscodeScreen';
 
 interface Props {
@@ -92,6 +92,10 @@ export default function LoginScreen({ onLoggedIn }: Props) {
     setShowSetPasscode(false);
     onLoggedIn();
   };
+
+  if (loading) {
+    return <DaritalLoader fullScreen darkMode={darkMode} />;
+  }
 
   return (
     <>
@@ -213,23 +217,17 @@ export default function LoginScreen({ onLoggedIn }: Props) {
                   styles.button,
                   {
                     backgroundColor: darkMode ? '#EAB308' : '#3B82F6',
-                    opacity: loading ? 0.7 : 1,
                   },
                 ]}
-                disabled={loading}
               >
-                {loading ? (
-                  <ActivityIndicator color={darkMode ? '#000000' : '#FFFFFF'} />
-                ) : (
-                  <Text
-                    style={[
-                      styles.buttonText,
-                      { color: darkMode ? '#000000' : '#FFFFFF' },
-                    ]}
-                  >
-                    {t.login}
-                  </Text>
-                )}
+                <Text
+                  style={[
+                    styles.buttonText,
+                    { color: darkMode ? '#000000' : '#FFFFFF' },
+                  ]}
+                >
+                  {t.login}
+                </Text>
               </TouchableOpacity>
 
               {/* Demo Credentials */}

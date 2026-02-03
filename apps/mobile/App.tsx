@@ -27,10 +27,10 @@ import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import PasscodeScreen from './src/screens/PasscodeScreen';
 import { useNotifications } from './src/hooks/useNotifications';
 import { isBiometricAvailable, attemptBiometricUnlock, getBiometricType } from './src/security/biometricAuth';
+import { DaritalLoader } from './src/components/DaritalLoader';
 
 const Tab = createBottomTabNavigator();
 const InvoicesStack = createNativeStackNavigator();
-const PaymentsStack = createNativeStackNavigator();
 const ChatStack = createNativeStackNavigator();
 const MoreStack = createNativeStackNavigator();
 
@@ -43,15 +43,6 @@ function InvoicesStackNavigator() {
   );
 }
 
-function PaymentsStackNavigator() {
-  return (
-    <PaymentsStack.Navigator screenOptions={{ headerShown: false }}>
-      <PaymentsStack.Screen name="PaymentsList" component={PaymentsScreen} />
-      <PaymentsStack.Screen name="PaymentDetail" component={PaymentDetailScreen} />
-    </PaymentsStack.Navigator>
-  );
-}
-
 function ChatStackNavigator() {
   return (
     <ChatStack.Navigator screenOptions={{ headerShown: false }}>
@@ -61,14 +52,16 @@ function ChatStackNavigator() {
   );
 }
 
-function MoreStackNavigator() {
+function MoreStackNavigator({ onLogout }: { onLogout: () => void }) {
   return (
     <MoreStack.Navigator screenOptions={{ headerShown: false }}>
-      <MoreStack.Screen name="MoreMenu" component={MoreScreen} />
+      <MoreStack.Screen name="MoreMenu" component={MoreScreen} initialParams={{ onLogout }} />
       <MoreStack.Screen name="Contracts" component={ContractsScreen} />
       <MoreStack.Screen name="ContractDetail" component={ContractDetailScreen} />
       <MoreStack.Screen name="Documents" component={DocumentsScreen} />
       <MoreStack.Screen name="Settings" component={SettingsScreen} />
+      <MoreStack.Screen name="Payments" component={PaymentsScreen} />
+      <MoreStack.Screen name="PaymentDetail" component={PaymentDetailScreen} />
     </MoreStack.Navigator>
   );
 }
@@ -213,9 +206,9 @@ function AppContent() {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
-  // Show nothing while checking auth
+  // Show loader while checking auth
   if (booting) {
-    return <View style={{ flex: 1, backgroundColor: darkMode ? '#000000' : '#F0F9FF' }} />;
+    return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
   // Show passcode setup after first login
@@ -315,27 +308,8 @@ function AppContent() {
               name="Invoices"
               component={InvoicesStackNavigator}
               options={{
-                tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="file-document-outline" size={size} color={color} />,
-                tabBarLabel: t.invoices,
-              }}
-            />
-            <Tab.Screen
-              name="Payments"
-              component={PaymentsStackNavigator}
-              options={{
-                tabBarIcon: ({ color, size }) => (
-                  <View style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: darkMode ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.12)',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}>
-                    <MaterialCommunityIcons name="credit-card-outline" size={size} color={color} />
-                  </View>
-                ),
-                tabBarLabel: t.payments,
+                tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="credit-card-outline" size={size} color={color} />,
+                tabBarLabel: t.payment,
               }}
             />
             <Tab.Screen
@@ -357,37 +331,13 @@ function AppContent() {
             />
             <Tab.Screen
               name="More"
-              component={MoreStackNavigator}
               options={{
                 tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="menu" size={size} color={color} />,
                 tabBarLabel: t.more,
               }}
-            />
-            <Tab.Screen
-              name="Logout"
-              component={View}
-              listeners={{
-                tabPress: (e) => {
-                  e.preventDefault();
-                  handleLogout();
-                },
-              }}
-              options={{
-                tabBarIcon: ({ color, size }) => (
-                  <View style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: darkMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.12)',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}>
-                    <MaterialCommunityIcons name="logout-variant" size={size} color={color} />
-                  </View>
-                ),
-                tabBarLabel: t.logout,
-              }}
-            />
+            >
+              {() => <MoreStackNavigator onLogout={handleLogout} />}
+            </Tab.Screen>
           </Tab.Navigator>
         ) : (
           <LoginScreen 

@@ -6,7 +6,6 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
   Alert,
   Modal,
   TextInput,
@@ -18,6 +17,7 @@ import { t } from '../lib/i18n';
 import type { Conversation } from '../lib/chatApi';
 import { useTheme } from '../contexts/ThemeContext';
 import { DaritalLoader } from '../components/DaritalLoader';
+import { Navbar } from '../components/Navbar';
 
 export default function ChatListScreen({ navigation }: any) {
   const { darkMode } = useTheme();
@@ -88,10 +88,10 @@ export default function ChatListScreen({ navigation }: any) {
     const diffDays = Math.floor(diffMs / 86400000);
 
     if (diffMins < 1) return t.justNow;
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
+    if (diffMins < 60) return `${diffMins} daqiqa oldin`;
+    if (diffHours < 24) return `${diffHours} soat oldin`;
+    if (diffDays < 7) return `${diffDays} kun oldin`;
+    return date.toLocaleDateString('uz-UZ');
   };
 
   const getStatusColor = (status: string) => {
@@ -109,39 +109,43 @@ export default function ChatListScreen({ navigation }: any) {
 
   const renderConversation = ({ item }: { item: Conversation }) => (
     <TouchableOpacity
-      style={styles.conversationCard}
-      onPress={() => navigation.navigate('ChatRoom', { 
+      style={[
+        styles.conversationCard,
+        {
+          backgroundColor: darkMode ? '#1F2937' : '#FFFFFF',
+          borderColor: darkMode ? '#374151' : '#E5E7EB',
+        },
+      ]}
+      onPress={() => navigation.navigate('ChatRoom', {
         conversationId: item.id,
         topic: item.topic || t.supportChat,
       })}
     >
       <View style={styles.conversationHeader}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.conversationTitle}>
+          <Text style={[styles.conversationTitle, { color: darkMode ? '#F9FAFB' : '#111827' }]}>
             {item.topic || t.supportChat}
           </Text>
           {item.admin && (
-            <Text style={styles.conversationSubtitle}>
+            <Text style={[styles.conversationSubtitle, { color: darkMode ? '#9CA3AF' : '#6B7280' }]}>
               {t.chatWith} {item.admin.fullName}
             </Text>
           )}
         </View>
-        <Text style={styles.conversationTime}>
+        <Text style={[styles.conversationTime, { color: darkMode ? '#9CA3AF' : '#6B7280' }]}>
           {formatTime(item.updatedAt)}
         </Text>
       </View>
 
       {item.messages && item.messages.length > 0 && (
-        <Text style={styles.lastMessage} numberOfLines={1}>
+        <Text style={[styles.lastMessage, { color: darkMode ? '#9CA3AF' : '#6B7280' }]} numberOfLines={1}>
           {item.messages[0].content}
         </Text>
       )}
 
       <View style={styles.statusBadge}>
-        <View
-          style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]}
-        />
-        <Text style={styles.statusText}>{item.status}</Text>
+        <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
+        <Text style={[styles.statusText, { color: darkMode ? '#9CA3AF' : '#6B7280' }]}>{item.status}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -151,32 +155,30 @@ export default function ChatListScreen({ navigation }: any) {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Connection Status Banner */}
+    <View style={[styles.container, { backgroundColor: darkMode ? '#000000' : '#F0F9FF' }]}>
+      <Navbar />
       {!connected && (
-        <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>⚠️ Disconnected</Text>
-          <Text style={styles.offlineSubtext}>Reconnecting to chat server...</Text>
+        <View style={[styles.offlineBanner, { backgroundColor: darkMode ? '#422006' : '#FEF3C7', borderBottomColor: darkMode ? '#F59E0B' : '#FDE047' }]}>
+          <Text style={[styles.offlineText, { color: darkMode ? '#FCD34D' : '#92400E' }]}>⚠️ Ulanish yo‘q</Text>
+          <Text style={[styles.offlineSubtext, { color: darkMode ? '#FDE68A' : '#92400E' }]}>Qayta ulanish...</Text>
         </View>
       )}
 
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t.supportChat}</Text>
-        <TouchableOpacity 
-          style={[styles.newChatButton, creating && styles.newChatButtonDisabled]} 
+      <View style={[styles.header, { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderBottomColor: darkMode ? '#374151' : '#E5E7EB' }]}>
+        <Text style={[styles.headerTitle, { color: darkMode ? '#FBBF24' : '#1E40AF' }]}>{t.supportChat}</Text>
+        <TouchableOpacity
+          style={[styles.newChatButton, creating && styles.newChatButtonDisabled, { backgroundColor: creating ? (darkMode ? '#6B7280' : '#9CA3AF') : (darkMode ? '#EAB308' : '#3B82F6') }]}
           onPress={handleStartNewChat}
           disabled={creating}
         >
-          <Text style={styles.newChatButtonText}>
-            {creating ? '...' : `+ ${t.startNewChat}`}
-          </Text>
+          <Text style={styles.newChatButtonText}>{creating ? '...' : `+ ${t.startNewChat}`}</Text>
         </TouchableOpacity>
       </View>
 
       {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={refreshConversations}>
+        <View style={[styles.errorContainer, { backgroundColor: darkMode ? '#7F1D1D' : '#FEE2E2' }]}>
+          <Text style={[styles.errorText, { color: darkMode ? '#FCA5A5' : '#991B1B' }]}>{error}</Text>
+          <TouchableOpacity style={[styles.retryButton, { backgroundColor: darkMode ? '#EAB308' : '#EF4444' }]} onPress={refreshConversations}>
             <Text style={styles.retryButtonText}>{t.retry}</Text>
           </TouchableOpacity>
         </View>
@@ -194,8 +196,8 @@ export default function ChatListScreen({ navigation }: any) {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>💬</Text>
-            <Text style={styles.emptyText}>{t.noConversations}</Text>
-            <TouchableOpacity style={styles.startChatButton} onPress={handleStartNewChat}>
+            <Text style={[styles.emptyText, { color: darkMode ? '#9CA3AF' : '#6B7280' }]}>{t.noConversations}</Text>
+            <TouchableOpacity style={[styles.startChatButton, { backgroundColor: darkMode ? '#EAB308' : '#3B82F6' }]} onPress={handleStartNewChat}>
               <Text style={styles.startChatButtonText}>{t.startNewChat}</Text>
             </TouchableOpacity>
           </View>
@@ -218,11 +220,11 @@ export default function ChatListScreen({ navigation }: any) {
             style={styles.modalKeyboard}
           >
             <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>{t.startNewChat}</Text>
-                <Text style={styles.modalHint}>{t.enterChatTopic}</Text>
+              <View style={[styles.modalContent, { backgroundColor: darkMode ? '#1F2937' : '#FFFFFF' }]}>
+                <Text style={[styles.modalTitle, { color: darkMode ? '#F9FAFB' : '#111827' }]}>{t.startNewChat}</Text>
+                <Text style={[styles.modalHint, { color: darkMode ? '#9CA3AF' : '#6B7280' }]}>{t.enterChatTopic}</Text>
                 <TextInput
-                  style={styles.modalInput}
+                  style={[styles.modalInput, { borderColor: darkMode ? '#4B5563' : '#d1d5db', color: darkMode ? '#F9FAFB' : '#111827', backgroundColor: darkMode ? '#374151' : '#FFFFFF' }]}
                   value={topicInput}
                   onChangeText={setTopicInput}
                   placeholder={t.enterChatTopic}
@@ -231,15 +233,15 @@ export default function ChatListScreen({ navigation }: any) {
                   editable={!creating}
                 />
                 <View style={styles.modalButtons}>
-                  <TouchableOpacity style={styles.modalButtonCancel} onPress={handleCancelNewChat}>
-                    <Text style={styles.modalButtonCancelText}>{t.cancel}</Text>
+                  <TouchableOpacity style={[styles.modalButtonCancel, { backgroundColor: darkMode ? '#374151' : '#f3f4f6' }]} onPress={handleCancelNewChat}>
+                    <Text style={[styles.modalButtonCancelText, { color: darkMode ? '#D1D5DB' : '#6b7280' }]}>{t.cancel}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.modalButtonOk}
+                    style={[styles.modalButtonOk, { backgroundColor: darkMode ? '#EAB308' : '#3b82f6' }]}
                     onPress={handleConfirmNewChat}
                     disabled={creating}
                   >
-                    <Text style={styles.modalButtonOkText}>{t.ok}</Text>
+                    <Text style={[styles.modalButtonOkText, { color: darkMode ? '#000000' : '#ffffff' }]}>{t.ok}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -290,14 +292,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
   },
   newChatButton: {
     backgroundColor: '#3b82f6',
@@ -340,10 +339,10 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   conversationCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -445,12 +444,10 @@ const styles = StyleSheet.create({
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#111827',
     marginBottom: 16,
   },
   modalButtons: {

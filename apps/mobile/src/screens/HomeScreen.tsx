@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   Animated,
@@ -187,13 +186,14 @@ export default function HomeScreen({ onSetupPasscode, navigation }: HomeScreenPr
     ?.filter((inv: any) => new Date(inv.dueDate) >= now && inv.status === 'PENDING')
     ?.sort((a: any, b: any) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   const nextInvoice = upcomingInvoices?.[0];
+  const MONTH_NAMES_UZ = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
   const nextDueDateFormatted = nextInvoice?.dueDate
     ? (() => {
         const d = new Date(nextInvoice.dueDate);
-        const day = String(d.getDate()).padStart(2, '0');
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const year = String(d.getFullYear()).slice(-2);
-        return `${day}/${month}/${year}`;
+        const day = d.getDate();
+        const monthName = MONTH_NAMES_UZ[d.getMonth()] || '—';
+        const year = d.getFullYear();
+        return `${day}-${monthName}, ${year}`;
       })()
     : '—';
 

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   ScrollView,
   Animated,
@@ -147,7 +146,7 @@ export default function PaymentDetailScreen({ route, navigation }: PaymentDetail
     })}`;
   };
 
-  if (loading) {
+  if (loading || loadingReceipt) {
     return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
@@ -351,10 +350,9 @@ export default function PaymentDetailScreen({ route, navigation }: PaymentDetail
               <TouchableOpacity
                 style={[styles.viewInvoiceButton, { backgroundColor: '#10B981', marginTop: 8 }]}
                 onPress={handleViewReceipt}
-                disabled={loadingReceipt}
               >
                 <Text style={styles.viewInvoiceText}>
-                  {loadingReceipt ? '...' : '📥 ' + (t.receipt || 'Receipt')}
+                  📥 {t.receipt || 'Receipt'}
                 </Text>
               </TouchableOpacity>
             )}

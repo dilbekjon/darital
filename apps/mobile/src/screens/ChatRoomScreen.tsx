@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,6 +17,7 @@ import { t } from '../lib/i18n';
 import type { Message } from '../lib/chatApi';
 import { useTheme } from '../contexts/ThemeContext';
 import { DaritalLoader } from '../components/DaritalLoader';
+import { Navbar } from '../components/Navbar';
 
 export default function ChatRoomScreen({ route, navigation }: any) {
   const { darkMode } = useTheme();
@@ -36,18 +36,16 @@ export default function ChatRoomScreen({ route, navigation }: any) {
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  // Load messages and ensure socket subscription when screen is focused
+  // Load messages and join room when screen is focused; poll for new messages (real-time fallback)
   useFocusEffect(
     useCallback(() => {
       if (conversationId) {
-        console.log(`[ChatRoomScreen] 📥 Screen focused, loading messages for conversation: ${conversationId}`);
         refreshMessages(conversationId);
+        const pollInterval = setInterval(() => {
+          refreshMessages(conversationId);
+        }, 4000);
+        return () => clearInterval(pollInterval);
       }
-      
-      return () => {
-        console.log(`[ChatRoomScreen] 📤 Screen blurred, conversation: ${conversationId}`);
-        // Cleanup is handled by useTenantChat hook
-      };
     }, [conversationId, refreshMessages])
   );
 
@@ -87,10 +85,9 @@ export default function ChatRoomScreen({ route, navigation }: any) {
     const diffHours = Math.floor(diffMs / 3600000);
 
     if (diffMins < 1) return t.justNow;
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (diffMins < 60) return `${diffMins} daqiqa oldin`;
+    if (diffHours < 24) return `${diffHours} soat oldin`;
+    return date.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
   };
 
   const getFileIcon = (fileUrl: string) => {
@@ -105,7 +102,6 @@ export default function ChatRoomScreen({ route, navigation }: any) {
     const isTenant = item.senderRole === 'TENANT';
     const { getApiUrl } = require('../lib/constants-fallback');
     const apiUrl = getApiUrl().replace('/api', '');
-    
     return (
       <View
         style={[
@@ -116,7 +112,9 @@ export default function ChatRoomScreen({ route, navigation }: any) {
         <View
           style={[
             styles.messageBubble,
-            isTenant ? styles.tenantBubble : styles.adminBubble,
+            isTenant
+              ? { backgroundColor: darkMode ? '#1E40AF' : '#3B82F6', borderBottomRightRadius: 4 }
+              : { backgroundColor: darkMode ? '#1F2937' : '#FFFFFF', borderBottomLeftRadius: 4, borderWidth: 1, borderColor: darkMode ? '#374151' : '#E5E7EB' },
           ]}
         >
           {item.fileUrl && (
@@ -144,7 +142,7 @@ export default function ChatRoomScreen({ route, navigation }: any) {
             <Text
               style={[
                 styles.messageText,
-                isTenant ? styles.tenantText : styles.adminText,
+                { color: isTenant ? '#FFFFFF' : (darkMode ? '#E5E7EB' : '#111827') },
               ]}
             >
               {item.content}
@@ -154,7 +152,7 @@ export default function ChatRoomScreen({ route, navigation }: any) {
             <Text
               style={[
                 styles.messageTime,
-                isTenant ? styles.tenantTimeText : styles.adminTimeText,
+                { color: isTenant ? 'rgba(255,255,255,0.8)' : (darkMode ? '#9CA3AF' : '#9CA3AF') },
               ]}
             >
               {formatTime(item.createdAt)}
@@ -176,70 +174,62 @@ export default function ChatRoomScreen({ route, navigation }: any) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: darkMode ? '#000000' : '#F0F9FF' }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      {/* Topic Header */}
-      <View style={styles.topicHeader}>
+      <Navbar />
+      <View style={[styles.topicHeader, { backgroundColor: darkMode ? '#1E40AF' : '#3B82F6', borderBottomColor: darkMode ? '#1E3A8A' : '#2563EB' }]}>
         <Text style={styles.topicTitle}>{topic || t.supportChat}</Text>
       </View>
 
-      {/* Connection Status */}
-      <View style={styles.statusBar}>
-        <View style={[
-          styles.statusDot,
-          { backgroundColor: connected ? '#10b981' : '#ef4444' }
-        ]} />
-        <Text style={styles.statusText}>
+      <View style={[styles.statusBar, { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderBottomColor: darkMode ? '#374151' : '#E5E7EB' }]}>
+        <View style={[styles.statusDot, { backgroundColor: connected ? '#10B981' : '#EF4444' }]} />
+        <Text style={[styles.statusText, { color: darkMode ? '#9CA3AF' : '#6B7280' }]}>
           {connected ? t.connected : t.connecting}
         </Text>
       </View>
 
       {error && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
+        <View style={[styles.errorBanner, { backgroundColor: darkMode ? '#7F1D1D' : '#FEE2E2' }]}>
+          <Text style={[styles.errorText, { color: darkMode ? '#FCA5A5' : '#991B1B' }]}>{error}</Text>
         </View>
       )}
 
-      {/* Messages List */}
       <FlatList
         ref={flatListRef}
         data={messages}
         renderItem={renderMessage}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() => {
-          flatListRef.current?.scrollToEnd({ animated: false });
-        }}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>💬</Text>
-            <Text style={styles.emptyText}>{t.noConversations}</Text>
-            <Text style={styles.emptySubtext}>{t.typeMessage}</Text>
+            <Text style={[styles.emptyText, { color: darkMode ? '#9CA3AF' : '#6B7280' }]}>{t.noConversations}</Text>
+            <Text style={[styles.emptySubtext, { color: darkMode ? '#6B7280' : '#9CA3AF' }]}>{t.typeMessage}</Text>
           </View>
         }
       />
 
-      {/* Closed Conversation Banner */}
       {currentConversation?.status === 'CLOSED' && (
-        <View style={styles.closedBanner}>
-          <Text style={styles.closedBannerText}>
-            This conversation is closed. You cannot send messages.
+        <View style={[styles.closedBanner, { backgroundColor: darkMode ? '#422006' : '#FEF3C7', borderTopColor: darkMode ? '#F59E0B' : '#FBBF24' }]}>
+          <Text style={[styles.closedBannerText, { color: darkMode ? '#FCD34D' : '#92400E' }]}>
+            Suhbat yopilgan. Xabar yuborish mumkin emas.
           </Text>
         </View>
       )}
 
-      {/* Input Box */}
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { backgroundColor: darkMode ? '#111827' : '#FFFFFF', borderTopColor: darkMode ? '#374151' : '#E5E7EB' }]}>
         <TextInput
           style={[
             styles.textInput,
+            { backgroundColor: darkMode ? '#374151' : '#F3F4F6', color: darkMode ? '#F9FAFB' : '#111827' },
             currentConversation?.status === 'CLOSED' && styles.textInputDisabled,
           ]}
           value={messageInput}
           onChangeText={setMessageInput}
-          placeholder={currentConversation?.status === 'CLOSED' ? 'Conversation closed' : t.typeMessage}
+          placeholder={currentConversation?.status === 'CLOSED' ? 'Suhbat yopilgan' : t.typeMessage}
           placeholderTextColor="#9ca3af"
           multiline
           maxLength={1000}
@@ -248,12 +238,12 @@ export default function ChatRoomScreen({ route, navigation }: any) {
         <TouchableOpacity
           style={[
             styles.sendButton,
-            (!messageInput.trim() || sending || !connected || currentConversation?.status === 'CLOSED') && styles.sendButtonDisabled,
+            { backgroundColor: (!messageInput.trim() || sending || !connected || currentConversation?.status === 'CLOSED') ? (darkMode ? '#6B7280' : '#9CA3AF') : (darkMode ? '#EAB308' : '#3B82F6') },
           ]}
           onPress={handleSendMessage}
           disabled={!messageInput.trim() || sending || !connected || currentConversation?.status === 'CLOSED'}
         >
-          <Text style={styles.sendButtonText}>
+          <Text style={[styles.sendButtonText, { color: (!messageInput.trim() || sending || !connected || currentConversation?.status === 'CLOSED') ? '#FFFFFF' : (darkMode ? '#000000' : '#FFFFFF') }]}>
             {sending ? '...' : t.send}
           </Text>
         </TouchableOpacity>
@@ -265,7 +255,6 @@ export default function ChatRoomScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
   },
   centerContainer: {
     flex: 1,
@@ -280,9 +269,7 @@ const styles = StyleSheet.create({
   },
   topicHeader: {
     padding: 12,
-    backgroundColor: '#3b82f6',
     borderBottomWidth: 1,
-    borderBottomColor: '#2563eb',
   },
   topicTitle: {
     fontSize: 18,
@@ -294,9 +281,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 8,
-    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
   },
   statusDot: {
     width: 8,
@@ -418,46 +403,34 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     padding: 12,
-    backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
     alignItems: 'flex-end',
   },
   textInput: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     marginRight: 8,
     fontSize: 15,
     maxHeight: 100,
-    color: '#111827',
   },
   sendButton: {
-    backgroundColor: '#3b82f6',
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  sendButtonDisabled: {
-    backgroundColor: '#9ca3af',
-  },
   sendButtonText: {
-    color: '#ffffff',
     fontSize: 15,
     fontWeight: '600',
   },
   closedBanner: {
-    backgroundColor: '#fef3c7',
     padding: 12,
     borderTopWidth: 1,
-    borderTopColor: '#fbbf24',
   },
   closedBannerText: {
-    color: '#92400e',
     fontSize: 14,
     textAlign: 'center',
     fontWeight: '500',

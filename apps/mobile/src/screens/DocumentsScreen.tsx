@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
   TouchableOpacity,
   Linking,
@@ -86,7 +85,7 @@ export default function DocumentsScreen({ navigation }: DocumentsScreenProps) {
     Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open document'));
   };
 
-  if (loading) {
+  if (loading || loadingDocId) {
     return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
@@ -112,7 +111,6 @@ export default function DocumentsScreen({ navigation }: DocumentsScreenProps) {
           renderItem={({ item }) => (
             <TouchableOpacity
               onPress={() => openDocument(item)}
-              disabled={loadingDocId === item.id}
               style={[styles.card, { backgroundColor: darkMode ? '#1F2937' : '#FFF', borderColor: darkMode ? '#374151' : '#E5E7EB' }]}
             >
               <Text style={[styles.typeBadge, { color: darkMode ? '#93C5FD' : '#2563EB' }]}>
@@ -123,7 +121,7 @@ export default function DocumentsScreen({ navigation }: DocumentsScreenProps) {
                 {new Date(item.createdAt).toLocaleDateString()} · {formatSize(item.fileSize)}
               </Text>
               <Text style={[styles.download, { color: darkMode ? '#FBBF24' : '#3B82F6' }]}>
-                {loadingDocId === item.id ? '...' : '📥 Download'}
+                📥 Download
               </Text>
             </TouchableOpacity>
           )}

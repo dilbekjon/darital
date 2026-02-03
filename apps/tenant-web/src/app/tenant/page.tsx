@@ -29,8 +29,13 @@ function toNumber(val: unknown): number {
   return Number(val) || 0;
 }
 
+const MONTH_NAMES_UZ = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+
 function formatDueDate(date: Date): string {
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  const day = date.getDate();
+  const monthName = MONTH_NAMES_UZ[date.getMonth()] ?? '—';
+  const year = date.getFullYear();
+  return `${day}-${monthName}, ${year}`;
 }
 
 const TenantDashboard = () => {

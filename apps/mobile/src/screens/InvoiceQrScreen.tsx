@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
   ScrollView,
   Alert,
@@ -75,7 +74,7 @@ export default function InvoiceQrScreen({ route, navigation }: InvoiceQrScreenPr
     }
   };
 
-  if (loading) {
+  if (loading || checking) {
     return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
@@ -290,20 +289,14 @@ export default function InvoiceQrScreen({ route, navigation }: InvoiceQrScreenPr
               {/* Action Buttons */}
               <TouchableOpacity
                 onPress={checkPaymentStatus}
-                disabled={checking}
                 style={[
                   styles.checkButton,
                   {
                     backgroundColor: darkMode ? '#8B5CF6' : '#8B5CF6',
-                    opacity: checking ? 0.6 : 1,
                   },
                 ]}
               >
-                {checking ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.checkButtonText}>🔄 Check Payment Status</Text>
-                )}
+                <Text style={styles.checkButtonText}>🔄 Check Payment Status</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

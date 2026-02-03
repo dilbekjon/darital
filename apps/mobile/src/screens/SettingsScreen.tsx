@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   TouchableOpacity,
   Switch,
@@ -72,7 +71,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
     }
   };
 
-  if (loading) {
+  if (loading || saving) {
     return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
@@ -113,10 +112,9 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
           })}
           <TouchableOpacity
             onPress={save}
-            disabled={saving}
-            style={[styles.saveBtn, { backgroundColor: saving ? '#9CA3AF' : (darkMode ? '#EAB308' : '#3B82F6') }]}
+            style={[styles.saveBtn, { backgroundColor: darkMode ? '#EAB308' : '#3B82F6' }]}
           >
-            <Text style={styles.saveBtnText}>{saving ? (t.loading || '...') : (t.saveChanges || 'Save')}</Text>
+            <Text style={styles.saveBtnText}>{t.saveChanges || 'Save'}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

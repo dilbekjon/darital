@@ -4,6 +4,7 @@ export interface Translations {
   home: string;
   invoices: string;
   payments: string;
+  payment: string;
   balance: string;
   property: string;
   contact: string;
@@ -141,6 +142,7 @@ export const t: Translations = {
   home: 'Bosh sahifa',
   invoices: 'Hisob-fakturalar',
   payments: 'To\'lovlar',
+  payment: 'To\'lov',
   balance: 'Balans',
   property: 'Mulk',
   contact: 'Aloqa',

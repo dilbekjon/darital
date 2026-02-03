@@ -5,7 +5,6 @@ import {
   FlatList,
   RefreshControl,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
 import { getNotificationsFeed } from '../api/client';

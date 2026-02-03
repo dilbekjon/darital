@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   FlatList,
   Animated,
   TouchableOpacity,
@@ -188,6 +187,10 @@ export default function InvoicesScreen({ navigation }: InvoicesScreenProps) {
   };
 
   if (loading) {
+    return <DaritalLoader fullScreen darkMode={darkMode} />;
+  }
+
+  if (payingInvoiceId) {
     return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
@@ -394,11 +397,10 @@ function InvoiceCard({ item, index, darkMode, t, getStatusColor, getStatusText, 
       {isPending && navigation && (
         <TouchableOpacity
           onPress={() => onPayOnline(item.id)}
-          disabled={payingInvoiceId === item.id}
           style={[styles.payButton, { backgroundColor: darkMode ? '#EAB308' : '#3B82F6', marginTop: 12 }]}
         >
           <Text style={styles.payButtonText}>
-            {payingInvoiceId === item.id ? t.loading : `💳 ${t.payOnline}`}
+            💳 {t.payOnline}
           </Text>
         </TouchableOpacity>
       )}
