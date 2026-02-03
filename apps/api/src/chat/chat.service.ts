@@ -265,6 +265,7 @@ export class ChatService {
               content: true,
               createdAt: true,
               status: true,
+              fileUrl: true,
             },
           },
         },
@@ -272,7 +273,25 @@ export class ChatService {
           updatedAt: 'desc',
         },
       });
-      
+
+      // For tenants: mark which conversations originated from Telegram (so mobile app can hide them)
+      if (role === AdminRole.TENANT_USER && conversations.length > 0) {
+        const ids = conversations.map((c) => c.id);
+        const telegramConvIds = await this.prisma.message.findMany({
+          where: {
+            conversationId: { in: ids },
+            fileUrl: { startsWith: 'telegram:' },
+          },
+          select: { conversationId: true },
+          distinct: ['conversationId'],
+        });
+        const telegramSet = new Set(telegramConvIds.map((m) => m.conversationId));
+        return conversations.map((c) => ({
+          ...c,
+          isTelegramOrigin: telegramSet.has(c.id),
+        }));
+      }
+
       console.log(`[ChatService] Found ${conversations.length} conversations`);
       return conversations;
     } catch (error) {
@@ -407,9 +426,13 @@ export class ChatService {
     if (gateway) {
       // Emit message_created event
       gateway.emitMessageCreated(dto.conversationId, message);
-      
-      // Emit conversation_updated to update last message in lists
-      gateway.emitConversationUpdated(updatedConversation);
+      // Mark if conversation is Telegram-originated so tenants (e.g. mobile) can hide it from list
+      const hasTelegram = await this.prisma.message.findFirst({
+        where: { conversationId: dto.conversationId, fileUrl: { startsWith: 'telegram:' } },
+        select: { id: true },
+      });
+      const conversationWithOrigin = { ...updatedConversation, isTelegramOrigin: !!hasTelegram };
+      gateway.emitConversationUpdated(conversationWithOrigin);
     }
 
     return message;
@@ -431,28 +454,8 @@ export class ChatService {
       let chatId: string | null = null;
 
       if (telegramMessage) {
-        // Extract chatId from fileUrl (format: "telegram:chatId")
+        // Extract chatId from fileUrl (format: "telegram:chatId") — only send to Telegram when this conversation has Telegram-originated messages
         chatId = telegramMessage.fileUrl?.replace('telegram:', '') || null;
-      } else {
-        // No telegram: prefix found - might be a voice/media message first
-        // Look up chatId by finding the tenant's TelegramUser
-        const conversation = await this.prisma.conversation.findUnique({
-          where: { id: conversationId },
-          select: { tenantId: true },
-        });
-
-        if (conversation?.tenantId) {
-          // Find TelegramUser by tenantId
-          const telegramUser = await this.prisma.telegramUser.findFirst({
-            where: { tenantId: conversation.tenantId },
-            select: { chatId: true },
-          });
-
-          if (telegramUser) {
-            chatId = telegramUser.chatId;
-            console.log(`[ChatService] Found Telegram chatId via tenant lookup: ${chatId} for conversation ${conversationId}`);
-          }
-        }
       }
 
       if (!chatId) {

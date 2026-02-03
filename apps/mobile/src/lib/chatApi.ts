@@ -8,6 +8,7 @@ export interface Conversation {
   status: 'OPEN' | 'PENDING' | 'CLOSED';
   createdAt: string;
   updatedAt: string;
+  isTelegramOrigin?: boolean;
   admin?: {
     id: string;
     fullName: string;
@@ -18,6 +19,7 @@ export interface Conversation {
     content: string;
     createdAt: string;
     status: string;
+    fileUrl?: string;
   }>;
 }
 

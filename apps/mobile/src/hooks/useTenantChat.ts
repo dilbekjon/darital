@@ -109,10 +109,10 @@ export function useTenantChat(): UseTenantChatReturn {
       // Listen for both message_created (new) and message_received (backward compat)
       // Use a stable handler that checks activeConversationId at the time of event
       const handleNewMessage = (message: Message) => {
+        if (message.fileUrl?.startsWith('telegram:')) return;
         const currentConvId = activeConversationId.current;
         console.log(`[useTenantChat] 📨 New message received: ${message.id}, conversationId: ${message.conversationId}, activeConversationId: ${currentConvId}`);
-        
-        // Only add message if it belongs to active conversation
+
         if (currentConvId && currentConvId === message.conversationId) {
           console.log(`[useTenantChat] ✅ Message matches active conversation, adding to state`);
           setMessages((prev) => {
@@ -142,22 +142,25 @@ export function useTenantChat(): UseTenantChatReturn {
       // Listen for conversation updates (assign, close, etc.)
       socket.on('conversation_updated', (data: { conversation: Conversation }) => {
         console.log('[useTenantChat] 🔄 Conversation updated:', data.conversation.id);
-        
-        // Update conversations list
+        const conv = data.conversation;
+        // Don't show Telegram-originated conversations in mobile list
+        if (conv.isTelegramOrigin) {
+          setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+          if (activeConversationId.current === conv.id) {
+            setCurrentConversation(null);
+            activeConversationId.current = null;
+          }
+          return;
+        }
         setConversations((prev) => {
-          const updated = prev.map((conv) => 
-            conv.id === data.conversation.id ? { ...conv, ...data.conversation } : conv
-          );
-          // If conversation not in list, add it
-          if (!prev.find(c => c.id === data.conversation.id)) {
-            return [...updated, data.conversation];
+          const updated = prev.map((c) => (c.id === conv.id ? { ...c, ...conv } : c));
+          if (!prev.find((c) => c.id === conv.id)) {
+            return [...updated, conv];
           }
           return updated;
         });
-        
-        // Update current conversation if it's the active one
-        if (activeConversationId.current === data.conversation.id) {
-          setCurrentConversation(data.conversation);
+        if (activeConversationId.current === conv.id) {
+          setCurrentConversation(conv);
         }
       });
 
@@ -228,14 +231,13 @@ export function useTenantChat(): UseTenantChatReturn {
       }
 
       const data = await response.json();
-      
-      // Remove duplicates by ID
-      const uniqueConversations = Array.isArray(data) 
-        ? data.filter((conv: Conversation, index: number, self: Conversation[]) => 
-            index === self.findIndex((c) => c.id === conv.id)
-          )
+      // Remove duplicates by ID and hide Telegram-originated conversations in mobile
+      const uniqueConversations = Array.isArray(data)
+        ? data
+            .filter((conv: Conversation, index: number, self: Conversation[]) => index === self.findIndex((c) => c.id === conv.id))
+            .filter((conv: Conversation) => !conv.isTelegramOrigin)
         : [];
-      
+
       setConversations(uniqueConversations);
       
       console.log(`[useTenantChat] ✅ Loaded ${uniqueConversations.length} conversations`);
@@ -289,8 +291,12 @@ export function useTenantChat(): UseTenantChatReturn {
       }
 
       const data = await response.json();
-      setMessages(data);
-      console.log(`[useTenantChat] ✅ Loaded ${data.length} messages for conversation ${conversationId}`);
+      // Hide Telegram-originated messages in mobile (only show app messages)
+      const appMessages = Array.isArray(data)
+        ? data.filter((m: Message) => !m.fileUrl?.startsWith('telegram:'))
+        : [];
+      setMessages(appMessages);
+      console.log(`[useTenantChat] ✅ Loaded ${appMessages.length} messages for conversation ${conversationId}`);
     } catch (err: any) {
       console.warn('[useTenantChat] Error loading messages:', err);
       setError(err.message || 'Failed to load messages');
