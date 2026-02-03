@@ -14,6 +14,7 @@ import { refreshTenantPayment, getReceiptForPayment } from '../api/tenantApi';
 import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
+import { DaritalLoader } from '../components/DaritalLoader';
 
 interface PaymentDetailScreenProps {
   route: {
@@ -147,14 +148,7 @@ export default function PaymentDetailScreen({ route, navigation }: PaymentDetail
   };
 
   if (loading) {
-    return (
-      <View style={[styles.center, { backgroundColor: darkMode ? '#000000' : '#F0F9FF' }]}>
-        <ActivityIndicator size="large" color={darkMode ? '#FBBF24' : '#3B82F6'} />
-        <Text style={[styles.loadingText, { color: darkMode ? '#9CA3AF' : '#6B7280' }]}>
-          {t.loading}
-        </Text>
-      </View>
-    );
+    return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
   if (error || !payment) {

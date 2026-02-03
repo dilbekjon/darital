@@ -323,7 +323,18 @@ function AppContent() {
               name="Payments"
               component={PaymentsStackNavigator}
               options={{
-                tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="credit-card-outline" size={size} color={color} />,
+                tabBarIcon: ({ color, size }) => (
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: darkMode ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.12)',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <MaterialCommunityIcons name="credit-card-outline" size={size} color={color} />
+                  </View>
+                ),
                 tabBarLabel: t.payments,
               }}
             />
@@ -362,7 +373,18 @@ function AppContent() {
                 },
               }}
               options={{
-                tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="logout-variant" size={size} color={color} />,
+                tabBarIcon: ({ color, size }) => (
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: darkMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.12)',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <MaterialCommunityIcons name="logout-variant" size={size} color={color} />
+                  </View>
+                ),
                 tabBarLabel: t.logout,
               }}
             />

@@ -13,6 +13,7 @@ import { getNotificationPreferences, updateNotificationPreferences, Notification
 import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
+import { DaritalLoader } from '../components/DaritalLoader';
 
 const CHANNEL_INFO: Record<string, { label: string; icon: string }> = {
   EMAIL: { label: 'Email', icon: '📧' },
@@ -72,12 +73,7 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   };
 
   if (loading) {
-    return (
-      <View style={[styles.center, { backgroundColor: darkMode ? '#000' : '#F0F9FF' }]}>
-        <ActivityIndicator size="large" color={darkMode ? '#FBBF24' : '#3B82F6'} />
-        <Text style={[styles.loadingText, { color: darkMode ? '#9CA3AF' : '#6B7280' }]}>{t.loading}</Text>
-      </View>
-    );
+    return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
   if (error) {

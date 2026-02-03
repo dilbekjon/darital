@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, SafeAreaView, Image } from 'react-native';
 import { useTheme } from '../contexts/ThemeContext';
 
 export function Navbar() {
@@ -23,7 +23,15 @@ export function Navbar() {
           },
         ]}
       >
-      {/* Theme Toggle - Right */}
+        {/* Logo - Top Left */}
+        <View style={styles.logoWrap}>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
+        {/* Theme Toggle - Right */}
       <TouchableOpacity
         onPress={toggleTheme}
         style={[
@@ -56,11 +64,20 @@ const styles = StyleSheet.create({
   },
   navbar: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
+  },
+  logoWrap: {
+    width: 120,
+    height: 36,
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 120,
+    height: 36,
   },
   themeToggle: {
     width: 56,

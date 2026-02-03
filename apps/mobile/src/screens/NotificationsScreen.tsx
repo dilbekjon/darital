@@ -12,6 +12,7 @@ import { getNotificationsFeed } from '../api/client';
 import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
+import { DaritalLoader } from '../components/DaritalLoader';
 
 interface NotificationItem {
   id: string;
@@ -149,17 +150,7 @@ export default function NotificationsScreen() {
   );
 
   if (loading && items.length === 0) {
-    return (
-      <View style={[styles.screen, { backgroundColor: darkMode ? '#000000' : '#F0F9FF' }]}>
-        <Navbar />
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="large" color={darkMode ? '#FBBF24' : '#3B82F6'} />
-          <Text style={[styles.loadingText, { color: darkMode ? '#9CA3AF' : '#6B7280' }]}>
-            {t.loading}
-          </Text>
-        </View>
-      </View>
-    );
+    return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
   if (error && items.length === 0) {

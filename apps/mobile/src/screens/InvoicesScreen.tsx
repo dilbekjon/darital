@@ -17,6 +17,7 @@ import { createTenantPaymentIntent, refreshTenantPayment } from '../api/tenantAp
 import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
+import { DaritalLoader } from '../components/DaritalLoader';
 
 const LAST_PAYMENT_ID_KEY = 'lastPaymentId';
 const LAST_PAYMENT_INVOICE_ID_KEY = 'lastPaymentInvoiceId';
@@ -187,27 +188,7 @@ export default function InvoicesScreen({ navigation }: InvoicesScreenProps) {
   };
 
   if (loading) {
-    return (
-      <View
-        style={[
-          styles.center,
-          { backgroundColor: darkMode ? '#000000' : '#F0F9FF' },
-        ]}
-      >
-        <ActivityIndicator
-          size="large"
-          color={darkMode ? '#FBBF24' : '#3B82F6'}
-        />
-        <Text
-          style={[
-            styles.loadingText,
-            { color: darkMode ? '#9CA3AF' : '#6B7280' },
-          ]}
-        >
-          {t.loading}
-        </Text>
-      </View>
-    );
+    return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
   if (error) {

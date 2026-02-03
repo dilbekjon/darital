@@ -16,8 +16,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTenantChat } from '../hooks/useTenantChat';
 import { t } from '../lib/i18n';
 import type { Message } from '../lib/chatApi';
+import { useTheme } from '../contexts/ThemeContext';
+import { DaritalLoader } from '../components/DaritalLoader';
 
 export default function ChatRoomScreen({ route, navigation }: any) {
+  const { darkMode } = useTheme();
   const { conversationId, topic } = route.params;
   const {
     loading,
@@ -168,12 +171,7 @@ export default function ChatRoomScreen({ route, navigation }: any) {
   };
 
   if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>{t.loading}</Text>
-      </View>
-    );
+    return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
   return (

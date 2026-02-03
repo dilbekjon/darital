@@ -16,8 +16,11 @@ import {
 import { useTenantChat } from '../hooks/useTenantChat';
 import { t } from '../lib/i18n';
 import type { Conversation } from '../lib/chatApi';
+import { useTheme } from '../contexts/ThemeContext';
+import { DaritalLoader } from '../components/DaritalLoader';
 
 export default function ChatListScreen({ navigation }: any) {
+  const { darkMode } = useTheme();
   const {
     loading,
     error,
@@ -144,12 +147,7 @@ export default function ChatListScreen({ navigation }: any) {
   );
 
   if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>{t.loading}</Text>
-      </View>
-    );
+    return <DaritalLoader fullScreen darkMode={darkMode} />;
   }
 
   return (
