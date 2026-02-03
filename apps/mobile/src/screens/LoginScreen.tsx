@@ -229,26 +229,6 @@ export default function LoginScreen({ onLoggedIn }: Props) {
                   {t.login}
                 </Text>
               </TouchableOpacity>
-
-              {/* Demo Credentials */}
-              <View style={styles.demoContainer}>
-                <Text
-                  style={[
-                    styles.demoText,
-                    { color: darkMode ? '#6B7280' : '#9CA3AF' },
-                  ]}
-                >
-                  Demo: almurotov.dilbek@gmail.com
-                </Text>
-                <Text
-                  style={[
-                    styles.demoText,
-                    { color: darkMode ? '#6B7280' : '#9CA3AF' },
-                  ]}
-                >
-                  Password: admin123
-                </Text>
-              </View>
             </View>
           </Animated.View>
         </ScrollView>
@@ -338,16 +318,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     letterSpacing: 1,
-  },
-  demoContainer: {
-    marginTop: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#374151',
-    alignItems: 'center',
-  },
-  demoText: {
-    fontSize: 12,
-    marginBottom: 4,
   },
 });
