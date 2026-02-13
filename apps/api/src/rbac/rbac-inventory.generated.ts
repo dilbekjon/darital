@@ -25,6 +25,7 @@ export const RBAC_INVENTORY: RbacEndpoint[] = [
   { httpMethod: 'GET', route: '/api/auth/me', controllerFilePath: 'src/auth/me.controller.ts', methodName: 'me', permissions: [], hasNoPermissions: true, isPublic: false, note: 'Any authenticated user; returns req.user with role and permissions' },
   // admin
   { httpMethod: 'POST', route: '/api/admin/create', controllerFilePath: 'src/admin/admin.controller.ts', methodName: 'create', permissions: [], hasNoPermissions: true, isPublic: true },
+  { httpMethod: 'POST', route: '/api/admin/clear-database', controllerFilePath: 'src/admin/admin.controller.ts', methodName: 'clearDatabase', permissions: [], hasNoPermissions: true, isPublic: true },
   // buildings
   { httpMethod: 'GET', route: '/api/buildings', controllerFilePath: 'src/buildings/buildings.controller.ts', methodName: 'findAll', permissions: ['buildings.read'], hasNoPermissions: false, isPublic: false },
   { httpMethod: 'GET', route: '/api/buildings/statistics', controllerFilePath: 'src/buildings/buildings.controller.ts', methodName: 'getStatistics', permissions: ['reports.view'], hasNoPermissions: false, isPublic: false },

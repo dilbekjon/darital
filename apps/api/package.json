@@ -23,6 +23,7 @@
     "rbac:seed:deploy": "npx prisma migrate deploy --schema=prisma/schema.prisma && npx prisma generate --schema=prisma/schema.prisma && pnpm build && node dist/rbac/seed.js",
     "admin:make:super": "ts-node prisma/make-super-admin.ts",
     "seed": "tsx prisma/seed.ts",
+    "db:clear": "tsx prisma/clear-database.ts",
     "test:webhook": "tsx scripts/test-payment-webhook.ts"
   },
   "prisma": {
