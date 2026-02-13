@@ -64,6 +64,10 @@ export class AuthService {
     }
     
     // Handle admin user authentication
+    if (!user.password) {
+      this.logger.warn(`User ${trimmedEmail} has no password set`);
+      return null;
+    }
     // Check if password is already hashed (starts with $2a$ or $2b$)
     if (!user.password.startsWith('$2')) {
       this.logger.warn(`User ${trimmedEmail} has unhashed password. Hashing it now...`);
