@@ -25,6 +25,10 @@ interface Unit {
   buildingId?: string | null;
   building?: Building | null;
   createdAt: string;
+  isArchived?: boolean;
+  archivedAt?: string | null;
+  archivedBy?: string | null;
+  archiveReason?: string | null;
 }
 
 interface Contract {
@@ -53,6 +57,8 @@ export default function AdminUnitsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [archivingUnitId, setArchivingUnitId] = useState<string | null>(null);
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -99,7 +105,7 @@ export default function AdminUnitsPage() {
       const loadData = async () => {
         try {
           const [unitsData, contractsData, buildingsData] = await Promise.all([
-            fetchApi<Unit[]>('/units'),
+            fetchApi<Unit[]>(`/units${includeArchived ? '?includeArchived=true' : ''}`),
             fetchApi<Contract[]>('/contracts'),
             fetchApi<Building[]>('/buildings'),
           ]);
@@ -119,7 +125,7 @@ export default function AdminUnitsPage() {
       };
       loadData();
     }
-  }, [loading, user, hasPermission]);
+  }, [loading, user, hasPermission, includeArchived]);
 
   if (loading || pageLoading) {
     return (
@@ -240,25 +246,37 @@ export default function AdminUnitsPage() {
     }
   };
 
-  const handleDelete = async (unitId: string) => {
+  const handleArchive = async (unitId: string) => {
     if (!canManageUnits) return;
-    if (!confirm('Are you sure you want to delete this unit? This action cannot be undone.')) {
-      return;
-    }
-
+    if (!confirm('Archive this unit? It will be hidden from the main list but can be restored.')) return;
+    setArchivingUnitId(unitId);
+    setError(null);
     try {
-      await fetchApi(`/units/${unitId}`, {
-        method: 'DELETE',
-      });
-      
-      setUnits((prev) => prev.filter((unit) => unit.id !== unitId));
+      const updated = await fetchApi<Unit>(`/units/${unitId}/archive`, { method: 'PUT', body: JSON.stringify({}) });
+      setUnits((prev) => prev.map((u) => (u.id === unitId ? { ...u, ...updated } : u)));
+      if (!includeArchived) setUnits((prev) => prev.filter((u) => u.id !== unitId));
     } catch (err) {
-      console.error('Failed to delete unit:', err);
-      if (err instanceof ApiError) {
-        setError(err.data?.message || err.message);
-      } else {
-        setError('Failed to delete unit.');
-      }
+      console.error('Failed to archive unit:', err);
+      if (err instanceof ApiError) setError(err.data?.message || err.message);
+      else setError('Failed to archive unit.');
+    } finally {
+      setArchivingUnitId(null);
+    }
+  };
+
+  const handleUnarchive = async (unitId: string) => {
+    if (!canManageUnits) return;
+    setArchivingUnitId(unitId);
+    setError(null);
+    try {
+      const updated = await fetchApi<Unit>(`/units/${unitId}/unarchive`, { method: 'PUT' });
+      setUnits((prev) => prev.map((u) => (u.id === unitId ? { ...u, ...updated } : u)));
+    } catch (err) {
+      console.error('Failed to unarchive unit:', err);
+      if (err instanceof ApiError) setError(err.data?.message || err.message);
+      else setError('Failed to unarchive unit.');
+    } finally {
+      setArchivingUnitId(null);
     }
   };
 
@@ -359,6 +377,19 @@ export default function AdminUnitsPage() {
               <option value="MAINTENANCE">{t.maintenance}</option>
             </select>
           </div>
+          <label className={`flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer ${
+            darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-white border-gray-300'
+          }`}>
+            <input
+              type="checkbox"
+              checked={includeArchived}
+              onChange={(e) => setIncludeArchived(e.target.checked)}
+              className="rounded"
+            />
+            <span className={`text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              {(t as any).includeArchived ?? 'Include archived'}
+            </span>
+          </label>
         </div>
       )}
 
@@ -459,7 +490,16 @@ export default function AdminUnitsPage() {
                       <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
                         darkMode ? 'text-white' : 'text-gray-900'
                       }`}>
-                        {unit.name}
+                        <span className="flex items-center gap-2">
+                          {unit.name}
+                          {unit.isArchived && (
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                              darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
+                            }`}>
+                              Archived
+                            </span>
+                          )}
+                        </span>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -534,16 +574,25 @@ export default function AdminUnitsPage() {
                           >
                             {t.edit || 'Edit'}
                           </button>
-                          {unitContracts.length === 0 && (
-                            <button 
-                              onClick={() => handleDelete(unit.id)}
+                          {unit.isArchived ? (
+                            <button
+                              onClick={() => handleUnarchive(unit.id)}
+                              disabled={archivingUnitId === unit.id}
                               className={`transition-colors ${
-                                darkMode
-                                  ? 'text-red-400 hover:text-red-300'
-                                  : 'text-red-600 hover:text-red-900'
-                              }`}
+                                archivingUnitId === unit.id ? 'opacity-50 cursor-not-allowed' : ''
+                              } ${darkMode ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-800'}`}
                             >
-                              {t.delete || 'Delete'}
+                              {archivingUnitId === unit.id ? '...' : ((t as any).unarchive ?? 'Unarchive')}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleArchive(unit.id)}
+                              disabled={archivingUnitId === unit.id}
+                              className={`transition-colors ${
+                                archivingUnitId === unit.id ? 'opacity-50 cursor-not-allowed' : ''
+                              } ${darkMode ? 'text-amber-400 hover:text-amber-300' : 'text-amber-600 hover:text-amber-800'}`}
+                            >
+                              {archivingUnitId === unit.id ? '...' : ((t as any).archive ?? 'Archive')}
                             </button>
                           )}
                         </td>

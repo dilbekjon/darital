@@ -255,10 +255,7 @@ export default function AdminPaymentsPage() {
         method: 'DELETE',
       });
 
-      // Reload payments to reflect deletion
       await loadPayments();
-      
-      // Close confirmation modal
       setDeleteConfirmOpen(null);
     } catch (err) {
       console.error('Failed to delete payment:', err);
@@ -1039,8 +1036,8 @@ export default function AdminPaymentsPage() {
                               </svg>
                             </button>
                           )}
-                          {/* Delete button - only for PENDING or CANCELLED payments */}
-                          {canCaptureOffline && (payment.status === 'PENDING' || payment.status === 'CANCELLED') && (
+                          {/* Delete button - PENDING/CANCELLED for staff with permission; CONFIRMED only for SUPER_ADMIN */}
+                          {((canCaptureOffline && (payment.status === 'PENDING' || payment.status === 'CANCELLED')) || (user?.role === 'SUPER_ADMIN')) && (
                             <button
                               onClick={() => setDeleteConfirmOpen(payment.id)}
                               disabled={deletingPaymentId === payment.id}
@@ -1079,7 +1076,7 @@ export default function AdminPaymentsPage() {
       {deleteConfirmOpen && (() => {
         const paymentToDelete = payments.find(p => p.id === deleteConfirmOpen);
         if (!paymentToDelete) return null;
-        
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
             <div className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${
@@ -1104,12 +1101,12 @@ export default function AdminPaymentsPage() {
                     </svg>
                   </button>
                 </div>
-                
+
                 <div className="mb-6">
                   <p className={`mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Are you sure you want to delete this payment? This action cannot be undone.
                   </p>
-                  
+
                   <div className={`p-4 rounded-lg ${
                     darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-gray-50 border border-gray-200'
                   }`}>

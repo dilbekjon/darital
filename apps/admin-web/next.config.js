@@ -2,6 +2,7 @@
 const path = require('path'); // Import path module
 
 const nextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   transpilePackages: [],
   env: {

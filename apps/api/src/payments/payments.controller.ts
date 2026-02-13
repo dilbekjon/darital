@@ -13,6 +13,7 @@ import { PaymentWebhookDto } from './dto/payment-webhook.dto';
 import { PaymentProviderEnum } from './dto/payment-intent.dto';
 import { PrismaService } from '../prisma.service';
 import { Request } from 'express';
+import { AdminRole } from '@prisma/client';
 
 @ApiTags('payments')
 @ApiBearerAuth()
@@ -111,15 +112,17 @@ export class PaymentsController {
 
   @Delete(':id')
   @Permissions('payments.approve')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Delete payment (Admin only)',
-    description: 'Delete a payment. Only PENDING or CANCELLED payments can be deleted. CONFIRMED payments cannot be deleted.'
+    description: 'Delete a payment. PENDING or CANCELLED can always be deleted. CONFIRMED can only be deleted by SUPER_ADMIN (reverts balance and invoice).'
   })
   @ApiResponse({ status: 200, description: 'Payment deleted successfully' })
   @ApiResponse({ status: 404, description: 'Payment not found' })
-  @ApiResponse({ status: 409, description: 'Cannot delete confirmed payment' })
-  async remove(@Param('id') id: string) {
-    return this.paymentsService.remove(id);
+  @ApiResponse({ status: 409, description: 'Cannot delete confirmed payment (non–super-admin)' })
+  async remove(@Param('id') id: string, @Req() req: Request) {
+    const user = req.user as { role?: string } | undefined;
+    const allowConfirmed = user?.role === AdminRole.SUPER_ADMIN || user?.role === 'SUPER_ADMIN';
+    return this.paymentsService.remove(id, { allowConfirmed });
   }
 
   @Public()

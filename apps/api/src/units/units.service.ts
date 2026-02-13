@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateUnitDto } from './dto/create-unit.dto';
 import { UpdateUnitDto } from './dto/update-unit.dto';
@@ -8,8 +8,9 @@ import { Decimal } from '@prisma/client/runtime/library';
 export class UnitsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll() {
+  async findAll(includeArchived = false) {
     const units = await this.prisma.unit.findMany({
+      where: includeArchived ? undefined : { isArchived: false },
       include: {
         building: {
           select: {
@@ -20,7 +21,7 @@ export class UnitsService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    
+
     return units.map((unit) => ({
       id: unit.id,
       name: unit.name,
@@ -31,6 +32,10 @@ export class UnitsService {
       buildingId: unit.buildingId,
       building: unit.building ? { id: unit.building.id, name: unit.building.name } : null,
       createdAt: unit.createdAt.toISOString(),
+      isArchived: unit.isArchived,
+      archivedAt: unit.archivedAt?.toISOString() ?? null,
+      archivedBy: unit.archivedBy ?? null,
+      archiveReason: unit.archiveReason ?? null,
     }));
   }
 
@@ -62,6 +67,10 @@ export class UnitsService {
       buildingId: unit.buildingId,
       building: unit.building ? { id: unit.building.id, name: unit.building.name } : null,
       createdAt: unit.createdAt.toISOString(),
+      isArchived: unit.isArchived,
+      archivedAt: unit.archivedAt?.toISOString() ?? null,
+      archivedBy: unit.archivedBy ?? null,
+      archiveReason: unit.archiveReason ?? null,
     };
   }
 
@@ -100,6 +109,10 @@ export class UnitsService {
       buildingId: createdUnit!.buildingId,
       building: createdUnit!.building ? { id: createdUnit!.building.id, name: createdUnit!.building.name } : null,
       createdAt: createdUnit!.createdAt.toISOString(),
+      isArchived: createdUnit!.isArchived,
+      archivedAt: createdUnit!.archivedAt?.toISOString() ?? null,
+      archivedBy: createdUnit!.archivedBy ?? null,
+      archiveReason: createdUnit!.archiveReason ?? null,
     };
   }
 
@@ -139,15 +152,45 @@ export class UnitsService {
       buildingId: unit.buildingId,
       building: unit.building ? { id: unit.building.id, name: unit.building.name } : null,
       createdAt: unit.createdAt.toISOString(),
+      isArchived: unit.isArchived,
+      archivedAt: unit.archivedAt?.toISOString() ?? null,
+      archivedBy: unit.archivedBy ?? null,
+      archiveReason: unit.archiveReason ?? null,
     };
   }
 
-  async remove(id: string) {
-    await this.findOne(id); // Check if exists
+  async archive(id: string, adminId?: string, reason?: string) {
+    const unit = await this.prisma.unit.findUnique({ where: { id } });
+    if (!unit) throw new NotFoundException(`Unit with ID ${id} not found`);
+    if (unit.isArchived) throw new ConflictException('Unit is already archived');
 
-    return this.prisma.unit.delete({
+    await this.prisma.unit.update({
       where: { id },
+      data: {
+        isArchived: true,
+        archivedAt: new Date(),
+        archivedBy: adminId ?? null,
+        archiveReason: reason ?? null,
+      },
     });
+    return this.findOne(id);
+  }
+
+  async unarchive(id: string) {
+    const unit = await this.prisma.unit.findUnique({ where: { id } });
+    if (!unit) throw new NotFoundException(`Unit with ID ${id} not found`);
+    if (!unit.isArchived) throw new ConflictException('Unit is not archived');
+
+    await this.prisma.unit.update({
+      where: { id },
+      data: {
+        isArchived: false,
+        archivedAt: null,
+        archivedBy: null,
+        archiveReason: null,
+      },
+    });
+    return this.findOne(id);
   }
 }
 

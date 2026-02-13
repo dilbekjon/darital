@@ -918,36 +918,64 @@ export class PaymentsService {
   }
 
   /**
-   * Delete a payment
-   * Only allowed for PENDING or CANCELLED payments
-   * Cannot delete CONFIRMED payments as they affect financial records
+   * Delete a payment.
+   * PENDING or CANCELLED: always allowed.
+   * CONFIRMED: only when options.allowConfirmed is true (e.g. SUPER_ADMIN); reverts balance and invoice state.
    */
-  async remove(paymentId: string) {
+  async remove(paymentId: string, options?: { allowConfirmed?: boolean }) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
-      include: { invoice: true },
+      include: { invoice: { include: { contract: true } } },
     });
 
     if (!payment) {
       throw new NotFoundException('Payment not found');
     }
 
-    // Prevent deletion of confirmed payments (they affect financial records)
-    if (payment.status === PaymentStatus.CONFIRMED) {
-      throw new ConflictException('Cannot delete confirmed payment. It has already been processed and affects financial records.');
+    if (payment.status === PaymentStatus.CONFIRMED && !options?.allowConfirmed) {
+      throw new ConflictException('Cannot delete confirmed payment. Only SUPER_ADMIN can delete paid payments.');
     }
 
-    // Delete the payment
-    await this.prisma.payment.delete({
-      where: { id: paymentId },
-    });
+    if (payment.status === PaymentStatus.CONFIRMED && options?.allowConfirmed) {
+      const invoice = payment.invoice as { id: string; amount: Prisma.Decimal; dueDate: Date; contract: { tenantId: string } };
+      const tenantId = invoice.contract.tenantId;
+      const amount = payment.amount as unknown as Prisma.Decimal;
 
-    // Emit payment_updated event for real-time admin updates
+      await this.prisma.$transaction(async (tx) => {
+        await tx.payment.delete({ where: { id: paymentId } });
+
+        const balance = await tx.balance.findUnique({ where: { tenantId } });
+        if (balance) {
+          await tx.balance.update({
+            where: { tenantId },
+            data: { current: { decrement: amount } },
+          });
+        }
+
+        const remaining = await tx.payment.aggregate({
+          where: { invoiceId: invoice.id, status: PaymentStatus.CONFIRMED },
+          _sum: { amount: true },
+        });
+        const totalPaid = new Decimal(remaining._sum.amount ?? 0);
+        if (totalPaid.lessThan(invoice.amount)) {
+          const dueDate = new Date(invoice.dueDate);
+          const newStatus = dueDate < new Date() ? InvoiceStatus.OVERDUE : InvoiceStatus.PENDING;
+          await tx.invoice.update({
+            where: { id: invoice.id },
+            data: { status: newStatus },
+          });
+        }
+      });
+    } else {
+      await this.prisma.payment.delete({
+        where: { id: paymentId },
+      });
+    }
+
     const gateway = this.getChatGateway();
     if (gateway) {
       setImmediate(async () => {
         try {
-          // Emit a deleted event (payment object with status DELETED for frontend to handle)
           await gateway.emitPaymentUpdated({ ...payment, status: 'DELETED' } as any);
         } catch (error) {
           console.error('[PaymentsService] Failed to emit payment_updated event:', error);

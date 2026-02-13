@@ -25,7 +25,6 @@ export const RBAC_INVENTORY: RbacEndpoint[] = [
   { httpMethod: 'GET', route: '/api/auth/me', controllerFilePath: 'src/auth/me.controller.ts', methodName: 'me', permissions: [], hasNoPermissions: true, isPublic: false, note: 'Any authenticated user; returns req.user with role and permissions' },
   // admin
   { httpMethod: 'POST', route: '/api/admin/create', controllerFilePath: 'src/admin/admin.controller.ts', methodName: 'create', permissions: [], hasNoPermissions: true, isPublic: true },
-  { httpMethod: 'POST', route: '/api/admin/clear-database', controllerFilePath: 'src/admin/admin.controller.ts', methodName: 'clearDatabase', permissions: [], hasNoPermissions: true, isPublic: true },
   // buildings
   { httpMethod: 'GET', route: '/api/buildings', controllerFilePath: 'src/buildings/buildings.controller.ts', methodName: 'findAll', permissions: ['buildings.read'], hasNoPermissions: false, isPublic: false },
   { httpMethod: 'GET', route: '/api/buildings/statistics', controllerFilePath: 'src/buildings/buildings.controller.ts', methodName: 'getStatistics', permissions: ['reports.view'], hasNoPermissions: false, isPublic: false },
@@ -38,7 +37,8 @@ export const RBAC_INVENTORY: RbacEndpoint[] = [
   { httpMethod: 'GET', route: '/api/units/:id', controllerFilePath: 'src/units/units.controller.ts', methodName: 'findOne', permissions: ['units.read'], hasNoPermissions: false, isPublic: false },
   { httpMethod: 'POST', route: '/api/units', controllerFilePath: 'src/units/units.controller.ts', methodName: 'create', permissions: ['units.create'], hasNoPermissions: false, isPublic: false },
   { httpMethod: 'PATCH', route: '/api/units/:id', controllerFilePath: 'src/units/units.controller.ts', methodName: 'update', permissions: ['units.update'], hasNoPermissions: false, isPublic: false },
-  { httpMethod: 'DELETE', route: '/api/units/:id', controllerFilePath: 'src/units/units.controller.ts', methodName: 'remove', permissions: ['units.delete'], hasNoPermissions: false, isPublic: false },
+  { httpMethod: 'PUT', route: '/api/units/:id/archive', controllerFilePath: 'src/units/units.controller.ts', methodName: 'archive', permissions: ['units.update'], hasNoPermissions: false, isPublic: false },
+  { httpMethod: 'PUT', route: '/api/units/:id/unarchive', controllerFilePath: 'src/units/units.controller.ts', methodName: 'unarchive', permissions: ['units.update'], hasNoPermissions: false, isPublic: false },
   // tenants
   { httpMethod: 'GET', route: '/api/tenants', controllerFilePath: 'src/tenants/tenants.controller.ts', methodName: 'findAll', permissions: ['tenants.read'], hasNoPermissions: false, isPublic: false },
   { httpMethod: 'GET', route: '/api/tenants/:id', controllerFilePath: 'src/tenants/tenants.controller.ts', methodName: 'findOne', permissions: ['tenants.read'], hasNoPermissions: false, isPublic: false },

@@ -3,9 +3,11 @@ import {
   Get,
   Post,
   Patch,
-  Delete,
+  Put,
   Body,
   Param,
+  Query,
+  Req,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -30,14 +32,14 @@ export class UnitsController {
 
   @Get()
   @Permissions('units.read')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get all units',
-    description: 'View all units/rooms. Accessible by: USER_MANAGER, CASHIER, ADMIN, SUPER_ADMIN'
+    description: 'View all units/rooms. Use includeArchived=true to include archived. Accessible by: USER_MANAGER, CASHIER, ADMIN, SUPER_ADMIN'
   })
   @ApiResponse({ status: 200, description: 'List of units' })
   @ApiResponse({ status: 401, description: 'Unauthorized - JWT token required' })
-  async findAll() {
-    return this.unitsService.findAll();
+  async findAll(@Query('includeArchived') includeArchived?: string) {
+    return this.unitsService.findAll(includeArchived === 'true');
   }
 
   @Get(':id')
@@ -71,7 +73,7 @@ export class UnitsController {
   @Patch(':id')
   @Permissions('units.update')
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Update unit',
     description: 'Update unit details. Accessible by: USER_MANAGER, ADMIN, SUPER_ADMIN only'
   })
@@ -84,18 +86,32 @@ export class UnitsController {
     return this.unitsService.update(id, updateUnitDto);
   }
 
-  @Delete(':id')
-  @Permissions('units.delete')
-  @ApiOperation({ 
-    summary: 'Delete unit',
-    description: 'Delete a unit. Accessible by: USER_MANAGER, ADMIN, SUPER_ADMIN only'
+  @Put(':id/archive')
+  @Permissions('units.update')
+  @ApiOperation({
+    summary: 'Archive unit',
+    description: 'Archive a unit (soft delete). Does not remove contracts. Accessible by: USER_MANAGER, ADMIN, SUPER_ADMIN only'
   })
-  @ApiResponse({ status: 200, description: 'Unit deleted successfully' })
+  @ApiResponse({ status: 200, description: 'Unit archived successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized - JWT token required' })
-  @ApiResponse({ status: 403, description: 'Forbidden - requires units.delete permission' })
   @ApiResponse({ status: 404, description: 'Unit not found' })
-  async remove(@Param('id') id: string) {
-    return this.unitsService.remove(id);
+  @ApiResponse({ status: 409, description: 'Unit is already archived' })
+  async archive(@Param('id') id: string, @Body() body: { reason?: string }, @Req() req: { user?: { id?: string } }) {
+    return this.unitsService.archive(id, req.user?.id, body?.reason);
+  }
+
+  @Put(':id/unarchive')
+  @Permissions('units.update')
+  @ApiOperation({
+    summary: 'Unarchive unit',
+    description: 'Restore unit from archive. Accessible by: USER_MANAGER, ADMIN, SUPER_ADMIN only'
+  })
+  @ApiResponse({ status: 200, description: 'Unit unarchived successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - JWT token required' })
+  @ApiResponse({ status: 404, description: 'Unit not found' })
+  @ApiResponse({ status: 409, description: 'Unit is not archived' })
+  async unarchive(@Param('id') id: string) {
+    return this.unitsService.unarchive(id);
   }
 }
 

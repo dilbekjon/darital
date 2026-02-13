@@ -144,7 +144,6 @@ export default function AdminContractsPage() {
 
   const canCreateContracts = hasPermission('contracts.create');
   const canUpdateContracts = hasPermission('contracts.update');
-  const canDeleteContracts = hasPermission('contracts.delete');
 
   const handleArchiveContract = async (contractId: string) => {
     if (!canUpdateContracts) return;
@@ -182,28 +181,6 @@ export default function AdminContractsPage() {
       }
     } finally {
       setArchivingContractId(null);
-    }
-  };
-
-  const handleDeleteContract = async (contractId: string) => {
-    if (!canDeleteContracts) return;
-    if (!confirm(`${t.confirmDeleteContract} ${t.actionCannotBeUndone}`)) {
-      return;
-    }
-
-    try {
-      await fetchApi(`/contracts/${contractId}`, {
-        method: 'DELETE',
-      });
-      
-      setContracts((prev) => prev.filter((contract) => contract.id !== contractId));
-    } catch (err) {
-      console.error('Failed to delete contract:', err);
-      if (err instanceof ApiError) {
-        setError(err.data?.message || err.message);
-      } else {
-        setError(t.failedToDeleteContract);
-      }
     }
   };
 
@@ -613,18 +590,6 @@ export default function AdminContractsPage() {
                           )}
                         </>
                       )}
-                      {canDeleteContracts && (
-                        <button
-                          onClick={() => handleDeleteContract(contract.id)}
-                          className={`text-sm font-medium transition-colors ${
-                            darkMode
-                              ? 'text-red-400 hover:text-red-300'
-                              : 'text-red-600 hover:text-red-800'
-                          }`}
-                        >
-                          {t.delete}
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -769,18 +734,6 @@ export default function AdminContractsPage() {
                                 {archivingContractId === contract.id ? (t.loading || 'Yuklanmoqda...') : (t.archive || 'Arxivlash')}
                               </button>
                             </>
-                          )}
-                          {canDeleteContracts && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteContract(contract.id)}
-                              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                                darkMode ? 'text-red-400 hover:bg-red-600/20' : 'text-red-600 hover:bg-red-100'
-                              }`}
-                              title={t.delete || 'O\'chirish'}
-                            >
-                              {t.delete || 'O\'chirish'}
-                            </button>
                           )}
                         </div>
                       </td>

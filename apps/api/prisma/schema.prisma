@@ -142,7 +142,13 @@ model Unit {
 
   contracts Contract[]
 
+  isArchived    Boolean   @default(false)
+  archivedAt    DateTime?
+  archivedBy    String?
+  archiveReason String?
+
   @@index([buildingId])
+  @@index([isArchived])
   @@map("units")
 }
 
