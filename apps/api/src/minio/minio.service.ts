@@ -16,7 +16,6 @@ export interface UploadedObjectInfo {
 @Injectable()
 export class MinioService {
   private readonly logger = new Logger(MinioService.name);
-  private client: MinioClient;
   private bucket: string;
   private endpoint: string;
   private port: number;
