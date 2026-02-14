@@ -770,6 +770,88 @@ export class PaymentsService {
     return this.confirmPaymentTransaction({ paymentId });
   }
 
+  /**
+   * Click direct: Prepare phase. Validates order and amount; returns merchant_prepare_id for Complete.
+   */
+  async handleClickPrepare(params: {
+    merchant_trans_id: string;
+    amount: string;
+    click_trans_id: string;
+  }): Promise<{ error: number; error_note: string; merchant_prepare_id?: number }> {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: params.merchant_trans_id },
+      include: { invoice: true },
+    });
+    if (!payment) {
+      return { error: -5, error_note: 'Payment not found' };
+    }
+    if (payment.status !== PaymentStatus.PENDING) {
+      if (payment.status === PaymentStatus.CONFIRMED) {
+        return { error: -4, error_note: 'Already paid' };
+      }
+      return { error: -9, error_note: 'Invalid state' };
+    }
+    const amountNum = parseFloat(params.amount);
+    const paymentAmount = typeof payment.amount === 'object' && 'toNumber' in payment.amount
+      ? payment.amount.toNumber()
+      : Number(payment.amount);
+    if (Math.abs(amountNum - paymentAmount) > 0.01) {
+      return { error: -2, error_note: 'Amount mismatch' };
+    }
+    const merchant_prepare_id = Math.abs(parseInt(params.click_trans_id.slice(-8), 10)) || 1;
+    return { error: 0, error_note: 'Success', merchant_prepare_id };
+  }
+
+  /**
+   * Click direct: Complete phase. Confirms payment when error=0 from Click.
+   */
+  async handleClickComplete(params: {
+    merchant_trans_id: string;
+    merchant_prepare_id: string;
+    amount: string;
+    click_trans_id: string;
+    click_paydoc_id?: string;
+    error: string;
+  }): Promise<{ error: number; error_note: string }> {
+    if (params.error !== '0') {
+      return { error: -9, error_note: 'Payment cancelled or failed' };
+    }
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: params.merchant_trans_id },
+      include: { invoice: true },
+    });
+    if (!payment) {
+      return { error: -5, error_note: 'Payment not found' };
+    }
+    if (payment.status === PaymentStatus.CONFIRMED) {
+      return { error: -4, error_note: 'Already paid' };
+    }
+    if (payment.status !== PaymentStatus.PENDING) {
+      return { error: -9, error_note: 'Invalid state' };
+    }
+    const amountNum = parseFloat(params.amount);
+    const paymentAmount = typeof payment.amount === 'object' && 'toNumber' in payment.amount
+      ? payment.amount.toNumber()
+      : Number(payment.amount);
+    if (Math.abs(amountNum - paymentAmount) > 0.01) {
+      return { error: -2, error_note: 'Amount mismatch' };
+    }
+    await this.confirmPaymentTransaction({
+      paymentId: payment.id,
+      providerPaymentId: params.click_trans_id,
+      amount: amountNum,
+      paidAt: new Date(),
+      rawPayload: {
+        click_trans_id: params.click_trans_id,
+        click_paydoc_id: params.click_paydoc_id,
+        merchant_prepare_id: params.merchant_prepare_id,
+        directClick: true,
+      },
+      provider: PaymentProvider.CLICK,
+    });
+    return { error: 0, error_note: 'Success' };
+  }
+
   async confirmCheckoutUzOrder(orderId?: string | number, fallbackPaymentId?: string, rawPayload?: any) {
     if (!orderId) {
       return { ok: false, error: 'Missing order_id for CheckoutUz' };

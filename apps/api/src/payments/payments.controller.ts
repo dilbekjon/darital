@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Patch, Param, Post, UseGuards, UseInterceptors, UsePipes, ValidationPipe, Query, ForbiddenException, NotFoundException, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Param, Post, UseGuards, UseInterceptors, UsePipes, ValidationPipe, Query, ForbiddenException, NotFoundException, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -12,8 +12,9 @@ import { Public } from '../auth/decorators/public.decorator';
 import { PaymentWebhookDto } from './dto/payment-webhook.dto';
 import { PaymentProviderEnum } from './dto/payment-intent.dto';
 import { PrismaService } from '../prisma.service';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { AdminRole } from '@prisma/client';
+import { ClickService } from './click.service';
 
 @ApiTags('payments')
 @ApiBearerAuth()
@@ -24,6 +25,7 @@ export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly prisma: PrismaService,
+    private readonly clickService: ClickService,
   ) {}
 
   @Get()
@@ -126,11 +128,81 @@ export class PaymentsController {
   }
 
   @Public()
+  @Post('click/prepare')
+  @ApiOperation({ summary: 'Click direct: Prepare (verification) – called by Click.uz' })
+  @ApiResponse({ status: 200, description: 'URL-encoded response for Click' })
+  async clickPrepare(@Body() body: Record<string, unknown>, @Res() res: Response) {
+    if (!this.clickService.isConfigured()) {
+      res.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+      return res.send('error=-8&error_note=Click not configured');
+    }
+    const params = this.clickService.parsePrepareBody(body as Record<string, any>);
+    if (!params) {
+      res.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+      return res.send('error=-8&error_note=Invalid request');
+    }
+    if (!this.clickService.verifyPrepareSign(params)) {
+      res.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+      return res.send('error=-1&error_note=Bad sign');
+    }
+    const result = await this.paymentsService.handleClickPrepare({
+      merchant_trans_id: params.merchant_trans_id,
+      amount: params.amount,
+      click_trans_id: params.click_trans_id,
+    });
+    const responseBody = this.clickService.buildPrepareResponse({
+      click_trans_id: params.click_trans_id,
+      merchant_trans_id: params.merchant_trans_id,
+      merchant_prepare_id: result.merchant_prepare_id ?? 0,
+      error: result.error,
+      error_note: result.error_note,
+    });
+    res.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+    return res.send(responseBody);
+  }
+
+  @Public()
+  @Post('click/complete')
+  @ApiOperation({ summary: 'Click direct: Complete – called by Click.uz after successful payment' })
+  @ApiResponse({ status: 200, description: 'URL-encoded response for Click' })
+  async clickComplete(@Body() body: Record<string, unknown>, @Res() res: Response) {
+    if (!this.clickService.isConfigured()) {
+      res.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+      return res.send('error=-8&error_note=Click not configured');
+    }
+    const params = this.clickService.parseCompleteBody(body as Record<string, any>);
+    if (!params) {
+      res.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+      return res.send('error=-8&error_note=Invalid request');
+    }
+    if (!this.clickService.verifyCompleteSign(params)) {
+      res.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+      return res.send('error=-1&error_note=Bad sign');
+    }
+    const result = await this.paymentsService.handleClickComplete({
+      merchant_trans_id: params.merchant_trans_id,
+      merchant_prepare_id: params.merchant_prepare_id,
+      amount: params.amount,
+      click_trans_id: params.click_trans_id,
+      click_paydoc_id: params.click_paydoc_id,
+      error: params.error ?? '',
+    });
+    const responseBody = this.clickService.buildCompleteResponse({
+      click_trans_id: params.click_trans_id,
+      merchant_trans_id: params.merchant_trans_id,
+      merchant_confirm_id: result.error === 0 ? 1 : null,
+      error: result.error,
+      error_note: result.error_note,
+    });
+    res.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+    return res.send(responseBody);
+  }
+
+  @Public()
   @Post('webhook/:provider')
   @UsePipes(new ValidationPipe({ whitelist: true, transform: true }))
-  @ApiOperation({ summary: 'Webhook endpoint for payment providers (Click/Payme/Uzum)' })
+  @ApiOperation({ summary: 'Webhook endpoint for payment providers (Checkout.uz/Payme/Uzum)' })
   async webhook(@Param('provider') provider: string, @Body() dto: PaymentWebhookDto) {
-    // TODO: verify provider signatures before processing
     const normalized = provider.toUpperCase() as PaymentProviderEnum;
     return this.paymentsService.handleWebhook(normalized, { ...dto, provider: normalized });
   }

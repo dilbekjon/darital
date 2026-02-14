@@ -5,6 +5,7 @@ import { UpdateNotificationPreferencesDto } from './dto/update-notification-pref
 import { PaymentIntentDto, PaymentProviderEnum } from '../payments/dto/payment-intent.dto';
 import { PaymentMethod, PaymentProvider, PaymentStatus, Prisma } from '@prisma/client';
 import { CheckoutUzService } from '../payments/checkout-uz.service';
+import { ClickService } from '../payments/click.service';
 import { PaymentsService } from '../payments/payments.service';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class TenantPortalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly checkoutUzService: CheckoutUzService,
+    private readonly clickService: ClickService,
     @Inject(forwardRef(() => PaymentsService))
     private readonly paymentsService: PaymentsService,
   ) {}
@@ -335,17 +337,56 @@ export class TenantPortalService {
       }
     }
 
-    // Use Checkout.uz for both CLICK and UZUM providers (Checkout.uz handles both)
     const providerStr = String(dto.provider || '').toUpperCase();
+    const amountNum = typeof payment.amount === 'object' && 'toNumber' in payment.amount ? payment.amount.toNumber() : Number(payment.amount);
+
+    // Direct Click: use Click.uz API when CLICK_* env is set (no Checkout.uz)
+    if (providerStr === 'CLICK' && this.clickService.isConfigured()) {
+      if ((payment as any).provider === PaymentProvider.CLICK && (payment as any).rawPayload?.pay_url) {
+        return {
+          paymentId: payment.id,
+          invoiceId: invoice.id,
+          amount: amountNum,
+          provider: PaymentProviderEnum.CLICK,
+          providerPaymentId: String((payment as any).providerPaymentId ?? payment.id),
+          checkoutUrl: (payment as any).rawPayload.pay_url,
+        };
+      }
+      const returnUrl = process.env.TENANT_PORTAL_URL || process.env.FRONTEND_URL || '';
+      const payUrl = this.clickService.buildPayUrl({
+        amount: amountNum,
+        merchantTransId: payment.id,
+        returnUrl: returnUrl ? `${returnUrl.replace(/\/$/, '')}/payments/return` : undefined,
+      });
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          provider: PaymentProvider.CLICK,
+          providerPaymentId: payment.id,
+          rawPayload: { pay_url: payUrl, directClick: true },
+        } as any,
+      });
+      this.logger.log(`Direct Click pay URL created for payment ${payment.id}`);
+      return {
+        paymentId: payment.id,
+        invoiceId: invoice.id,
+        amount: amountNum,
+        provider: PaymentProviderEnum.CLICK,
+        providerPaymentId: payment.id,
+        checkoutUrl: payUrl,
+      };
+    }
+
+    // Checkout.uz for UZUM or CLICK (when direct Click not configured)
     const useCheckoutUz = providerStr === 'CLICK' || providerStr === 'UZUM';
     if (useCheckoutUz) {
-      const targetProvider = PaymentProviderEnum.UZUM;
+      const targetProvider = providerStr === 'UZUM' ? PaymentProviderEnum.UZUM : PaymentProviderEnum.CLICK;
 
       if (!this.checkoutUzService.isConfigured()) {
         return {
           paymentId: payment.id,
           invoiceId: invoice.id,
-          amount: typeof payment.amount === 'object' && 'toNumber' in payment.amount ? payment.amount.toNumber() : Number(payment.amount),
+          amount: amountNum,
           provider: targetProvider,
           checkoutUrl: null,
           alreadyPaid: false,
@@ -353,7 +394,6 @@ export class TenantPortalService {
         };
       }
 
-      // If payment already has a providerPaymentId (from previous call), reuse it
       if ((payment as any).providerPaymentId && (payment as any).rawPayload?.pay_url) {
         return {
           paymentId: payment.id,
