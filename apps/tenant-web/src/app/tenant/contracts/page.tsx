@@ -23,6 +23,7 @@ interface Contract {
 const ContractsPage = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewingPdfContract, setViewingPdfContract] = useState<Contract | null>(null);
   const router = useRouter();
   const t = useUntypedTranslations();
   const { darkMode } = useTheme();
@@ -207,7 +208,8 @@ const ContractsPage = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => router.push(`/tenant/contracts/${contract.id}`)}
+                          type="button"
+                          onClick={() => setViewingPdfContract(contract)}
                           className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 ${
                             darkMode
                               ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400'
@@ -225,6 +227,57 @@ const ContractsPage = () => {
           )}
         </div>
       </div>
+
+      {/* PDF Viewer Modal - view and download on same page */}
+      {viewingPdfContract && (
+        <div
+          className={`fixed inset-0 z-50 flex flex-col ${darkMode ? 'bg-black' : 'bg-gray-900'}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.viewPDF}
+        >
+          <div className={`flex items-center justify-between px-4 py-3 border-b ${
+            darkMode ? 'border-yellow-500/40 bg-gray-900' : 'border-gray-700 bg-gray-800'
+          }`}>
+            <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-white'}`}>
+              {viewingPdfContract.unit?.name || t.contractDetails} – {formatDate(viewingPdfContract.startDate)}
+            </h2>
+            <div className="flex items-center gap-2">
+              <a
+                href={viewingPdfContract.pdfUrl}
+                download={`contract-${viewingPdfContract.id}.pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  darkMode ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400' : 'bg-blue-600 text-white hover:bg-blue-500'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                {t.download || 'Download'}
+              </a>
+              <button
+                type="button"
+                onClick={() => setViewingPdfContract(null)}
+                className={`p-2 rounded-lg transition-colors ${darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-300 hover:bg-gray-700'}`}
+                aria-label="Close"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0">
+            <iframe
+              src={`${viewingPdfContract.pdfUrl}#toolbar=1`}
+              className="w-full h-full border-none"
+              title={t.viewPDF}
+            />
+          </div>
+        </div>
+      )}
 
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes fade-in {
