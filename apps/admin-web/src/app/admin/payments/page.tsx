@@ -16,7 +16,8 @@ import DaritalLoader from '../../../components/DaritalLoader';
 interface Tenant {
   id: string;
   fullName: string;
-  email: string;
+  email?: string;
+  phone?: string;
 }
 
 interface Invoice {
@@ -29,7 +30,7 @@ interface Invoice {
     id: string;
     tenantId?: string;
     unitId?: string;
-    tenant?: { id: string; fullName?: string; email?: string };
+    tenant?: { id: string; fullName?: string; email?: string; phone?: string };
     unit?: { id: string; name?: string };
   };
 }

@@ -21,14 +21,15 @@ interface Contract {
   amount: number;
   status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
   pdfUrl: string;
-  tenant: { fullName: string; email: string };
+  tenant: { fullName: string; email?: string; phone?: string };
   unit: { name: string };
 }
 
 interface Tenant {
   id: string;
   fullName: string;
-  email: string;
+  email?: string;
+  phone?: string;
 }
 
 interface Unit {

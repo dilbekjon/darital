@@ -26,7 +26,8 @@ interface Invoice {
     tenant?: {
       id: string;
       fullName: string;
-      email: string;
+      email?: string;
+      phone?: string;
     };
     unit?: {
       name: string;
@@ -74,7 +75,7 @@ export default function AdminInvoicesPage() {
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creatingInvoice, setCreatingInvoice] = useState(false);
-  const [contracts, setContracts] = useState<Array<{ id: string; tenant?: { fullName: string; email: string }; unit?: { name: string } }>>([]);
+  const [contracts, setContracts] = useState<Array<{ id: string; tenant?: { fullName: string; email?: string; phone?: string }; unit?: { name: string } }>>([]);
   const [createForm, setCreateForm] = useState({
     contractId: '',
     dueDate: '',

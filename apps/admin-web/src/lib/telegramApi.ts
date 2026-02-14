@@ -7,7 +7,8 @@ export interface TelegramUser {
   tenant: {
     id: string;
     fullName: string;
-    email: string;
+    email?: string;
+    phone?: string;
   } | null;
   createdAt: string;
   updatedAt: string;
