@@ -92,7 +92,7 @@ export default function AdminContractsPage() {
       filtered = filtered.filter(
         (contract) =>
           contract.tenant.fullName.toLowerCase().includes(query) ||
-          contract.tenant.email.toLowerCase().includes(query) ||
+          (contract.tenant.email?.toLowerCase().includes(query) || contract.tenant.phone?.toLowerCase().includes(query)) ||
           contract.unit.name.toLowerCase().includes(query) ||
           contract.status.toLowerCase().includes(query) ||
           contract.amount.toString().includes(query)
@@ -1096,7 +1096,7 @@ export default function AdminContractsPage() {
                   <option value="">{t.selectTenant || 'Select Tenant'}</option>
                   {tenants.map((tenant) => (
                     <option key={tenant.id} value={tenant.id}>
-                      {tenant.fullName} {tenant.email ? `(${tenant.email})` : ''}
+                      {tenant.fullName} {tenant.phone ? `(${tenant.phone})` : ''}
                     </option>
                   ))}
                 </select>
@@ -1104,8 +1104,8 @@ export default function AdminContractsPage() {
                   <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border dark:border-blue-800/50">
                     <p className="text-sm text-gray-600 dark:text-gray-300">
                       <strong className={darkMode ? 'text-blue-300' : 'text-blue-700'}>Selected Tenant:</strong> {tenants.find(t => t.id === formData.tenantId)?.fullName}
-                      {tenants.find(t => t.id === formData.tenantId)?.email && (
-                        <span className={`ml-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>({tenants.find(t => t.id === formData.tenantId)?.email})</span>
+                      {tenants.find(t => t.id === formData.tenantId)?.phone && (
+                        <span className={`ml-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>({tenants.find(t => t.id === formData.tenantId)?.phone})</span>
                       )}
                     </p>
                   </div>

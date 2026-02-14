@@ -60,6 +60,14 @@ export class TenantsController {
     return this.tenantsService.update(id, dto);
   }
 
+  @Put(':id/reset-password')
+  @Permissions('tenants.update')
+  @ApiOperation({ summary: 'Send password reset link via SMS to tenant' })
+  @ApiResponse({ status: 200 })
+  async resetPassword(@Param('id') id: string) {
+    return this.tenantsService.sendResetPasswordSms(id);
+  }
+
   // Archive routes must come before the generic :id routes to avoid conflicts
   @Put(':id/archive')
   @Permissions('tenants.update')

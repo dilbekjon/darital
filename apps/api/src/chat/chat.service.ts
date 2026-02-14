@@ -37,26 +37,29 @@ export class ChatService {
    */
   async resolveTenantForUser(user: any) {
     const email = user.email;
-    if (!email) {
+    const identifier = user.email;
+    if (!identifier) {
       throw new ForbiddenException({
-        code: 'NO_EMAIL',
-        message: 'User email not found in token',
+        code: 'NO_IDENTIFIER',
+        message: 'User identifier not found in token',
       });
     }
 
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { email },
-    });
+    const cleanPhone = identifier.replace(/\D/g, '');
+    const phone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
+    const tenant = identifier.includes('@')
+      ? await this.prisma.tenant.findUnique({ where: { email: identifier } })
+      : await this.prisma.tenant.findUnique({ where: { phone } });
 
     if (!tenant) {
-      console.error(`[ChatService] No tenant found for user email: ${email}`);
+      console.error(`[ChatService] No tenant found for user: ${identifier}`);
       throw new NotFoundException({
         code: 'TENANT_NOT_FOUND',
         message: 'Tenant profile not linked to this user. Please ensure tenant account exists.',
       });
     }
 
-    console.log(`[ChatService] Resolved tenant ${tenant.id} for user ${user.sub} (${email})`);
+    console.log(`[ChatService] Resolved tenant ${tenant.id} for user ${user.sub}`);
     return tenant;
   }
 

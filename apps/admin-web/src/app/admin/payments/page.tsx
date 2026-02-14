@@ -183,13 +183,13 @@ export default function AdminPaymentsPage() {
     if (!q) return invoices;
     return invoices.filter((inv) => {
       const tenantName = inv.contract?.tenant?.fullName?.toLowerCase() ?? '';
-      const tenantEmail = inv.contract?.tenant?.email?.toLowerCase() ?? '';
+      const tenantContact = inv.contract?.tenant?.phone?.toLowerCase() ?? inv.contract?.tenant?.email?.toLowerCase() ?? '';
       const contractId = (inv.contract?.id ?? inv.contractId ?? '').toLowerCase();
       const invoiceId = inv.id.toLowerCase();
       const unitName = inv.contract?.unit?.name?.toLowerCase() ?? '';
       return (
         tenantName.includes(q) ||
-        tenantEmail.includes(q) ||
+        tenantContact.includes(q) ||
         contractId.includes(q) ||
         invoiceId.includes(q) ||
         unitName.includes(q)
@@ -438,7 +438,7 @@ export default function AdminPaymentsPage() {
           payment.status.toLowerCase().includes(query) ||
           payment.method.toLowerCase().includes(query) ||
           payment.tenant?.fullName?.toLowerCase().includes(query) ||
-          payment.tenant?.email?.toLowerCase().includes(query) ||
+          (payment.tenant?.phone || payment.tenant?.email)?.toLowerCase().includes(query) ||
           payment.provider?.toLowerCase().includes(query)
       );
     }
@@ -864,7 +864,7 @@ export default function AdminPaymentsPage() {
                           {payment.tenant?.fullName || (t.notApplicable || 'Mavjud emas')}
                         </div>
                         <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          {payment.tenant?.email || (t.noEmail || 'Email yo\'q')}
+                          {payment.tenant?.phone || payment.tenant?.email || '-'}
                         </div>
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap ${

@@ -14,7 +14,6 @@ import DaritalLoader from '../../../components/DaritalLoader';
 interface Tenant {
   id: string;
   fullName: string;
-  email: string;
   phone: string;
   createdAt: string;
   isArchived?: boolean;
@@ -37,11 +36,10 @@ export default function AdminTenantsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     fullName: '',
-    email: '',
     phone: '',
-    password: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState<string | null>(null);
 
   // Filter tenants based on search query
   const filteredTenants = useMemo(() => {
@@ -50,7 +48,6 @@ export default function AdminTenantsPage() {
     return tenants.filter(
       (tenant) =>
         tenant.fullName.toLowerCase().includes(query) ||
-        tenant.email.toLowerCase().includes(query) ||
         tenant.phone.toLowerCase().includes(query)
     );
   }, [tenants, searchQuery]);
@@ -198,6 +195,22 @@ export default function AdminTenantsPage() {
     }
   };
 
+  const handleResetPassword = async (tenantId: string) => {
+    if (!canEditTenants) return;
+    setResettingPassword(tenantId);
+    setError(null);
+    try {
+      const res = await fetchApi<{ success: boolean; message?: string }>(`/tenants/${tenantId}/reset-password`, { method: 'PUT' });
+      setSuccess(res.success ? (t.resetPasswordSmsSent || 'SMS with setup link sent to tenant') : (res.message || 'SMS failed'));
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.data?.message || err.message);
+      else setError(t.unexpectedError);
+    } finally {
+      setResettingPassword(null);
+    }
+  };
+
   const handlePermanentDeleteTenant = async (tenantId: string) => {
     if (!canDeleteTenants) return;
 
@@ -224,7 +237,7 @@ export default function AdminTenantsPage() {
   };
 
   const resetForm = () => {
-    setFormData({ fullName: '', email: '', phone: '', password: '' });
+    setFormData({ fullName: '', phone: '' });
     setEditingTenant(null);
   };
 
@@ -240,9 +253,7 @@ export default function AdminTenantsPage() {
     setEditingTenant(tenant);
     setFormData({
       fullName: tenant.fullName,
-      email: tenant.email,
       phone: tenant.phone,
-      password: '',
     });
     setError(null);
     setSuccess(null);
@@ -259,18 +270,10 @@ export default function AdminTenantsPage() {
     
     try {
       if (editingTenant) {
-        // Build update payload - only include password if it's provided
-        const updatePayload: any = {
+        const updatePayload = {
           fullName: formData.fullName,
-          email: formData.email,
           phone: formData.phone,
         };
-        
-        // Only include password if it's not empty
-        if (formData.password && formData.password.trim().length > 0) {
-          updatePayload.password = formData.password;
-        }
-        
         const response = await fetchApi<any>(`/tenants/${editingTenant.id}`, {
           method: 'PATCH',
           body: JSON.stringify(updatePayload),
@@ -279,7 +282,6 @@ export default function AdminTenantsPage() {
         const updatedTenant: Tenant = {
           id: response.id,
           fullName: response.fullName,
-          email: response.email || '',
           phone: response.phone,
           createdAt: response.createdAt || editingTenant.createdAt,
         };
@@ -297,7 +299,6 @@ export default function AdminTenantsPage() {
         const newTenant: Tenant = {
           id: response.id,
           fullName: response.fullName,
-          email: response.email || '',
           phone: response.phone,
           createdAt: response.createdAt || new Date().toISOString(),
         };
@@ -444,19 +445,22 @@ export default function AdminTenantsPage() {
                           </span>
                         )}
                       </div>
-                      {tenant.email && (
-                        <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {tenant.email}
-                        </p>
-                      )}
                       <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         {tenant.phone}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       {canEditTenants && !tenant.isArchived && (
-                        <button
-                          onClick={() => openEditModal(tenant)}
+                        <>
+                          <button
+                            onClick={() => handleResetPassword(tenant.id)}
+                            disabled={!!resettingPassword}
+                            className={`text-sm font-medium ${darkMode ? 'text-amber-400' : 'text-amber-600'}`}
+                          >
+                            {t.resetPassword || 'Reset password'}
+                          </button>
+                          <button
+                            onClick={() => openEditModal(tenant)}
                           className={`transition-colors text-sm font-medium ${
                             darkMode
                               ? 'text-blue-400 hover:text-blue-300'
@@ -465,6 +469,7 @@ export default function AdminTenantsPage() {
                         >
                           {t.edit}
                         </button>
+                        </>
                       )}
                       {canArchiveTenants && !tenant.isArchived && (
                         <button
@@ -529,11 +534,6 @@ export default function AdminTenantsPage() {
                     <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}>
-                      {t.email}
-                    </th>
-                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                      darkMode ? 'text-gray-300' : 'text-gray-500'
-                    }`}>
                       {t.phone}
                     </th>
                     <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
@@ -575,11 +575,6 @@ export default function AdminTenantsPage() {
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
-                        {tenant.email || '-'}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        darkMode ? 'text-gray-300' : 'text-gray-500'
-                      }`}>
                         {tenant.phone}
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
@@ -588,10 +583,20 @@ export default function AdminTenantsPage() {
                         {new Date(tenant.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end gap-3">
+                        <div className="flex items-center justify-end gap-3 flex-wrap">
                           {canEditTenants && !tenant.isArchived && (
-                            <button
-                              onClick={() => openEditModal(tenant)}
+                            <>
+                              <button
+                                onClick={() => handleResetPassword(tenant.id)}
+                                disabled={!!resettingPassword}
+                                className={`text-sm font-medium ${resettingPassword === tenant.id ? 'opacity-50' : ''} ${
+                                  darkMode ? 'text-amber-400 hover:text-amber-300' : 'text-amber-600 hover:text-amber-700'
+                                }`}
+                              >
+                                {resettingPassword === tenant.id ? t.loading : (t.resetPassword || 'Reset password')}
+                              </button>
+                              <button
+                                onClick={() => openEditModal(tenant)}
                               className={`transition-colors ${
                                 darkMode
                                   ? 'text-blue-400 hover:text-blue-300'
@@ -600,6 +605,7 @@ export default function AdminTenantsPage() {
                             >
                               {t.edit}
                             </button>
+                            </>
                           )}
                           {canArchiveTenants && !tenant.isArchived && (
                             <button
@@ -718,67 +724,10 @@ export default function AdminTenantsPage() {
                 </div>
               </div>
 
-              {/* Email - Full Width */}
-              <div className="mb-4">
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t.email}
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="tenant@example.com"
-                  className={`w-full rounded-lg border ${
-                    darkMode 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                  } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.emailOptional}</p>
-              </div>
-
-              {/* Password */}
-              {!editingTenant ? (
-                <div className="mb-4">
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t.password} *
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    required
-                    minLength={6}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className={`w-full rounded-lg border ${
-                      darkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'bg-white border-gray-300 text-gray-900'
-                    } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.passwordMinLength}</p>
-                </div>
-              ) : (
-                <div className="mb-4">
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t.password}
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    minLength={6}
-                    placeholder={t.enterNewPasswordToChange}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className={`w-full rounded-lg border ${
-                      darkMode 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-                    } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.leaveEmptyToKeepPassword}</p>
-                </div>
+              {!editingTenant && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  {t.createTenantSmsHint || 'SMS will be sent to the tenant with a link to set their password.'}
+                </p>
               )}
 
               {/* Form Actions */}

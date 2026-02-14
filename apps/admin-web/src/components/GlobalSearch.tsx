@@ -76,7 +76,7 @@ const GlobalSearch: React.FC = () => {
           type: 'tenant',
           id: tenant.id,
           title: tenant.fullName,
-          subtitle: tenant.email || tenant.phone,
+          subtitle: tenant.phone,
           icon: '👤',
           href: `/admin/tenants?search=${encodeURIComponent(tenant.fullName)}`,
         });
@@ -293,7 +293,7 @@ const GlobalSearch: React.FC = () => {
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { label: t.tenants || 'Tenants', href: '/admin/tenants', icon: '👤' },
-                      { label: t.units || 'Units', href: '/admin/units', icon: '🏠' },
+                      { label: t.units || 'Office', href: '/admin/units', icon: '🏠' },
                       { label: t.contracts || 'Contracts', href: '/admin/contracts', icon: '📄' },
                       { label: t.payments || 'Payments', href: '/admin/payments', icon: '💰' },
                       { label: t.invoices || 'Invoices', href: '/admin/invoices', icon: '🧾' },

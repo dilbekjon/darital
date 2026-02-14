@@ -10,7 +10,7 @@ import { Language, languageNames, languageFlags } from '../../lib/i18n'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -27,17 +27,16 @@ export default function LoginPage() {
 
     try {
       // Trim email and password to avoid whitespace issues
-      const trimmedEmail = email.trim()
+      const trimmedPhone = phone.trim()
       const trimmedPassword = password.trim()
       
-      if (!trimmedEmail || !trimmedPassword) {
-        setError('Email and password are required')
+      if (!trimmedPhone || !trimmedPassword) {
+        setError(t.phoneAndPasswordRequired || 'Telefon raqam va parol kiritilishi shart')
         setIsLoading(false)
         return
       }
       
-      console.log('Attempting login with email:', trimmedEmail)
-      const data = await login(trimmedEmail, trimmedPassword)
+      const data = await login(trimmedPhone, trimmedPassword)
       console.log('Login successful, token received')
       
       // Save token to localStorage
@@ -72,7 +71,7 @@ export default function LoginPage() {
     } catch (err) {
       console.error('Login error:', err)
       if (err instanceof ApiError) {
-        const errorMessage = err.data?.message || err.message || 'Invalid email or password'
+        const errorMessage = err.data?.message || err.message || (t.invalidCredentials || 'Noto\'g\'ri telefon yoki parol')
         console.error('API Error:', err.status, errorMessage, err.data)
         setError(errorMessage)
       } else {
@@ -130,16 +129,16 @@ export default function LoginPage() {
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className={`block text-sm font-semibold mb-2 ${
+              <label htmlFor="phone" className={`block text-sm font-semibold mb-2 ${
                 darkMode ? 'text-yellow-400' : 'text-gray-700'
               }`}>
-                {t.email}
+                {t.phone || 'Telefon raqam'}
               </label>
               <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 required
                 className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 ${
                   darkMode
@@ -148,7 +147,7 @@ export default function LoginPage() {
                 } focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   darkMode ? 'focus:ring-yellow-500' : 'focus:ring-blue-500'
                 }`}
-                placeholder="admin@darital.local"
+                placeholder="998901234567"
                 disabled={isLoading}
               />
             </div>

@@ -487,7 +487,7 @@ export default function ArchiveManagementPage() {
                             {tenant.fullName}
                           </h3>
                           <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {tenant.email} • {tenant.phone} • Archived: {formatDate(tenant.archivedAt)}
+                            {tenant.phone} • Archived: {formatDate(tenant.archivedAt)}
                           </div>
                           {tenant.archiveReason && (
                             <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
@@ -620,7 +620,7 @@ export default function ArchiveManagementPage() {
                           </h3>
                           <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                             {invoice.contract?.unit?.name && <span className="mr-2">Xona: {invoice.contract.unit.name}</span>}
-                            {invoice.contract?.tenant?.email && <span className="mr-2">• {invoice.contract.tenant.email}</span>}
+                            {invoice.contract?.tenant?.phone && <span className="mr-2">• {invoice.contract.tenant.phone}</span>}
                           </div>
                           <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                             To'lov muddati: {new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })} •

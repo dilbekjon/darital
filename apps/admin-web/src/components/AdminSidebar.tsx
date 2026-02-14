@@ -95,7 +95,7 @@ export function AdminSidebar() {
       section: 'operations',
     },
     {
-      label: t.units || 'Xonalar',
+      label: t.units || 'Ofis',
       href: '/admin/units',
       permissionCodes: ['units.read'],
       icon: (

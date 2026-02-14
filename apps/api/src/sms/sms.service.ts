@@ -1,81 +1,76 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+export interface SmsSendResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+
 @Injectable()
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
-  private readonly provider: string | undefined;
-  private readonly apiKey: string | undefined;
-  private readonly apiSecret: string | undefined;
-  private readonly fromNumber: string | undefined;
-  private isConfigured = false;
+  private readonly baseUrl = 'https://notify.eskiz.uz/api';
+  private token: string | null = null;
 
-  constructor() {
-    this.provider = process.env.SMS_PROVIDER;
-    this.apiKey = process.env.SMS_API_KEY;
-    this.apiSecret = process.env.SMS_API_SECRET;
-    this.fromNumber = process.env.SMS_FROM_NUMBER;
-
-    if (this.provider && this.apiKey && this.fromNumber) {
-      this.isConfigured = true;
-      this.logger.log(`✅ SMS service configured with provider: ${this.provider}`);
-    } else {
-      this.logger.warn('SMS_PROVIDER, SMS_API_KEY, or SMS_FROM_NUMBER not set. SMS disabled.');
+  private async getToken(): Promise<string | null> {
+    const email = process.env.ESKIZ_EMAIL;
+    const password = process.env.ESKIZ_PASSWORD;
+    if (!email || !password) {
+      this.logger.warn('ESKIZ_EMAIL or ESKIZ_PASSWORD not set, SMS will not be sent');
+      return null;
     }
-  }
-
-  async sendSMS(phone: string, text: string): Promise<void> {
-    if (!this.isConfigured) {
-      this.logger.debug(`📱 [SMS STUB] To: ${phone}, Message: ${text}`);
-      return;
-    }
-
+    if (this.token) return this.token;
     try {
-      // Placeholder for actual SMS provider integration
-      // TODO: Implement based on SMS_PROVIDER value (twilio, vonage, aws-sns, etc.)
-
-      switch (this.provider?.toLowerCase()) {
-        case 'twilio':
-          await this.sendViaTwilio(phone, text);
-          break;
-        case 'vonage':
-          await this.sendViaVonage(phone, text);
-          break;
-        case 'aws-sns':
-          await this.sendViaAwsSns(phone, text);
-          break;
-        default:
-          this.logger.warn(`Unknown SMS provider: ${this.provider}`);
-          this.logger.debug(`📱 [SMS STUB] To: ${phone}, Message: ${text}`);
-      }
-    } catch (error: any) {
-      this.logger.error(`Failed to send SMS to ${phone}: ${error?.message || error}`);
+      const res = await fetch(`${this.baseUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      this.token = data?.data?.token || null;
+      return this.token;
+    } catch (e) {
+      this.logger.error('Eskiz auth failed', e);
+      return null;
     }
   }
 
-  private async sendViaTwilio(phone: string, _text: string): Promise<void> {
-    // TODO: Implement Twilio integration
-    // const twilio = require('twilio');
-    // const client = twilio(this.apiKey, this.apiSecret);
-    // await client.messages.create({
-    //   body: text,
-    //   from: this.fromNumber,
-    //   to: phone
-    // });
-
-    void _text;
-    this.logger.log(`📱 [Twilio] SMS sent to ${phone}`);
+  async sendSms(phone: string, text: string): Promise<SmsSendResult> {
+    const token = await this.getToken();
+    if (!token) {
+      this.logger.log(`[SMS would send] To: ${phone} | ${text}`);
+      return { success: false, error: 'SMS not configured' };
+    }
+    const cleanPhone = phone.replace(/\D/g, '');
+    const uzbPhone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
+    try {
+      const res = await fetch(`${this.baseUrl}/message/sms/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          mobile_phone: uzbPhone,
+          message: text,
+          from: process.env.ESKIZ_FROM || '4546',
+        }),
+      });
+      const data = await res.json();
+      if (data?.status === 'success' || res.ok) {
+        this.logger.log(`SMS sent to ${uzbPhone}`);
+        return { success: true, messageId: data?.id };
+      }
+      this.logger.warn(`SMS failed: ${JSON.stringify(data)}`);
+      return { success: false, error: data?.message || 'Unknown error' };
+    } catch (e: any) {
+      this.logger.error('SMS send error', e);
+      return { success: false, error: e?.message };
+    }
   }
 
-  private async sendViaVonage(phone: string, _text: string): Promise<void> {
-    // TODO: Implement Vonage integration
-    void _text;
-    this.logger.log(`📱 [Vonage] SMS sent to ${phone}`);
-  }
-
-  private async sendViaAwsSns(phone: string, _text: string): Promise<void> {
-    // TODO: Implement AWS SNS integration
-    void _text;
-    this.logger.log(`📱 [AWS SNS] SMS sent to ${phone}`);
+  async sendTenantSetupLink(phone: string, fullName: string, setupUrl: string): Promise<SmsSendResult> {
+    const text = `Assalomu alaykum ${fullName}! Darital ijara portalingizga kirish uchun parol o'rnating: ${setupUrl}`;
+    return this.sendSms(phone, text);
   }
 }
-

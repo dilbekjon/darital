@@ -33,7 +33,7 @@ const CommandPalette: React.FC = () => {
     // Navigation
     { id: 'nav-dashboard', title: t.dashboard || 'Bosh sahifa', icon: '🏠', action: () => router.push('/dashboard'), keywords: ['home', 'main', 'bosh'], shortcut: 'G D' },
     { id: 'nav-tenants', title: t.tenants || 'Tenants', icon: '👥', action: () => router.push('/admin/tenants'), keywords: ['users', 'residents'] },
-    { id: 'nav-units', title: t.units || 'Units', icon: '🏢', action: () => router.push('/admin/units'), keywords: ['apartments', 'rooms'] },
+    { id: 'nav-units', title: t.units || 'Office', icon: '🏢', action: () => router.push('/admin/units'), keywords: ['offices', 'office'] },
     { id: 'nav-contracts', title: t.contracts || 'Contracts', icon: '📄', action: () => router.push('/admin/contracts'), keywords: ['lease', 'agreements'] },
     { id: 'nav-invoices', title: t.invoices || 'Invoices', icon: '📋', action: () => router.push('/admin/invoices'), keywords: ['bills'] },
     { id: 'nav-payments', title: t.payments || 'Payments', icon: '💰', action: () => router.push('/admin/payments'), keywords: ['transactions', 'money'] },

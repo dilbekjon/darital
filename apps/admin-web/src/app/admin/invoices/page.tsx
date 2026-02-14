@@ -463,11 +463,11 @@ export default function AdminInvoicesPage() {
     
     const query = searchQuery.toLowerCase();
     return invoices.filter((invoice) => {
-      const email = invoice.contract?.tenant?.email?.toLowerCase() || '';
+      const contact = invoice.contract?.tenant?.phone?.toLowerCase() || invoice.contract?.tenant?.email?.toLowerCase() || '';
       const unitName = invoice.contract?.unit?.name?.toLowerCase() || '';
       const tenantName = invoice.contract?.tenant?.fullName?.toLowerCase() || '';
       
-      return email.includes(query) || unitName.includes(query) || tenantName.includes(query);
+      return contact.includes(query) || unitName.includes(query) || tenantName.includes(query);
     });
   }, [invoices, searchQuery]);
 
@@ -809,7 +809,7 @@ export default function AdminInvoicesPage() {
                         <div className={`text-xs ${
                           darkMode ? 'text-gray-400' : 'text-gray-500'
                         }`}>
-                          {invoice.contract?.tenant?.email || ''}
+                          {invoice.contract?.tenant?.phone || invoice.contract?.tenant?.email || ''}
                         </div>
                       </div>
                     </td>

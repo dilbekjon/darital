@@ -155,9 +155,10 @@ model Unit {
 model Tenant {
   id            String         @id @default(cuid())
   fullName      String
-  phone         String
+  phone         String         @unique
   email         String?        @unique
   password      String
+  setupTokens   TenantSetupToken[]
   contracts     Contract[]
   documents     Document[]
   createdAt     DateTime       @default(now())
@@ -174,6 +175,21 @@ model Tenant {
   @@index([phone])
   @@index([createdAt])
   @@index([isArchived])
+}
+
+model TenantSetupToken {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("tenant_setup_tokens")
 }
 
 model Document {

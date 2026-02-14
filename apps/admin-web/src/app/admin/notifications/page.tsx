@@ -329,7 +329,7 @@ export default function AdminNotificationsPage() {
             >
               {tenants.map((tenant) => (
                   <option key={tenant.id} value={tenant.id}>
-                    {tenant.fullName} {tenant.email ? `(${tenant.email})` : ''}
+                    {tenant.fullName} {tenant.phone ? `(${tenant.phone})` : ''}
                   </option>
               ))}
             </select>
@@ -343,8 +343,8 @@ export default function AdminNotificationsPage() {
                     <span className={`font-medium ${
                       darkMode ? 'text-white' : 'text-gray-900'
                     }`}>{selectedTenant.fullName}</span>
-                    {selectedTenant.email && (
-                      <span className="text-gray-500 dark:text-gray-400">• {selectedTenant.email}</span>
+                    {selectedTenant.phone && (
+                      <span className="text-gray-500 dark:text-gray-400">• {selectedTenant.phone}</span>
                     )}
                   </div>
                 </div>
@@ -516,7 +516,7 @@ export default function AdminNotificationsPage() {
             >
               {tenants.map((tenant) => (
                   <option key={tenant.id} value={tenant.id}>
-                    {tenant.fullName} {tenant.email ? `(${tenant.email})` : ''}
+                    {tenant.fullName} {tenant.phone ? `(${tenant.phone})` : ''}
                   </option>
               ))}
             </select>

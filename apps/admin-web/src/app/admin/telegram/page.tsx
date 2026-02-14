@@ -82,7 +82,7 @@ export default function AdminTelegramPage() {
       filtered = filtered.filter(
         (u) =>
           u.tenant?.fullName?.toLowerCase().includes(query) ||
-          u.tenant?.email?.toLowerCase().includes(query) ||
+          (u.tenant?.phone || u.tenant?.email)?.toLowerCase().includes(query) ||
           u.chatId.includes(query)
       );
     }
@@ -361,7 +361,7 @@ export default function AdminTelegramPage() {
                       <p className={`text-xs truncate ${
                         darkMode ? 'text-gray-400' : 'text-gray-500'
                       }`}>
-                        {telegramUser.tenant?.email || (t.noEmail || 'Email yo\'q')}
+                        {telegramUser.tenant?.phone || telegramUser.tenant?.email || '-'}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-xs px-2 py-0.5 rounded ${
@@ -398,7 +398,7 @@ export default function AdminTelegramPage() {
                         {selectedUser.tenant?.fullName || 'Unknown User'}
                       </h3>
                       <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {selectedUser.tenant?.email || (t.noEmail || 'Email yo\'q')} • Chat ID: {selectedUser.chatId}
+                        {selectedUser.tenant?.phone || selectedUser.tenant?.email || '-'} • Chat ID: {selectedUser.chatId}
                       </p>
                     </div>
                   </div>

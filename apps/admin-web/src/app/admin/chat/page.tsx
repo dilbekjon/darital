@@ -556,7 +556,7 @@ export default function AdminChatPage() {
                       </div>
                       <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
                         {conv.tenant.fullName}
-                        {conv.tenant.email && ` • ${conv.tenant.email}`}
+                        {conv.tenant.phone && ` • ${conv.tenant.phone}`}
                       </div>
                       {conv.messages[0] && (
                         <div className="text-sm text-gray-700 dark:text-gray-300 truncate">
@@ -632,9 +632,9 @@ export default function AdminChatPage() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                       {selectedConversation.tenant.fullName}
                     </p>
-                    {selectedConversation.tenant.email && (
+                    {selectedConversation.tenant.phone && (
                       <span className="text-sm text-gray-500 dark:text-gray-500">
-                        • {selectedConversation.tenant.email}
+                        • {selectedConversation.tenant.phone}
                       </span>
                     )}
                   </div>

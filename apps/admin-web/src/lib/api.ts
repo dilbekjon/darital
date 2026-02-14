@@ -88,10 +88,10 @@ export interface UserResponse {
   permissions: string[]; // Added permissions list
 }
 
-export async function login(email: string, password: string): Promise<LoginResponse> {
+export async function login(loginId: string, password: string): Promise<LoginResponse> {
   return fetchApi<LoginResponse>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ login: loginId, password }),
   });
 }
 

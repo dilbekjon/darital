@@ -326,7 +326,7 @@ const ReceiptDownload: React.FC<ReceiptDownloadProps> = ({ receiptData, onClose 
               </span>
             </div>
             <div className="flex justify-between">
-              <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>{t.unit || 'Unit'}</span>
+              <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>{t.unit || 'Office'}</span>
               <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-800'}`}>
                 {receiptData.property.unitName}
               </span>

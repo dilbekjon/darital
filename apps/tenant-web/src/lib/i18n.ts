@@ -250,7 +250,7 @@ const translations: Record<Language, Translations> = {
     premiumOverview: '✨ Your Premium Property Overview',
     propertyOverview: 'Here\'s your property overview',
     currentBalance: 'Current balance',
-    yourActiveUnit: 'Your active unit',
+    yourActiveUnit: 'Your active office',
     phoneNumber: 'Phone number',
     quickActions: 'Quick Actions',
     viewInvoices: 'View Invoices',
@@ -263,7 +263,7 @@ const translations: Record<Language, Translations> = {
     
     // Invoices
     invoicesList: 'Invoices List',
-    unitName: 'Unit Name',
+    unitName: 'Office Name',
     amount: 'Amount',
     monthlyRent: 'Monthly Rent',
     totalContractAmount: 'Total Contract Amount',
@@ -334,13 +334,13 @@ const translations: Record<Language, Translations> = {
     actions: 'Actions',
     createContract: 'Create Contract',
     selectTenant: 'Select Tenant',
-    selectUnit: 'Select Unit',
+    selectUnit: 'Select Office',
     
-    // Units
-    units: 'Units',
-    createUnit: 'Create Unit',
-    editUnit: 'Edit Unit',
-    noUnits: 'No units found',
+    // Units (Office)
+    units: 'Office',
+    createUnit: 'Create Office',
+    editUnit: 'Edit Office',
+    noUnits: 'No offices found',
     area: 'Area',
     floor: 'Floor',
     price: 'Price',
@@ -461,7 +461,7 @@ const translations: Record<Language, Translations> = {
     premiumOverview: '✨ Обзор вашей недвижимости премиум-класса',
     propertyOverview: 'Обзор вашей недвижимости',
     currentBalance: 'Текущий баланс',
-    yourActiveUnit: 'Ваша активная квартира',
+    yourActiveUnit: 'Ваш активный офис',
     phoneNumber: 'Номер телефона',
     quickActions: 'Быстрые действия',
     viewInvoices: 'Просмотр счетов',
@@ -474,7 +474,7 @@ const translations: Record<Language, Translations> = {
     
     // Invoices
     invoicesList: 'Список счетов',
-    unitName: 'Название квартиры',
+    unitName: 'Название офиса',
     amount: 'Сумма',
     monthlyRent: 'Ежемесячная аренда',
     totalContractAmount: 'Общая сумма контракта',
@@ -545,13 +545,13 @@ const translations: Record<Language, Translations> = {
     actions: 'Действия',
     createContract: 'Создать контракт',
     selectTenant: 'Выберите арендатора',
-    selectUnit: 'Выберите квартиру',
+    selectUnit: 'Выберите офис',
     
-    // Units
-    units: 'Квартиры',
-    createUnit: 'Создать квартиру',
-    editUnit: 'Редактировать квартиру',
-    noUnits: 'Квартиры не найдены',
+    // Units (Office)
+    units: 'Офисы',
+    createUnit: 'Создать офис',
+    editUnit: 'Редактировать офис',
+    noUnits: 'Офисы не найдены',
     area: 'Площадь',
     floor: 'Этаж',
     price: 'Цена',
@@ -672,7 +672,7 @@ const translations: Record<Language, Translations> = {
     premiumOverview: '✨ Premium mulkingiz haqida ma\'lumot',
     propertyOverview: 'Mulkingiz haqida ma\'lumot',
     currentBalance: 'Joriy balans',
-    yourActiveUnit: 'Sizning faol xonangiz',
+    yourActiveUnit: 'Sizning faol ofisingiz',
     phoneNumber: 'Telefon raqami',
     quickActions: 'Tez amallar',
     viewInvoices: 'Hisob-fakturalarni ko\'rish',
@@ -685,7 +685,7 @@ const translations: Record<Language, Translations> = {
     
     // Invoices
     invoicesList: 'Hisob-fakturalar ro\'yxati',
-    unitName: 'Xona nomi',
+    unitName: 'Ofis nomi',
     amount: 'Miqdor',
     monthlyRent: 'Oylik ijara',
     totalContractAmount: 'Shartnomaning umumiy summasi',
@@ -756,13 +756,13 @@ const translations: Record<Language, Translations> = {
     actions: 'Amallar',
     createContract: 'Shartnoma yaratish',
     selectTenant: 'Ijara oluvchini tanlang',
-    selectUnit: 'Xonani tanlang',
+    selectUnit: 'Ofisni tanlang',
     
-    // Units
-    units: 'Xonalar',
-    createUnit: 'Xona yaratish',
-    editUnit: 'Xonani tahrirlash',
-    noUnits: 'Xonalar topilmadi',
+    // Units (Office)
+    units: 'Ofis',
+    createUnit: 'Ofis yaratish',
+    editUnit: 'Ofisni tahrirlash',
+    noUnits: 'Ofislar topilmadi',
     area: 'Maydon',
     floor: 'Qavat',
     price: 'Narx',

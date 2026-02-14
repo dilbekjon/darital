@@ -1,13 +1,20 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { SmsService } from '../sms/sms.service';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class TenantsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(TenantsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly smsService: SmsService,
+  ) {}
 
   async findAll(includeArchived = false) {
     const tenants = await this.prisma.tenant.findMany({
@@ -75,27 +82,66 @@ export class TenantsService {
 
   async create(dto: CreateTenantDto) {
     try {
-      const hashedPassword = await bcrypt.hash(dto.password, 10);
-      const tenant = await this.prisma.tenant.create({ 
+      const tempPassword = crypto.randomBytes(16).toString('hex');
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+      const tenant = await this.prisma.tenant.create({
         data: {
-          ...dto,
-          password: hashedPassword
-        }
+          fullName: dto.fullName,
+          phone: dto.phone,
+          password: hashedPassword,
+        },
       });
-      
+
+      const token = crypto.randomBytes(32).toString('hex');
+      const baseUrl = process.env.TENANT_SETUP_BASE_URL || 'https://darital-arenda.uz';
+      const setupUrl = `${baseUrl}/setup?phone=${encodeURIComponent(dto.phone)}&token=${token}`;
+
+      await this.prisma.tenantSetupToken.create({
+        data: {
+          tenantId: tenant.id,
+          token,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      const smsResult = await this.smsService.sendTenantSetupLink(dto.phone, dto.fullName, setupUrl);
+      if (!smsResult.success) {
+        this.logger.warn(`SMS not sent to ${dto.phone}: ${smsResult.error}. Setup link: ${setupUrl}`);
+      }
+
       return {
         id: tenant.id,
         fullName: tenant.fullName,
         email: tenant.email || '',
         phone: tenant.phone,
         createdAt: tenant.createdAt.toISOString(),
+        smsSent: smsResult.success,
       };
     } catch (err: any) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        throw new ConflictException({ code: 'EMAIL_TAKEN', message: 'Email already exists' });
+        throw new ConflictException({ code: 'PHONE_TAKEN', message: 'Phone number already exists' });
       }
       throw err;
     }
+  }
+
+  async sendResetPasswordSms(tenantId: string) {
+    const tenant = await this.findOne(tenantId);
+    const token = crypto.randomBytes(32).toString('hex');
+    const baseUrl = process.env.TENANT_SETUP_BASE_URL || 'https://darital-arenda.uz';
+    const setupUrl = `${baseUrl}/setup?phone=${encodeURIComponent(tenant.phone)}&token=${token}`;
+    await this.prisma.tenantSetupToken.create({
+      data: {
+        tenantId: tenant.id,
+        token,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+    const smsResult = await this.smsService.sendTenantSetupLink(tenant.phone, tenant.fullName, setupUrl);
+    if (!smsResult.success) {
+      this.logger.warn(`SMS not sent to ${tenant.phone}: ${smsResult.error}`);
+    }
+    return { success: smsResult.success, message: smsResult.success ? 'SMS sent' : 'SMS failed - check logs for setup link' };
   }
 
   async update(id: string, dto: UpdateTenantDto) {
