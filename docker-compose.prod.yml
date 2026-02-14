@@ -1,5 +1,5 @@
 # Usage: docker compose -f docker-compose.prod.yml --env-file .env.production up -d
-# VPS: contract PDFs are stored on the server (minio_data volume). Keep MINIO_ENDPOINT unset or set to "minio" in .env.production.
+# VPS (local MinIO): add -f docker-compose.vps.yml to force local storage and fix R2 signature error.
 services:
   postgres:
     image: postgres:16-alpine

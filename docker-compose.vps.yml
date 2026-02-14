@@ -1,0 +1,13 @@
+# Override to force local MinIO on VPS (fixes R2 signature error).
+# Usage: docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml --env-file .env.production up -d
+services:
+  api:
+    environment:
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: contracts
