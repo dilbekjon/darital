@@ -325,7 +325,7 @@ export class MinioService {
     await this.client.putObject(this.bucket, objectName, buffer, undefined, meta);
     let url: string;
     if (this.publicUrl) {
-      url = `${this.publicUrl}/${encodeURIComponent(objectName)}`;
+      url = `${this.publicUrl.replace(/\/$/, '')}/${this.bucket}/${encodeURIComponent(objectName)}`;
     } else {
       const protocol = this.useSSL ? 'https' : 'http';
       const portPart = (this.useSSL && this.port === 443) || (!this.useSSL && this.port === 80) ? '' : `:${this.port}`;
@@ -376,7 +376,7 @@ export class MinioService {
       await this.client.putObject(useBucket, objectName, file.buffer, undefined, meta);
       let url: string;
       if (this.publicUrl) {
-        url = `${this.publicUrl}/${encodeURIComponent(objectName)}`;
+        url = `${this.publicUrl.replace(/\/$/, '')}/${useBucket}/${encodeURIComponent(objectName)}`;
       } else {
         const protocol = this.useSSL ? 'https' : 'http';
         const portPart = (this.useSSL && this.port === 443) || (!this.useSSL && this.port === 80) ? '' : `:${this.port}`;
@@ -451,16 +451,14 @@ export class MinioService {
       
       // Check if URL uses the endpoint (needs transformation)
       if (urlObj.hostname === this.endpoint || urlObj.hostname.includes('r2.cloudflarestorage.com')) {
-        // Extract bucket and object from path: /bucket/object.pdf
         const pathParts = pathname.split('/').filter(p => p);
-        if (pathParts.length >= 2) {
-          // Skip bucket (first part), get object name (rest)
-          const objectName = pathParts.slice(1).join('/');
-          // Return public URL format without bucket: https://pub-xxx.r2.dev/object.pdf
-          return `${this.publicUrl}/${objectName}`;
-        } else if (pathParts.length === 1) {
-          // If only one part, it's already the object name
-          return `${this.publicUrl}/${pathParts[0]}`;
+        if (pathParts.length >= 1) {
+          const base = this.publicUrl.replace(/\/$/, '');
+          if (urlObj.hostname.includes('r2.cloudflarestorage.com')) {
+            const objectName = pathParts.length >= 2 ? pathParts.slice(1).join('/') : pathParts[0];
+            return `${base}/${objectName}`;
+          }
+          return `${base}/${pathParts.join('/')}`;
         }
       }
       
