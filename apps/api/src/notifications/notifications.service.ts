@@ -254,7 +254,7 @@ export class NotificationsService {
    * Delegates to SmsService which handles provider configuration
    */
   async sendSMS(phone: string, text: string): Promise<void> {
-    await this.smsService.sendSMS(phone, text);
+    await this.smsService.sendSms(phone, text);
   }
 
   /**
