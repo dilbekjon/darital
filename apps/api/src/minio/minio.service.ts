@@ -103,6 +103,8 @@ export class MinioService {
       bucket: 'contracts',
     };
 
+    const isR2Endpoint = (host: string) => host.includes('r2.cloudflarestorage.com');
+
     if (isProd) {
       const cfg = strictConfig();
       this.endpoint = cfg.endpoint;
@@ -116,13 +118,19 @@ export class MinioService {
         this.publicUrl = this.publicUrl.replace(/\/$/, '');
         this.logger.log(`✅ Using public URL for file access: ${this.publicUrl}`);
       }
-      this.client = new MinioClient({
+      const clientOpts: ConstructorParameters<typeof MinioClient>[0] = {
         endPoint: this.endpoint,
         port: this.port,
         useSSL: cfg.useSSL,
         accessKey: cfg.accessKey,
         secretKey: cfg.secretKey,
-      });
+      };
+      if (isR2Endpoint(this.endpoint)) {
+        clientOpts.region = 'auto';
+        clientOpts.pathStyle = true;
+        this.logger.log('✅ Cloudflare R2 detected: using region=auto, pathStyle=true for signature compatibility');
+      }
+      this.client = new MinioClient(clientOpts);
       this.enabled = true;
     } else {
       const endpointRaw = MINIO_ENDPOINT || devDefaults.endpoint;
@@ -153,13 +161,19 @@ export class MinioService {
         this.publicUrl = this.publicUrl.replace(/\/$/, '');
         this.logger.log(`✅ Using public URL for file access: ${this.publicUrl}`);
       }
-      this.client = new MinioClient({
+      const clientOpts: ConstructorParameters<typeof MinioClient>[0] = {
         endPoint: this.endpoint,
         port: this.port,
         useSSL: parsed.useSSL,
         accessKey,
         secretKey,
-      });
+      };
+      if (isR2Endpoint(this.endpoint)) {
+        clientOpts.region = 'auto';
+        clientOpts.pathStyle = true;
+        this.logger.log('✅ Cloudflare R2 detected: using region=auto, pathStyle=true for signature compatibility');
+      }
+      this.client = new MinioClient(clientOpts);
       this.enabled = true;
     }
   }
