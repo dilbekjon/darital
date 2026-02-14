@@ -2,6 +2,17 @@ import { getToken, clearToken } from './auth'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
+export function getSocketBaseUrl(): string {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL
+  if (!apiUrl || apiUrl === 'http' || apiUrl === 'https') return 'http://localhost:3001'
+  try {
+    const url = new URL(apiUrl)
+    return url.origin
+  } catch {
+    return 'http://localhost:3001'
+  }
+}
+
 class ApiError extends Error {
   constructor(public status: number, message: string, public data?: any) {
     super(message)

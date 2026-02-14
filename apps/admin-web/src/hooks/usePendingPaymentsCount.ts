@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchApi, normalizeListResponse } from '../lib/api';
+import { fetchApi, normalizeListResponse, getSocketBaseUrl } from '../lib/api';
 import { io, Socket } from 'socket.io-client';
 import { getToken } from '../lib/auth';
 import { useAuth } from '../contexts/AuthContext';
-
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001';
 
 interface Payment {
   id: string;
@@ -77,7 +75,7 @@ export function usePendingPaymentsCount() {
     const token = getToken();
     if (!token) return;
 
-    const socket = io(`${SOCKET_URL}/chat`, {
+    const socket = io(`${getSocketBaseUrl()}/chat`, {
       auth: { token },
       transports: ['websocket', 'polling'],
     });

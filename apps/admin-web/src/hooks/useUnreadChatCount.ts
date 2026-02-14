@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getUnreadCount } from '../lib/chatApi';
+import { getSocketBaseUrl } from '../lib/api';
 import { io, Socket } from 'socket.io-client';
-
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001';
 
 /**
  * Hook to fetch and maintain unread chat count.
@@ -46,7 +45,7 @@ export function useUnreadChatCount(enabled: boolean = true) {
     const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
     if (!token) return;
 
-    const socket = io(`${SOCKET_URL}/chat`, {
+    const socket = io(`${getSocketBaseUrl()}/chat`, {
       auth: { token },
       transports: ['websocket', 'polling'],
     });

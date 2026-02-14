@@ -3,8 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import type { Message } from '../lib/chatApi';
-
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001';
+import { getSocketBaseUrl } from '../lib/api';
 
 interface UseChatSocketOptions {
   conversationId?: string;
@@ -32,7 +31,7 @@ export function useChatSocket(options: UseChatSocketOptions = {}) {
 
     console.log('🔌 Connecting to chat socket...');
 
-    const socketInstance = io(`${SOCKET_URL}/chat`, {
+    const socketInstance = io(`${getSocketBaseUrl()}/chat`, {
       auth: {
         token,
       },

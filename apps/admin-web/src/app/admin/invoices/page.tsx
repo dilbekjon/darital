@@ -9,7 +9,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 import { NoAccess } from '../../../components/common/NoAccess';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { EmptyState } from '../../../components/EmptyState';
-import { fetchApi, ApiError, normalizeListResponse } from '../../../lib/api';
+import { fetchApi, ApiError, normalizeListResponse, getSocketBaseUrl } from '../../../lib/api';
 import { io, Socket } from 'socket.io-client';
 import { getToken } from '../../../lib/auth';
 import DaritalLoader from '../../../components/DaritalLoader';
@@ -156,8 +156,7 @@ export default function AdminInvoicesPage() {
       return;
     }
 
-    const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001';
-    const socket = io(`${SOCKET_URL}/chat`, {
+    const socket = io(`${getSocketBaseUrl()}/chat`, {
       auth: { token },
       transports: ['websocket', 'polling'],
     });
