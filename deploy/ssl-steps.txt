@@ -1,0 +1,23 @@
+Hostinger VPS da HTTPS (Let's Encrypt) qo'yish
+
+1) Loyiha papasida certbot-webroot yarating va nginx ishlatib cert oling:
+   mkdir -p certbot-webroot
+   docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml --env-file .env.production up -d
+   sudo apt update && sudo apt install -y certbot
+   sudo certbot certonly --webroot -w ./certbot-webroot -d api.darital-arenda.uz -d admin.darital-arenda.uz -d darital-arenda.uz -d www.darital-arenda.uz --email YOUR_EMAIL --agree-tos --no-eff-email
+
+2) Nginx ni SSL konfigiga o'tkazing:
+   cp deploy/nginx.ssl.conf deploy/nginx.conf
+   docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml --env-file .env.production up -d nginx --force-recreate
+
+3) 443 port ochiqligini tekshiring (firewall):
+   sudo ufw allow 443
+   sudo ufw reload
+
+4) .env.production da URL larni https ga o'zgartiring:
+   NEXT_PUBLIC_API_URL=https://api.darital-arenda.uz/api
+   MINIO_PUBLIC_URL=https://api.darital-arenda.uz/files
+
+5) Cert yangilash (3 oyda bir, avtomatik):
+   sudo certbot renew --dry-run
+   Crontab: 0 3 * * * certbot renew --quiet && docker exec darital-nginx nginx -s reload
