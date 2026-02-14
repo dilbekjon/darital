@@ -139,9 +139,14 @@ export class TenantsService {
     });
     const smsResult = await this.smsService.sendTenantSetupLink(tenant.phone, tenant.fullName, setupUrl);
     if (!smsResult.success) {
-      this.logger.warn(`SMS not sent to ${tenant.phone}: ${smsResult.error}`);
+      this.logger.warn(`SMS not sent to ${tenant.phone}: ${smsResult.error}. Setup link (send to tenant manually): ${setupUrl}`);
+      return {
+        success: false,
+        message: smsResult.error === 'SMS not configured' ? 'SMS not configured (set ESKIZ_EMAIL, ESKIZ_PASSWORD)' : 'SMS failed',
+        setupLink: setupUrl,
+      };
     }
-    return { success: smsResult.success, message: smsResult.success ? 'SMS sent' : 'SMS failed - check logs for setup link' };
+    return { success: true, message: 'SMS sent' };
   }
 
   async update(id: string, dto: UpdateTenantDto) {
