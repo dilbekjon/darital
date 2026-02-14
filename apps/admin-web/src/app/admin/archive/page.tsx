@@ -619,7 +619,7 @@ export default function ArchiveManagementPage() {
                             {invoice.contract?.tenant?.fullName || (t.unknownUser || 'Noma\'lum')}
                           </h3>
                           <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {invoice.contract?.unit?.name && <span className="mr-2">Xona: {invoice.contract.unit.name}</span>}
+                            {invoice.contract?.unit?.name && <span className="mr-2">{t.unit || 'Ofis'}: {invoice.contract.unit.name}</span>}
                             {invoice.contract?.tenant?.phone && <span className="mr-2">• {invoice.contract.tenant.phone}</span>}
                           </div>
                           <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>

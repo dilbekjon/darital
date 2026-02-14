@@ -15,7 +15,7 @@ export interface ArchivedTenant {
 export interface ArchivedContract {
   id: string;
   tenantId: string;
-  tenant: { fullName: string; email: string };
+  tenant: { fullName: string; email?: string; phone?: string };
   unitId: string;
   unit: { name: string };
   startDate: string;
@@ -32,7 +32,7 @@ export interface ArchivedInvoice {
   contractId: string;
   contract: { 
     id: string;
-    tenant: { fullName: string; email: string };
+    tenant: { fullName: string; email?: string; phone?: string };
     unit: { name: string };
   };
   dueDate: string;
