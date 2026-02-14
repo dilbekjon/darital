@@ -1,5 +1,11 @@
 import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { Client as MinioClient } from 'minio';
+import {
+  S3Client,
+  PutObjectCommand,
+  CreateBucketCommand,
+  HeadBucketCommand,
+} from '@aws-sdk/client-s3';
 
 export interface UploadedObjectInfo {
   bucket: string;
@@ -17,6 +23,16 @@ export class MinioService {
   private useSSL: boolean;
   private publicUrl?: string; // Cloudflare R2 Public Development URL for public file access
   private readonly enabled: boolean;
+  private useR2 = false;
+  private r2S3Client: S3Client | null = null;
+  private r2AccessKey = '';
+  private r2SecretKey = '';
+  private clientOrNull: MinioClient | null = null;
+
+  private get client(): MinioClient {
+    if (!this.clientOrNull) throw new InternalServerErrorException('MinIO client not available (R2 mode)');
+    return this.clientOrNull;
+  }
 
   constructor() {
     const {
@@ -118,19 +134,32 @@ export class MinioService {
         this.publicUrl = this.publicUrl.replace(/\/$/, '');
         this.logger.log(`✅ Using public URL for file access: ${this.publicUrl}`);
       }
-      const clientOpts: ConstructorParameters<typeof MinioClient>[0] = {
-        endPoint: this.endpoint,
-        port: this.port,
-        useSSL: cfg.useSSL,
-        accessKey: cfg.accessKey,
-        secretKey: cfg.secretKey,
-      };
       if (isR2Endpoint(this.endpoint)) {
-        clientOpts.region = 'auto';
-        clientOpts.pathStyle = true;
-        this.logger.log('✅ Cloudflare R2 detected: using region=auto, pathStyle=true for signature compatibility');
+        this.useR2 = true;
+        this.r2AccessKey = String(cfg.accessKey).trim();
+        this.r2SecretKey = String(cfg.secretKey).trim();
+        const r2Endpoint = `https://${this.endpoint}`;
+        this.r2S3Client = new S3Client({
+          region: 'auto',
+          endpoint: r2Endpoint,
+          credentials: {
+            accessKeyId: this.r2AccessKey,
+            secretAccessKey: this.r2SecretKey,
+          },
+          forcePathStyle: true,
+        });
+        this.clientOrNull = null;
+        this.logger.log('✅ Cloudflare R2: using AWS SDK S3 client for uploads (signature-compatible)');
+      } else {
+        const clientOpts: ConstructorParameters<typeof MinioClient>[0] = {
+          endPoint: this.endpoint,
+          port: this.port,
+          useSSL: cfg.useSSL,
+          accessKey: String(cfg.accessKey).trim(),
+          secretKey: String(cfg.secretKey).trim(),
+        };
+        this.clientOrNull = new MinioClient(clientOpts);
       }
-      this.client = new MinioClient(clientOpts);
       this.enabled = true;
     } else {
       const endpointRaw = MINIO_ENDPOINT || devDefaults.endpoint;
@@ -161,26 +190,56 @@ export class MinioService {
         this.publicUrl = this.publicUrl.replace(/\/$/, '');
         this.logger.log(`✅ Using public URL for file access: ${this.publicUrl}`);
       }
-      const clientOpts: ConstructorParameters<typeof MinioClient>[0] = {
-        endPoint: this.endpoint,
-        port: this.port,
-        useSSL: parsed.useSSL,
-        accessKey,
-        secretKey,
-      };
       if (isR2Endpoint(this.endpoint)) {
-        clientOpts.region = 'auto';
-        clientOpts.pathStyle = true;
-        this.logger.log('✅ Cloudflare R2 detected: using region=auto, pathStyle=true for signature compatibility');
+        this.useR2 = true;
+        this.r2AccessKey = String(accessKey).trim();
+        this.r2SecretKey = String(secretKey).trim();
+        const r2Endpoint = `https://${this.endpoint}`;
+        this.r2S3Client = new S3Client({
+          region: 'auto',
+          endpoint: r2Endpoint,
+          credentials: { accessKeyId: this.r2AccessKey, secretAccessKey: this.r2SecretKey },
+          forcePathStyle: true,
+        });
+        this.clientOrNull = null;
+        this.logger.log('✅ Cloudflare R2: using AWS SDK S3 client for uploads');
+      } else {
+        const clientOpts: ConstructorParameters<typeof MinioClient>[0] = {
+          endPoint: this.endpoint,
+          port: this.port,
+          useSSL: parsed.useSSL,
+          accessKey: String(accessKey).trim(),
+          secretKey: String(secretKey).trim(),
+        };
+        this.clientOrNull = new MinioClient(clientOpts);
       }
-      this.client = new MinioClient(clientOpts);
       this.enabled = true;
+    }
+  }
+
+  private async ensureBucketR2(bucket?: string): Promise<void> {
+    const useBucket = bucket || this.bucket;
+    if (!this.r2S3Client) return;
+    try {
+      await this.r2S3Client.send(new HeadBucketCommand({ Bucket: useBucket }));
+    } catch (e: any) {
+      const is404 = e?.$metadata?.httpStatusCode === 404 || e?.name === 'NotFound' || e?.Code === 'NoSuchBucket';
+      if (is404) {
+        await this.r2S3Client.send(new CreateBucketCommand({ Bucket: useBucket }));
+        this.logger.log(`Created R2 bucket: ${useBucket}`);
+      } else {
+        throw e;
+      }
     }
   }
 
   async ensureBucket(): Promise<void> {
     if (!this.enabled) {
       this.logger.warn('MinIO is disabled; ensureBucket skipped.');
+      return;
+    }
+    if (this.useR2 && this.r2S3Client) {
+      await this.ensureBucketR2(this.bucket);
       return;
     }
     const exists = await this.client.bucketExists(this.bucket).catch(() => false);
@@ -246,24 +305,34 @@ export class MinioService {
       throw new InternalServerErrorException('MinIO is disabled in this environment; uploads are not available.');
     }
     await this.ensureBucket();
+    if (this.useR2 && this.r2S3Client) {
+      await this.r2S3Client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: objectName,
+          Body: buffer,
+          ContentType: contentType || 'application/octet-stream',
+        }),
+      );
+      const url = this.publicUrl
+        ? `${this.publicUrl}/${encodeURIComponent(objectName)}`
+        : `https://${this.endpoint}/${this.bucket}/${encodeURIComponent(objectName)}`;
+      this.logger.log(`📤 Uploaded object (R2): ${objectName} to bucket: ${this.bucket}`);
+      this.logger.log(`🔗 Public URL: ${url}`);
+      return { bucket: this.bucket, objectName, url };
+    }
     const meta = { 'Content-Type': contentType || 'application/octet-stream' } as any;
     await this.client.putObject(this.bucket, objectName, buffer, undefined, meta);
-    
-    // Use public URL if available (Cloudflare R2 Public Development URL), otherwise construct from endpoint
     let url: string;
     if (this.publicUrl) {
-      // Cloudflare R2 Public Development URL format: https://pub-xxx.r2.dev/file (no bucket in path)
       url = `${this.publicUrl}/${encodeURIComponent(objectName)}`;
     } else {
       const protocol = this.useSSL ? 'https' : 'http';
-      // Don't include port in URL if it's standard (80 for HTTP, 443 for HTTPS)
       const portPart = (this.useSSL && this.port === 443) || (!this.useSSL && this.port === 80) ? '' : `:${this.port}`;
       url = `${protocol}://${this.endpoint}${portPart}/${this.bucket}/${encodeURIComponent(objectName)}`;
     }
-    
     this.logger.log(`📤 Uploaded object: ${objectName} to bucket: ${this.bucket}`);
     this.logger.log(`🔗 Public URL: ${url}`);
-    
     return { bucket: this.bucket, objectName, url };
   }
 
@@ -273,7 +342,25 @@ export class MinioService {
         throw new InternalServerErrorException('MinIO is disabled in this environment; uploads are not available.');
       }
       const useBucket = bucket || this.bucket;
-      // Ensure target bucket exists and is public
+      if (this.useR2 && this.r2S3Client) {
+        await this.ensureBucketR2(useBucket);
+        const safeName = (file.originalname || 'file.pdf').replace(/[^a-zA-Z0-9_.-]/g, '_');
+        const objectName = `${Date.now()}-${safeName}`;
+        await this.r2S3Client.send(
+          new PutObjectCommand({
+            Bucket: useBucket,
+            Key: objectName,
+            Body: file.buffer,
+            ContentType: file.mimetype || 'application/pdf',
+          }),
+        );
+        const url = this.publicUrl
+          ? `${this.publicUrl}/${encodeURIComponent(objectName)}`
+          : `https://${this.endpoint}/${useBucket}/${encodeURIComponent(objectName)}`;
+        this.logger.log(`📤 Uploaded file (R2): ${objectName} to bucket: ${useBucket}`);
+        this.logger.log(`🔗 Public URL: ${url}`);
+        return url;
+      }
       if (useBucket !== this.bucket) {
         const exists = await this.client.bucketExists(useBucket).catch(() => false);
         if (!exists) {
@@ -283,26 +370,20 @@ export class MinioService {
       } else {
         await this.ensureBucket();
       }
-
       const safeName = (file.originalname || 'file.pdf').replace(/[^a-zA-Z0-9_.-]/g, '_');
       const objectName = `${Date.now()}-${safeName}`;
       const meta = { 'Content-Type': file.mimetype || 'application/pdf' } as any;
       await this.client.putObject(useBucket, objectName, file.buffer, undefined, meta);
-      // Use public URL if available (Cloudflare R2 Public Development URL), otherwise construct from endpoint
       let url: string;
       if (this.publicUrl) {
-        // Cloudflare R2 Public Development URL format: https://pub-xxx.r2.dev/file (no bucket in path)
         url = `${this.publicUrl}/${encodeURIComponent(objectName)}`;
       } else {
         const protocol = this.useSSL ? 'https' : 'http';
-        // Don't include port in URL if it's standard (80 for HTTP, 443 for HTTPS)
         const portPart = (this.useSSL && this.port === 443) || (!this.useSSL && this.port === 80) ? '' : `:${this.port}`;
         url = `${protocol}://${this.endpoint}${portPart}/${useBucket}/${encodeURIComponent(objectName)}`;
       }
-      
       this.logger.log(`📤 Uploaded file: ${objectName} to bucket: ${useBucket}`);
       this.logger.log(`🔗 Public URL: ${url}`);
-      
       return url;
     } catch (err: any) {
       this.logger.error(`MinIO upload failed: ${err?.message || err}`);
