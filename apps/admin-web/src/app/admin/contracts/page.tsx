@@ -77,6 +77,7 @@ export default function AdminContractsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [archivingContractId, setArchivingContractId] = useState<string | null>(null);
+  const [viewingPdfContract, setViewingPdfContract] = useState<Contract | null>(null);
 
   // Filter contracts based on search query and status
   const filteredContracts = useMemo(() => {
@@ -553,10 +554,9 @@ export default function AdminContractsPage() {
                       UZS {contract.amount.toLocaleString()}<span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>/mo</span>
                     </span>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <a
-                        href={contract.pdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => setViewingPdfContract(contract)}
                         className={`text-sm font-medium transition-colors ${
                           darkMode
                             ? 'text-blue-400 hover:text-blue-300'
@@ -564,7 +564,7 @@ export default function AdminContractsPage() {
                         }`}
                       >
                         {t.viewPDF}
-                      </a>
+                      </button>
                       {canUpdateContracts && (
                         <>
                           <button
@@ -688,17 +688,16 @@ export default function AdminContractsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex flex-wrap items-center justify-end gap-1">
-                          <a
-                            href={contract.pdfUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => setViewingPdfContract(contract)}
                             className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                               darkMode ? 'text-blue-400 hover:bg-blue-600/20' : 'text-blue-600 hover:bg-blue-100'
                             }`}
                             title={t.viewPDF || 'PDF ni ko\'rish'}
                           >
                             PDF
-                          </a>
+                          </button>
                           {canUpdateContracts && (
                             <>
                               <button
@@ -746,6 +745,59 @@ export default function AdminContractsPage() {
           </>
         )}
       </div>
+
+      {/* PDF Viewer Modal - view and download on the same page */}
+      {viewingPdfContract && (
+        <div
+          className={`fixed inset-0 z-50 flex flex-col ${darkMode ? 'bg-black' : 'bg-gray-900'}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.viewPDF}
+        >
+          <div className={`flex items-center justify-between px-4 py-3 border-b ${
+            darkMode ? 'border-blue-600/30 bg-gray-900' : 'border-gray-700 bg-gray-800'
+          }`}>
+            <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-white'}`}>
+              {viewingPdfContract.tenant.fullName} – {viewingPdfContract.unit.name}
+            </h2>
+            <div className="flex items-center gap-2">
+              <a
+                href={viewingPdfContract.pdfUrl}
+                download={`contract-${viewingPdfContract.id}.pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  darkMode ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-blue-600 text-white hover:bg-blue-500'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                {t.download || 'Download'}
+              </a>
+              <button
+                type="button"
+                onClick={() => setViewingPdfContract(null)}
+                className={`p-2 rounded-lg transition-colors ${
+                  darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-300 hover:bg-gray-700'
+                }`}
+                aria-label="Close"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 min-h-0">
+            <iframe
+              src={`${viewingPdfContract.pdfUrl}#toolbar=1`}
+              className="w-full h-full border-none"
+              title={t.viewPDF}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Edit Contract Modal */}
       {isEditModalOpen && editingContract && (
@@ -890,16 +942,15 @@ export default function AdminContractsPage() {
                 }`}>
                   <p className={`text-sm mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     <strong>{t.currentPdf}:</strong>{' '}
-                    <a
-                      href={editingContract.pdfUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => { setViewingPdfContract(editingContract); setIsEditModalOpen(false); }}
                       className={`underline ${
                         darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'
                       }`}
                     >
                       {t.viewCurrentPdf}
-                    </a>
+                    </button>
                   </p>
                   <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                     {t.leaveEmptyToKeepPdf}
