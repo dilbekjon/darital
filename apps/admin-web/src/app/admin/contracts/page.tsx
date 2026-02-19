@@ -64,6 +64,8 @@ export default function AdminContractsPage() {
     endDate: '',
     amount: '',
     notes: '',
+    rentType: 'FIXED' as 'FIXED' | 'PER_SQM',
+    pricePerSqm: '',
   });
   const [editFormData, setEditFormData] = useState({
     startDate: '',
@@ -378,7 +380,7 @@ export default function AdminContractsPage() {
       setContracts(contractsData);
       
       setIsModalOpen(false);
-      setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', notes: '' });
+      setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', notes: '', rentType: 'FIXED', pricePerSqm: '' });
       setFile(null);
       setError(null);
     } catch (err) {
@@ -1175,17 +1177,17 @@ export default function AdminContractsPage() {
                   value={formData.unitId}
                   onChange={(e) => {
                     const selectedUnit = units.find(u => u.id === e.target.value);
-                    setFormData({ 
-                      ...formData, 
+                    const newAmount = formData.rentType === 'PER_SQM' && selectedUnit?.area && formData.pricePerSqm
+                      ? String((parseFloat(formData.pricePerSqm) || 0) * (selectedUnit.area || 0))
+                      : formData.rentType === 'FIXED' ? formData.amount : (selectedUnit ? String(
+                        typeof selectedUnit.price === 'number' ? selectedUnit.price
+                          : typeof selectedUnit.price === 'object' && selectedUnit.price?.toNumber ? selectedUnit.price.toNumber()
+                          : parseFloat(String(selectedUnit.price)) || 0
+                      ) : '');
+                    setFormData({
+                      ...formData,
                       unitId: e.target.value,
-                      // Auto-fill amount with unit price if not set
-                      amount: formData.amount || (selectedUnit ? String(
-                        typeof selectedUnit.price === 'number' 
-                          ? selectedUnit.price 
-                          : typeof selectedUnit.price === 'object' && selectedUnit.price?.toNumber 
-                            ? selectedUnit.price.toNumber() 
-                            : parseFloat(String(selectedUnit.price)) || 0
-                      ) : '')
+                      amount: formData.amount || newAmount,
                     });
                   }}
                   className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
@@ -1282,24 +1284,107 @@ export default function AdminContractsPage() {
                 </div>
               )}
 
-              {/* Monthly Rent */}
+              {/* Oylik to'lov turi */}
               <div>
-                <label htmlFor="amount" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  {t.monthlyRent || 'Monthly Rent'} (UZS) <span className="text-red-500">*</span>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Oylik ijara to'lovi
                 </label>
-                <input
-                  type="number"
-                  id="amount"
-                  required
-                  min="0"
-                  step="0.01"
-                  value={formData.amount}
-                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  placeholder={t.monthlyRent || t.enterMonthlyRent || 'Oylik ijara summasini kiriting'}
-                  className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                />
+                <div className="flex flex-wrap gap-4 mb-3">
+                  <label className={`inline-flex items-center gap-2 cursor-pointer ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <input
+                      type="radio"
+                      name="rentType"
+                      checked={formData.rentType === 'PER_SQM'}
+                      onChange={() => {
+                        const u = units.find(x => x.id === formData.unitId);
+                        const area = u?.area ?? 0;
+                        const pr = parseFloat(formData.pricePerSqm) || 0;
+                        setFormData({
+                          ...formData,
+                          rentType: 'PER_SQM',
+                          amount: area && pr ? String(area * pr) : '',
+                        });
+                      }}
+                      className="rounded border-gray-400 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>Metr kvadrating to'lovi (narxi × m²)</span>
+                  </label>
+                  <label className={`inline-flex items-center gap-2 cursor-pointer ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <input
+                      type="radio"
+                      name="rentType"
+                      checked={formData.rentType === 'FIXED'}
+                      onChange={() => setFormData({ ...formData, rentType: 'FIXED' })}
+                      className="rounded border-gray-400 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>Umumiy oylik to'lov</span>
+                  </label>
+                </div>
+                {formData.rentType === 'PER_SQM' ? (
+                  <>
+                    {formData.unitId && (() => {
+                      const selectedUnit = units.find(u => u.id === formData.unitId);
+                      const area = selectedUnit?.area ?? 0;
+                      const pricePerSqm = parseFloat(formData.pricePerSqm) || 0;
+                      const computed = area && pricePerSqm ? area * pricePerSqm : 0;
+                      return (
+                        <div className="space-y-2">
+                          <label htmlFor="pricePerSqm" className="block text-sm font-medium text-gray-600 dark:text-gray-400">
+                            Metr kvadrat narxi (UZS) <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="number"
+                            id="pricePerSqm"
+                            min="0"
+                            step="0.01"
+                            value={formData.pricePerSqm}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const p = parseFloat(v) || 0;
+                              setFormData({
+                                ...formData,
+                                pricePerSqm: v,
+                                amount: area && p ? String(area * p) : '',
+                              });
+                            }}
+                            placeholder="Masalan: 150000"
+                            className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 ${
+                              darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                            }`}
+                          />
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Xona maydoni: <strong>{area || '—'} m²</strong>
+                            {pricePerSqm > 0 && area > 0 && (
+                              <> → Oylik summa: <strong>UZS {(area * pricePerSqm).toLocaleString()}</strong></>
+                            )}
+                          </p>
+                        </div>
+                      );
+                    })()}
+                    {formData.unitId && !units.find(u => u.id === formData.unitId)?.area && (
+                      <p className="text-sm text-amber-600 dark:text-amber-400">Tanlangan xonada maydon kiritilmagan. Umumiy oylik to'lovni tanlang yoki xonaga maydon qo'shing.</p>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <label htmlFor="amount" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      {t.monthlyRent || 'Monthly Rent'} (UZS) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      id="amount"
+                      required={formData.rentType === 'FIXED'}
+                      min="0"
+                      step="0.01"
+                      value={formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                      placeholder={t.monthlyRent || t.enterMonthlyRent || 'Oylik ijara summasini kiriting'}
+                      className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    />
+                  </>
+                )}
                 {formData.amount && formData.startDate && formData.endDate && (
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     {t.totalContractAmount || 'Total contract amount'}: UZS {(
@@ -1362,7 +1447,7 @@ export default function AdminContractsPage() {
                   type="button"
                   onClick={() => {
                     setIsModalOpen(false);
-                    setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', notes: '' });
+                    setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', notes: '', rentType: 'FIXED', pricePerSqm: '' });
                     setFile(null);
                     setError(null);
                   }}
@@ -1372,7 +1457,7 @@ export default function AdminContractsPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting || !file || !formData.tenantId || !formData.unitId}
+                  disabled={submitting || !file || !formData.tenantId || !formData.unitId || !formData.amount}
                   className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
                   {submitting ? t.loading : (t.save || 'Shartnoma yaratish')}

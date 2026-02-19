@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
@@ -103,8 +104,8 @@ export default function BuildingsPage() {
           name: formData.name,
           address: formData.address || undefined,
           description: formData.description || undefined,
-          areaType: formData.areaType,
-          floorsCount: formData.areaType === 'BUILDING' ? formData.floorsCount : 0,
+          areaType: 'BUILDING',
+          floorsCount: formData.floorsCount,
         }),
       });
       setShowCreateModal(false);
@@ -128,8 +129,8 @@ export default function BuildingsPage() {
           name: formData.name,
           address: formData.address || undefined,
           description: formData.description || undefined,
-          areaType: formData.areaType,
-          floorsCount: formData.areaType === 'BUILDING' ? formData.floorsCount : 0,
+          areaType: 'BUILDING',
+          floorsCount: formData.floorsCount,
         }),
       });
       setShowEditModal(false);
@@ -393,6 +394,16 @@ export default function BuildingsPage() {
                       >
                         Xonalar / Batafsil
                       </button>
+                      <Link
+                        href={`/admin/buildings/${building.id}/3d`}
+                        className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
+                          darkMode
+                            ? 'bg-gray-600/20 hover:bg-gray-600/30 text-gray-300'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        3D View
+                      </Link>
                       <button
                         onClick={() => openEditModal(building)}
                         className={`py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
@@ -438,39 +449,22 @@ export default function BuildingsPage() {
             <div className="p-6 space-y-4">
               <div>
                 <label className={`block text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  1. Hudud turi
+                  1. Qavatlar soni
                 </label>
-                <select
-                  value={formData.areaType}
-                  onChange={(e) => setFormData({ ...formData, areaType: e.target.value as 'OPEN_AREA' | 'BUILDING' })}
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.floorsCount}
+                  onChange={(e) => setFormData({ ...formData, floorsCount: parseInt(e.target.value, 10) || 0 })}
                   className={`w-full px-4 py-3 rounded-xl border-2 ${
                     darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                >
-                  <option value="OPEN_AREA">Ochiq maydon</option>
-                  <option value="BUILDING">Bino</option>
-                </select>
+                  placeholder="2"
+                />
               </div>
-              {formData.areaType === 'BUILDING' && (
-                <div>
-                  <label className={`block text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    2. Qavatlar soni (0 = qavatsiz)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={formData.floorsCount}
-                    onChange={(e) => setFormData({ ...formData, floorsCount: parseInt(e.target.value, 10) || 0 })}
-                    className={`w-full px-4 py-3 rounded-xl border-2 ${
-                      darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    placeholder="0"
-                  />
-                </div>
-              )}
               <div>
                 <label className={`block text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {formData.areaType === 'BUILDING' ? '3. ' : '2. '}Nomi *
+                  2. Bino nomi *
                 </label>
                 <input
                   type="text"
@@ -479,7 +473,7 @@ export default function BuildingsPage() {
                   className={`w-full px-4 py-3 rounded-xl border ${
                     darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="Hudud yoki bino nomi"
+                  placeholder="Bino nomi"
                 />
               </div>
               <div>
@@ -545,39 +539,22 @@ export default function BuildingsPage() {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className={`block text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Hudud turi
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Qavatlar soni
                 </label>
-                <select
-                  value={formData.areaType}
-                  onChange={(e) => setFormData({ ...formData, areaType: e.target.value as 'OPEN_AREA' | 'BUILDING' })}
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.floorsCount}
+                  onChange={(e) => setFormData({ ...formData, floorsCount: parseInt(e.target.value, 10) || 0 })}
                   className={`w-full px-4 py-3 rounded-xl border ${
                     darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                >
-                  <option value="OPEN_AREA">Ochiq maydon</option>
-                  <option value="BUILDING">Bino</option>
-                </select>
+                />
               </div>
-              {formData.areaType === 'BUILDING' && (
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Qavatlar soni (0 = qavatsiz)
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={formData.floorsCount}
-                    onChange={(e) => setFormData({ ...formData, floorsCount: parseInt(e.target.value, 10) || 0 })}
-                    className={`w-full px-4 py-3 rounded-xl border ${
-                      darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                </div>
-              )}
               <div>
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {t.fullName || 'Name'} *
+                  {t.fullName || 'Bino nomi'} *
                 </label>
                 <input
                   type="text"
@@ -644,7 +621,7 @@ export default function BuildingsPage() {
           }`}>
             <div className={`p-4 border-b flex justify-between items-center ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                {detailBuilding.areaType === 'OPEN_AREA' ? 'Ochiq maydon' : 'Bino'}: {detailBuilding.name}
+                Bino: {detailBuilding.name}
               </h2>
               <button
                 onClick={() => { setDetailBuilding(null); setDetailUnitsByFloor({}); }}
@@ -655,30 +632,31 @@ export default function BuildingsPage() {
             </div>
             <div className="p-4 overflow-y-auto flex-1">
               <p className={`text-sm mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                {detailBuilding.areaType === 'BUILDING' && (detailBuilding.floorsCount ?? 0) > 0
+                {(detailBuilding.floorsCount ?? 0) > 0
                   ? `${detailBuilding.floorsCount} qavat. Har qavatda xonalarni ketma-ket qo'shing.`
-                  : 'Qavatsiz yoki ochiq maydon. Xonalarni qo\'shing.'}
+                  : 'Qavatsiz bino. Xonalarni qo\'shing.'}
               </p>
               {(() => {
-                const floors = detailBuilding.areaType === 'BUILDING' && (detailBuilding.floorsCount ?? 0) > 0
-                  ? Array.from({ length: (detailBuilding.floorsCount ?? 0) + 1 }, (_, i) => i)
+                const floorsCount = detailBuilding.floorsCount ?? 0;
+                const floors = floorsCount > 0
+                  ? Array.from({ length: floorsCount }, (_, i) => i)
                   : [0];
-                return floors.map((floorNum) => {
-                  const units = detailUnitsByFloor[floorNum] || [];
+                return floors.map((floorIndex) => {
+                  const units = detailUnitsByFloor[floorIndex] || [];
                   const free = units.filter((u) => u.status === 'FREE').length;
                   const busy = units.filter((u) => u.status === 'BUSY').length;
                   return (
-                    <div key={floorNum} className={`mb-4 rounded-xl border ${darkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div key={floorIndex} className={`mb-4 rounded-xl border ${darkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className={`px-4 py-2 flex justify-between items-center ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
                         <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                          {floorNum === 0 && (detailBuilding.floorsCount ?? 0) === 0 ? 'Xonalar (qavatsiz)' : `Qavat ${floorNum}`}
+                          {floorIndex === 0 && floorsCount === 0 ? 'Xonalar (qavatsiz)' : `Qavat ${floorIndex + 1}`}
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-green-600">{busy} band</span>
                           <span className="text-sm text-blue-600">{free} bo'sh</span>
                           {hasPermission('units.create') && (
                             <button
-                              onClick={() => openAddUnitsModal(floorNum)}
+                              onClick={() => openAddUnitsModal(floorIndex)}
                               className="px-3 py-1 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
                             >
                               + Xona qo'shish
@@ -721,7 +699,7 @@ export default function BuildingsPage() {
           <div className={`w-full max-w-lg rounded-2xl shadow-2xl ${darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white'}`}>
             <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <h2 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                Xona qo'shish — {addUnitsFloor === 0 && (detailBuilding.floorsCount ?? 0) === 0 ? 'Qavatsiz' : `Qavat ${addUnitsFloor}`}
+                Xona qo'shish — {(detailBuilding.floorsCount ?? 0) === 0 ? 'Qavatsiz' : `Qavat ${addUnitsFloor + 1}`}
               </h2>
             </div>
             <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">

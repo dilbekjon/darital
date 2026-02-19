@@ -55,27 +55,64 @@ fi
 
 echo ""
 
+# Ensure PostgreSQL and Redis are running (backend needs them)
+echo -e "${YELLOW}📋 Checking database and Redis...${NC}"
+if command -v docker &> /dev/null && docker ps &> /dev/null 2>&1; then
+    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q 'darital-postgres'; then
+        echo -e "${YELLOW}   Starting PostgreSQL and Redis (docker compose up -d postgres redis)...${NC}"
+        cd "$PROJECT_ROOT"
+        docker compose up -d postgres redis 2>/dev/null || true
+        cd - > /dev/null
+        echo -e "${YELLOW}   Waiting 5s for database to be ready...${NC}"
+        sleep 5
+    fi
+    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q 'darital-redis'; then
+        echo -e "${YELLOW}   Starting Redis...${NC}"
+        cd "$PROJECT_ROOT"
+        docker compose up -d redis 2>/dev/null || true
+        cd - > /dev/null
+        sleep 2
+    fi
+else
+    echo -e "${YELLOW}   Docker not running or not available. Ensure PostgreSQL and Redis are running for the backend.${NC}"
+fi
+if [ ! -f "$PROJECT_ROOT/apps/api/.env" ]; then
+    echo -e "${YELLOW}   Creating apps/api/.env from .env.example (first run)...${NC}"
+    cp "$PROJECT_ROOT/apps/api/.env.example" "$PROJECT_ROOT/apps/api/.env"
+fi
+# Run migrations so DB has tables (required before backend starts)
+if command -v docker &> /dev/null && docker ps --format '{{.Names}}' 2>/dev/null | grep -q 'darital-postgres'; then
+    echo -e "${YELLOW}   Applying database migrations...${NC}"
+    (cd "$PROJECT_ROOT/apps/api" && pnpm exec prisma migrate deploy --schema=prisma/schema.prisma 2>/dev/null) || true
+    if [ -f "$PROJECT_ROOT/apps/api/dist/rbac/seed.js" ]; then
+        (cd "$PROJECT_ROOT/apps/api" && node dist/rbac/seed.js 2>/dev/null) || true
+    fi
+fi
+echo ""
+
 # Start Backend API (includes Telegram Bot)
 echo -e "${GREEN}🚀 Starting Backend API (with Telegram Bot)...${NC}"
 if [ ! -d "$PROJECT_ROOT/apps/api" ]; then
     echo -e "${RED}❌ Error: Backend API directory not found at $PROJECT_ROOT/apps/api${NC}"
     exit 1
 fi
+# Use dev:simple (build once + node) to avoid ENFILE from tsc watch on macOS
+ulimit -n 10240 2>/dev/null || true
 cd "$PROJECT_ROOT/apps/api"
-pnpm run dev > /tmp/darital-api.log 2>&1 &
+pnpm run dev:simple > /tmp/darital-api.log 2>&1 &
 API_PID=$!
 echo -e "${BLUE}   PID: $API_PID${NC}"
 
-# Wait for backend to be ready
-echo -e "${YELLOW}⏳ Waiting for Backend API to be ready...${NC}"
+# Wait for backend to be ready (first build can take 60–90s)
+echo -e "${YELLOW}⏳ Waiting for Backend API to be ready (build + start, up to 120s)...${NC}"
 BACKEND_READY=false
-for i in {1..60}; do
+for i in $(seq 1 120); do
     if curl -s http://localhost:3001/api/health > /dev/null 2>&1; then
         BACKEND_READY=true
         echo -e "${GREEN}✅ Backend API is ready!${NC}"
         break
     fi
-    if [ $((i % 5)) -eq 0 ]; then
+    if [ $((i % 10)) -eq 0 ]; then
         echo -e "${YELLOW}   Still waiting... (${i}s)${NC}"
     fi
     sleep 1
@@ -83,7 +120,8 @@ done
 
 if [ "$BACKEND_READY" = false ]; then
     echo -e "${RED}⚠️  Backend API is taking longer than expected${NC}"
-    echo -e "${YELLOW}   Check logs: tail -f /tmp/darital-api.log${NC}"
+    echo -e "${YELLOW}   Logs: tail -f /tmp/darital-api.log${NC}"
+    echo -e "${YELLOW}   Common fixes: 1) Docker running?  2) docker compose up -d postgres redis  3) apps/api/.env with DATABASE_URL=postgresql://postgres:postgres@localhost:5432/darital${NC}"
     echo -e "${YELLOW}   Continuing anyway...${NC}"
 fi
 

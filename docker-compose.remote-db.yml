@@ -1,0 +1,9 @@
+# Optional: expose Postgres on VPS only on 127.0.0.1 for SSH tunnel from local.
+# Use when you want to connect from your Mac to production DB:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml -f docker-compose.remote-db.yml --env-file .env.production up -d
+# Then from Mac: ssh -L 5432:127.0.0.1:5432 root@YOUR_VPS_IP
+# Local .env: DATABASE_URL=postgresql://postgres:YOUR_PROD_PASSWORD@localhost:5432/darital
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
