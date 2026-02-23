@@ -37,6 +37,8 @@ export default function AdminTenantsPage() {
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
+    password: '',
+    confirmPassword: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [resettingPassword, setResettingPassword] = useState<string | null>(null);
@@ -247,7 +249,7 @@ export default function AdminTenantsPage() {
   };
 
   const resetForm = () => {
-    setFormData({ fullName: '', phone: '' });
+    setFormData({ fullName: '', phone: '', password: '', confirmPassword: '' });
     setEditingTenant(null);
   };
 
@@ -265,6 +267,8 @@ export default function AdminTenantsPage() {
     setFormData({
       fullName: tenant.fullName,
       phone: tenant.phone,
+      password: '',
+      confirmPassword: '',
     });
     setError(null);
     setSuccess(null);
@@ -282,10 +286,18 @@ export default function AdminTenantsPage() {
     
     try {
       if (editingTenant) {
-        const updatePayload = {
+        const updatePayload: { fullName: string; phone: string; password?: string } = {
           fullName: formData.fullName,
           phone: formData.phone,
         };
+        if (formData.password) {
+          if (formData.password !== formData.confirmPassword) {
+            setError('New password and confirmation do not match.');
+            setSubmitting(false);
+            return;
+          }
+          updatePayload.password = formData.password;
+        }
         const response = await fetchApi<any>(`/tenants/${editingTenant.id}`, {
           method: 'PATCH',
           body: JSON.stringify(updatePayload),
@@ -304,7 +316,10 @@ export default function AdminTenantsPage() {
       } else {
         const response = await fetchApi<any>('/tenants', {
           method: 'POST',
-          body: JSON.stringify(formData),
+          body: JSON.stringify({
+            fullName: formData.fullName,
+            phone: formData.phone,
+          }),
         });
         
         // Map response to Tenant interface (exclude password and other fields)
@@ -767,6 +782,45 @@ export default function AdminTenantsPage() {
                   />
                 </div>
               </div>
+
+              {editingTenant && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      New Password (optional)
+                    </label>
+                    <input
+                      type="password"
+                      id="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className={`w-full rounded-lg border ${
+                        darkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                      placeholder="Leave empty to keep current password"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      id="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      className={`w-full rounded-lg border ${
+                        darkMode
+                          ? 'bg-gray-700 border-gray-600 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                      } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                      placeholder="Repeat new password"
+                    />
+                  </div>
+                </div>
+              )}
 
               {!editingTenant && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
