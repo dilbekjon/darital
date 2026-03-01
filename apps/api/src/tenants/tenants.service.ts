@@ -16,6 +16,14 @@ export class TenantsService {
     private readonly smsService: SmsService,
   ) {}
 
+  private normalizePhone(rawPhone: string): string {
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    if (!cleanPhone) {
+      return rawPhone;
+    }
+    return cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
+  }
+
   async findAll(includeArchived = false) {
     const tenants = await this.prisma.tenant.findMany({
       where: includeArchived ? {} : { isArchived: false },
@@ -82,12 +90,13 @@ export class TenantsService {
 
   async create(dto: CreateTenantDto) {
     try {
+      const normalizedPhone = this.normalizePhone(dto.phone);
       const tempPassword = crypto.randomBytes(16).toString('hex');
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
       const tenant = await this.prisma.tenant.create({
         data: {
           fullName: dto.fullName,
-          phone: dto.phone,
+          phone: normalizedPhone,
           password: hashedPassword,
         },
       });
@@ -154,6 +163,9 @@ export class TenantsService {
     
     // If password is provided, hash it before updating
     const updateData: Prisma.TenantUpdateInput = { ...dto };
+    if (dto.phone) {
+      updateData.phone = this.normalizePhone(dto.phone);
+    }
     if (dto.password) {
       updateData.password = await bcrypt.hash(dto.password, 10);
     } else {
