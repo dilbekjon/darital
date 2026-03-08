@@ -16,6 +16,7 @@ function getSectionName(pathname: string, t: any): string {
   if (pathname.startsWith('/admin/tenants')) return t.tenants || 'Tenants';
   if (pathname.startsWith('/admin/units')) return t.units || 'Office';
   if (pathname.startsWith('/admin/buildings')) return t.buildings || 'Buildings';
+  if (pathname.startsWith('/admin/companies')) return (t as any).companies || 'Companies';
   if (pathname.startsWith('/admin/payments')) return t.payments || 'Payments';
   if (pathname.startsWith('/admin/invoices')) return t.invoices || 'Invoices';
   if (pathname.startsWith('/admin/reports')) return t.reports || 'Reports';

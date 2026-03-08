@@ -40,6 +40,7 @@ const CommandPalette: React.FC = () => {
     { id: 'nav-chat', title: t.chat || 'Chat', icon: '💬', action: () => router.push('/admin/chat'), keywords: ['messages', 'support'] },
     { id: 'nav-reports', title: t.reports || 'Reports', icon: '📊', action: () => router.push('/admin/reports'), keywords: ['analytics', 'stats'] },
     { id: 'nav-buildings', title: t.buildings || 'Buildings', icon: '🏗️', action: () => router.push('/admin/buildings'), keywords: ['properties'] },
+    { id: 'nav-companies', title: (t as any).companies || 'Companies', icon: '🏢', action: () => router.push('/admin/companies'), keywords: ['company', 'corporate'] },
     { id: 'nav-notifications', title: t.notifications || 'Notifications', icon: '🔔', action: () => router.push('/admin/notifications'), keywords: ['alerts'] },
     { id: 'nav-users', title: t.adminUsers || 'Admin Users', icon: '👤', action: () => router.push('/admin/users'), keywords: ['admins', 'staff'] },
     { id: 'nav-activity', title: t.activityLogs || 'Activity Logs', icon: '📋', action: () => router.push('/admin/activity'), keywords: ['audit', 'history'] },

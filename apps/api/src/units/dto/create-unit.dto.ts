@@ -27,5 +27,10 @@ export class CreateUnitDto {
   @IsOptional()
   @IsString()
   buildingId?: string;
+
+  @ApiPropertyOptional({ example: 'clxCompanyId', description: 'Company ID that holds this unit (optional)' })
+  @IsOptional()
+  @IsString()
+  companyId?: string;
 }
 

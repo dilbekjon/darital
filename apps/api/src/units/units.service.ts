@@ -18,6 +18,12 @@ export class UnitsService {
             name: true,
           },
         },
+        company: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -31,6 +37,8 @@ export class UnitsService {
       status: unit.status,
       buildingId: unit.buildingId,
       building: unit.building ? { id: unit.building.id, name: unit.building.name } : null,
+      companyId: unit.companyId,
+      company: unit.company ? { id: unit.company.id, name: unit.company.name } : null,
       createdAt: unit.createdAt.toISOString(),
       isArchived: unit.isArchived,
       archivedAt: unit.archivedAt?.toISOString() ?? null,
@@ -44,6 +52,12 @@ export class UnitsService {
       where: { id },
       include: {
         building: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        company: {
           select: {
             id: true,
             name: true,
@@ -66,6 +80,8 @@ export class UnitsService {
       status: unit.status,
       buildingId: unit.buildingId,
       building: unit.building ? { id: unit.building.id, name: unit.building.name } : null,
+      companyId: unit.companyId,
+      company: unit.company ? { id: unit.company.id, name: unit.company.name } : null,
       createdAt: unit.createdAt.toISOString(),
       isArchived: unit.isArchived,
       archivedAt: unit.archivedAt?.toISOString() ?? null,
@@ -82,6 +98,7 @@ export class UnitsService {
         area: createUnitDto.area,
         floor: createUnitDto.floor,
         buildingId: createUnitDto.buildingId || null,
+        companyId: createUnitDto.companyId || null,
       },
     });
 
@@ -90,6 +107,12 @@ export class UnitsService {
       where: { id: unit.id },
       include: {
         building: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        company: {
           select: {
             id: true,
             name: true,
@@ -108,6 +131,8 @@ export class UnitsService {
       status: createdUnit!.status,
       buildingId: createdUnit!.buildingId,
       building: createdUnit!.building ? { id: createdUnit!.building.id, name: createdUnit!.building.name } : null,
+      companyId: createdUnit!.companyId,
+      company: createdUnit!.company ? { id: createdUnit!.company.id, name: createdUnit!.company.name } : null,
       createdAt: createdUnit!.createdAt.toISOString(),
       isArchived: createdUnit!.isArchived,
       archivedAt: createdUnit!.archivedAt?.toISOString() ?? null,
@@ -127,12 +152,22 @@ export class UnitsService {
     if (updateUnitDto.buildingId === null || updateUnitDto.buildingId === '') {
       data.buildingId = null;
     }
+    // Handle companyId: if explicitly set to null/empty, mark as individual
+    if (updateUnitDto.companyId === null || updateUnitDto.companyId === '') {
+      data.companyId = null;
+    }
 
     const unit = await this.prisma.unit.update({
       where: { id },
       data,
       include: {
         building: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        company: {
           select: {
             id: true,
             name: true,
@@ -151,6 +186,8 @@ export class UnitsService {
       status: unit.status,
       buildingId: unit.buildingId,
       building: unit.building ? { id: unit.building.id, name: unit.building.name } : null,
+      companyId: unit.companyId,
+      company: unit.company ? { id: unit.company.id, name: unit.company.name } : null,
       createdAt: unit.createdAt.toISOString(),
       isArchived: unit.isArchived,
       archivedAt: unit.archivedAt?.toISOString() ?? null,

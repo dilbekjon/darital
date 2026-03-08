@@ -4,6 +4,11 @@ export const PERMISSIONS = {
   'buildings.create': 'Create buildings',
   'buildings.update': 'Update buildings',
   'buildings.delete': 'Delete buildings',
+  // Companies
+  'companies.read': 'View companies',
+  'companies.create': 'Create companies',
+  'companies.update': 'Update companies',
+  'companies.delete': 'Delete companies',
   // Units (Rooms)
   'units.read': 'View units/rooms',
   'units.create': 'Create units/rooms',
@@ -54,6 +59,7 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
   // General Admin (legacy) - Most permissions except user management
   ADMIN: [
     'buildings.read', 'buildings.create', 'buildings.update', 'buildings.delete',
+    'companies.read', 'companies.create', 'companies.update', 'companies.delete',
     'units.read', 'units.create', 'units.update', 'units.delete',
     'contracts.read', 'contracts.create', 'contracts.update', 'contracts.delete',
     'tenants.read', 'tenants.create', 'tenants.update', 'tenants.delete',
@@ -65,6 +71,7 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
   // User Manager - Manages buildings, rooms, users, contracts - NO payment access
   USER_MANAGER: [
     'buildings.read', 'buildings.create', 'buildings.update', 'buildings.delete',
+    'companies.read', 'companies.create', 'companies.update', 'companies.delete',
     'units.read', 'units.create', 'units.update', 'units.delete',
     'contracts.read', 'contracts.create', 'contracts.update', 'contracts.delete',
     'tenants.read', 'tenants.create', 'tenants.update', 'tenants.delete',
@@ -80,7 +87,8 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
     'invoices.read',
     'tenants.read',
     'contracts.read',
-    'units.read'
+    'units.read',
+    'companies.read'
   ],
   
   // Payment Collector - Collects cash, records details, CANNOT approve
@@ -91,6 +99,7 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
     'tenants.read',
     'contracts.read',
     'units.read',
+    'companies.read',
     'chat.read'
   ],
   
@@ -100,7 +109,8 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
     'tenants.read',
     'contracts.read',
     'invoices.read',
-    'units.read'
+  'units.read',
+  'companies.read'
   ],
   
   // Analyst - Reports and view-only access

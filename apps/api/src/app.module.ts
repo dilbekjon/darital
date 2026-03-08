@@ -21,6 +21,7 @@ import { SentryModule } from './sentry/sentry.module';
 import { ChatModule } from './chat/chat.module';
 import { ReportsModule } from './reports/reports.module';
 import { BuildingsModule } from './buildings/buildings.module';
+import { CompaniesModule } from './companies/companies.module';
 import { DocumentsModule } from './documents/documents.module';
 import { ReceiptsModule } from './receipts/receipts.module';
 import { InAppNotificationsModule } from './in-app-notifications/in-app-notifications.module';
@@ -67,6 +68,7 @@ import { HealthController } from './health.controller';
     ChatModule,
     ReportsModule,
     BuildingsModule,
+    CompaniesModule,
     DocumentsModule,
     ReceiptsModule,
     InAppNotificationsModule,

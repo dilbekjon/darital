@@ -449,6 +449,23 @@ export function useUntypedTranslations(): Record<string, string> {
     totalUnits: 'Jami xonalar',
     occupied: 'Band',
     available: 'Mavjud',
+
+    // Companies
+    companies: 'Kompaniyalar',
+    company: 'Kompaniya',
+    companyName: 'Kompaniya nomi',
+    noCompanies: 'Kompaniyalar topilmadi',
+    manageCompanies: 'Kompaniyalarni va ularning xonalarini boshqarish',
+    createCompany: 'Kompaniya yaratish',
+    editCompany: 'Kompaniyani tahrirlash',
+    getStartedByCreatingCompany: 'Birinchi kompaniyani yaratishdan boshlang.',
+    unitsCount: 'Xonalar soni',
+    searchCompanies: 'Kompaniya nomi yoki tavsifi bo\'yicha qidirish...',
+    noDescription: 'Tavsif yo\'q',
+    individual: 'Jismoniy shaxs',
+    noCompany: 'Kompaniya yo\'q (jismoniy shaxs)',
+    selectCompanyToAssign: 'Ushbu xonani kompaniyaga biriktiring yoki jismoniy shaxs sifatida qoldiring.',
+    companyDescriptionPlaceholder: 'Kompaniya haqida qisqacha ma\'lumot (ixtiyoriy)',
     
     // Archive Management
     archiveManagement: 'Arxiv boshqaruvi',

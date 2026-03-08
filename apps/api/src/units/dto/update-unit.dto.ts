@@ -35,5 +35,10 @@ export class UpdateUnitDto {
   @IsOptional()
   @IsString()
   buildingId?: string | null;
+
+  @ApiPropertyOptional({ example: 'clxCompanyId', description: 'Company ID that holds this unit (set to null to mark as individual)' })
+  @IsOptional()
+  @IsString()
+  companyId?: string | null;
 }
 

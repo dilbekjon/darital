@@ -15,6 +15,11 @@ interface Building {
   name: string;
 }
 
+interface Company {
+  id: string;
+  name: string;
+}
+
 interface Unit {
   id: string;
   name: string;
@@ -24,6 +29,8 @@ interface Unit {
   status: 'FREE' | 'BUSY' | 'MAINTENANCE';
   buildingId?: string | null;
   building?: Building | null;
+  companyId?: string | null;
+  company?: Company | null;
   createdAt: string;
   isArchived?: boolean;
   archivedAt?: string | null;
@@ -52,6 +59,7 @@ export default function AdminUnitsPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -67,6 +75,7 @@ export default function AdminUnitsPage() {
     floor: '',
     status: 'FREE' as 'FREE' | 'BUSY' | 'MAINTENANCE',
     buildingId: '',
+    companyId: '',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -104,14 +113,16 @@ export default function AdminUnitsPage() {
 
       const loadData = async () => {
         try {
-          const [unitsData, contractsData, buildingsData] = await Promise.all([
+          const [unitsData, contractsData, buildingsData, companiesData] = await Promise.all([
             fetchApi<Unit[]>(`/units${includeArchived ? '?includeArchived=true' : ''}`),
             fetchApi<Contract[]>('/contracts'),
             fetchApi<Building[]>('/buildings'),
+            fetchApi<Company[]>('/companies'),
           ]);
           setUnits(unitsData);
           setContracts(contractsData);
           setBuildings(buildingsData);
+          setCompanies(companiesData);
         } catch (err) {
           console.error('Failed to load data:', err);
           if (err instanceof ApiError) {
@@ -156,7 +167,7 @@ export default function AdminUnitsPage() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', price: '', area: '', floor: '', status: 'FREE', buildingId: '' });
+    setFormData({ name: '', price: '', area: '', floor: '', status: 'FREE', buildingId: '', companyId: '' });
     setEditingUnit(null);
   };
 
@@ -176,6 +187,7 @@ export default function AdminUnitsPage() {
       floor: unit.floor ? String(unit.floor) : '',
       status: unit.status,
       buildingId: unit.buildingId || '',
+      companyId: unit.companyId || '',
     });
     setError(null);
     setIsModalOpen(true);
@@ -202,6 +214,11 @@ export default function AdminUnitsPage() {
       } else {
         payload.buildingId = null; // Allow unlinking by selecting empty
       }
+      if (formData.companyId) {
+        payload.companyId = formData.companyId;
+      } else {
+        payload.companyId = null; // Mark as individual / no company
+      }
 
       if (editingUnit) {
         const response = await fetchApi<any>(`/units/${editingUnit.id}`, {
@@ -225,6 +242,10 @@ export default function AdminUnitsPage() {
           area: response.area,
           floor: response.floor,
           status: response.status,
+          buildingId: response.buildingId,
+          building: response.building,
+          companyId: response.companyId,
+          company: response.company,
           createdAt: response.createdAt || new Date().toISOString(),
         };
         
@@ -447,6 +468,11 @@ export default function AdminUnitsPage() {
                   }`}>
                     {(t as any).building || 'Building'}
                   </th>
+              <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                darkMode ? 'text-gray-300' : 'text-gray-500'
+              }`}>
+                {(t as any).company || 'Company'}
+              </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
@@ -527,6 +553,19 @@ export default function AdminUnitsPage() {
                           <span className={darkMode ? 'text-gray-400' : 'text-gray-400'}>-</span>
                         )}
                       </td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                      darkMode ? 'text-gray-300' : 'text-gray-500'
+                    }`}>
+                      {unit.company ? (
+                        <span className={`font-medium ${
+                          darkMode ? 'text-white' : 'text-gray-900'
+                        }`}>{unit.company.name}</span>
+                      ) : (
+                        <span className={darkMode ? 'text-gray-400' : 'text-gray-400'}>
+                          {(t as any).individual || 'Individual'}
+                        </span>
+                      )}
+                    </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(unit.status)}`}>
                           {unit.status === 'FREE' ? t.free :
@@ -731,6 +770,36 @@ export default function AdminUnitsPage() {
                   darkMode ? 'text-gray-400' : 'text-gray-500'
                 }`}>
                    {(t as any).selectBuildingToAssign || 'Select a building to assign this unit to'}
+                </p>
+              </div>
+              <div className="mb-4">
+                <label htmlFor="companyId" className={`block text-sm font-medium mb-1 ${
+                  darkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                  {(t as any).company || 'Company'}
+                </label>
+                <select
+                  id="companyId"
+                  value={formData.companyId}
+                  onChange={(e) => setFormData({ ...formData, companyId: e.target.value })}
+                  className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${
+                    darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                >
+                  <option value="">
+                    {(t as any).noCompany || 'No Company (Individual)'}
+                  </option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+                <p className={`text-xs mt-1 ${
+                  darkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>
+                  {(t as any).selectCompanyToAssign ||
+                    'Assign this unit to a company, or leave as individual.'}
                 </p>
               </div>
               {editingUnit && (

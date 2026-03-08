@@ -117,6 +117,22 @@ export function AdminSidebar() {
       section: 'operations',
     },
     {
+      label: (t as any).companies || 'Companies',
+      href: '/admin/companies',
+      permissionCodes: ['companies.read'],
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M4 21h16M4 10h16M9 3h6v7H9zM5 10v11h4V10zm10 0v11h4V10z"
+          />
+        </svg>
+      ),
+      section: 'operations',
+    },
+    {
       label: t.payments,
       href: '/admin/payments',
       permissionCodes: ['payments.read'],

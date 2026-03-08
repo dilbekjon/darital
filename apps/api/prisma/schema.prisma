@@ -128,11 +128,24 @@ model Building {
   @@map("buildings")
 }
 
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  units       Unit[]
+
+  @@map("companies")
+}
+
 model Unit {
   id         String     @id @default(cuid())
   name       String
   buildingId String?
   building   Building?  @relation(fields: [buildingId], references: [id])
+  companyId  String?
+  company    Company?   @relation(fields: [companyId], references: [id])
   price      Decimal
   area       Float?
   floor      Int?
@@ -148,6 +161,7 @@ model Unit {
   archiveReason String?
 
   @@index([buildingId])
+   @@index([companyId])
   @@index([isArchived])
   @@map("units")
 }
