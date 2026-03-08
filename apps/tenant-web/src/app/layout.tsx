@@ -3,6 +3,7 @@ import Script from 'next/script'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
+import { TelegramInitializer } from './TelegramInitializer'
 
 const inter = Inter({ subsets: ['latin'] })
 const GA_ID = 'G-MNM97QNQMC'
@@ -34,6 +35,7 @@ export default function RootLayout({
             gtag('config', '${GA_ID}');
           `}
         </Script>
+        <TelegramInitializer />
         <Providers>{children}</Providers>
       </body>
     </html>

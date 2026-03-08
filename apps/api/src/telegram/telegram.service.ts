@@ -63,6 +63,30 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`📱 Bot is ready to receive messages. Users can start chatting with @${botInfo.username}`);
       // Clear bot menu commands so only our 4-button inline menu is used (no 6-button menu)
       await this.bot.telegram.setMyCommands([]).catch(() => {});
+
+      const webAppUrl =
+        process.env.TELEGRAM_WEBAPP_URL ||
+        process.env.TELEGRAM_TENANT_WEBAPP_URL ||
+        process.env.TENANT_WEBAPP_URL;
+
+      if (webAppUrl) {
+        try {
+          await this.bot.telegram.setChatMenuButton({
+            menu_button: {
+              type: 'web_app',
+              text: 'Darital tenant portali',
+              web_app: { url: webAppUrl },
+            } as any,
+          });
+          this.logger.log(
+            `✅ Telegram chat menu button configured for web app: ${webAppUrl}`,
+          );
+        } catch (err: any) {
+          this.logger.error(
+            `Failed to configure Telegram chat menu button: ${err?.message || err}`,
+          );
+        }
+      }
     } catch (error: any) {
       // Handle conflict error gracefully - another instance might be running
       if (error?.response?.error_code === 409) {
@@ -94,30 +118,30 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.logger.log(`📩 Received /start command from chatId: ${chatId}, userId: ${ctx.from?.id}, username: ${ctx.from?.username || 'N/A'}`);
-    
-    try {
-    // Check if user already has a linked account
-    const telegramUser = await this.prisma.telegramUser.findUnique({ where: { chatId } });
-    
-    if (telegramUser?.tenantId) {
-        // User is registered - show main menu
-        const state = this.conversationStates.get(chatId) || { language: 'uz' as const };
-        await this.showMainMenu(ctx, chatId, state.language || 'uz');
-      return;
-    }
 
-      // New user - show language selection
-      await this.showLanguageSelection(ctx);
-      this.conversationStates.set(chatId, { step: 'choosing_language' });
-      this.logger.log(`✅ Language selection shown for chatId=${chatId}`);
-    } catch (error: any) {
-      this.logger.error(`❌ Error handling /start command: ${error?.message || error}`);
-      try {
-        await ctx.reply(`❌ Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.`);
-      } catch (replyError) {
-        this.logger.error(`Failed to send error message: ${replyError}`);
-      }
-    }
+    const webAppUrl =
+      process.env.TELEGRAM_WEBAPP_URL ||
+      process.env.TELEGRAM_TENANT_WEBAPP_URL ||
+      process.env.TENANT_WEBAPP_URL ||
+      'https://darital-arenda.uz';
+
+    const text =
+      '👋 Darital ijara portaliga xush kelibsiz!\n\n' +
+      'Bu yerda siz hisobingizni, to‘lovlarni va hujjatlarni ko‘rishingiz mumkin.\n\n' +
+      'Quyidagi tugmani bosing va Darital tenant portalini Telegram ichida oching. ' +
+      'Kirish uchun telefon raqamingiz va parolingizdan foydalaning.';
+
+    await ctx.reply(
+      text,
+      Markup.inlineKeyboard([
+        [
+          Markup.button.webApp(
+            '🚀 Darital tenant portalini ochish',
+            webAppUrl,
+          ),
+        ],
+      ]),
+    );
   }
 
   /**
