@@ -72,11 +72,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       if (webAppUrl) {
         try {
           await this.bot.telegram.setChatMenuButton({
-            menu_button: {
+            menuButton: {
               type: 'web_app',
               text: 'Darital tenant portali',
               web_app: { url: webAppUrl },
-            } as any,
+            },
           });
           this.logger.log(
             `✅ Telegram chat menu button configured for web app: ${webAppUrl}`,
