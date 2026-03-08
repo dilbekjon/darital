@@ -11,6 +11,7 @@ import {
 import { Response, Request } from 'express';
 import { ThrottlerException } from '@nestjs/throttler';
 import { SentryService } from '../sentry/sentry.service';
+import { ErrorAlertService } from '../alerts/error-alert.service';
 
 interface ErrorResponse {
   code: string;
@@ -24,6 +25,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
   constructor(
     @Optional() @Inject(SentryService) private readonly sentryService?: SentryService,
+    @Optional() private readonly errorAlertService?: ErrorAlertService,
   ) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
@@ -139,6 +141,48 @@ export class AllExceptionsFilter implements ExceptionFilter {
       
       errorResponse.message = 'An unexpected error occurred';
       errorResponse.details = null;
+    }
+
+    // Non-blocking alert for high-severity errors in production
+    try {
+      if (this.errorAlertService) {
+        const isServerError =
+          !(exception instanceof HttpException) || status >= 500;
+
+        if (isServerError) {
+          const userId = (request as any).user?.id;
+          const ip =
+            (request.headers['x-forwarded-for'] as string) ||
+            request.ip ||
+            request.socket?.remoteAddress ||
+            '';
+
+          void this.errorAlertService
+            .notifyError({
+              error: exception,
+              context: {
+                source: 'http',
+                method: request.method,
+                url: request.url,
+                statusCode: status,
+                userId: userId ? String(userId) : undefined,
+                ip,
+                userAgent: request.headers['user-agent'],
+              },
+            })
+            .catch((err: any) => {
+              this.logger.error(
+                'Failed to send error alert via Telegram',
+                err?.stack || err?.message || String(err),
+              );
+            });
+        }
+      }
+    } catch (alertError: any) {
+      this.logger.error(
+        'Error while processing error alert',
+        alertError?.stack || alertError?.message || String(alertError),
+      );
     }
 
     response.status(status).json(errorResponse);

@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import * as fs from 'fs';
+import { ErrorAlertService } from './alerts/error-alert.service';
 
 async function bootstrap() {
   // Run Prisma migrations in production before starting the server
@@ -19,6 +20,13 @@ async function bootstrap() {
       console.error('   Continuing anyway - migrations may have already been applied');
     }
   }
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+  });
+  const errorAlertService = app.get<ErrorAlertService>(ErrorAlertService, {
+    strict: false,
+  });
 
   // Handle unhandled promise rejections (like Telegram polling conflicts and database connection errors)
   process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
@@ -42,10 +50,42 @@ async function bootstrap() {
     }
     
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+
+    if (errorAlertService) {
+      void errorAlertService
+        .notifyError({
+          error: reason,
+          context: {
+            source: 'unhandledRejection',
+          },
+        })
+        .catch((err: any) => {
+          console.error(
+            'Failed to send unhandledRejection alert',
+            err?.stack || err?.message || String(err),
+          );
+        });
+    }
   });
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+  process.on('uncaughtException', (error: any) => {
+    console.error('Uncaught Exception:', error);
+
+    if (errorAlertService) {
+      void errorAlertService
+        .notifyError({
+          error,
+          context: {
+            source: 'uncaughtException',
+          },
+        })
+        .catch((err: any) => {
+          console.error(
+            'Failed to send uncaughtException alert',
+            err?.stack || err?.message || String(err),
+          );
+        });
+    }
   });
   
   // Enable CORS first so static file responses (e.g. /api/uploads/ voice messages) include CORS headers for cross-origin playback
