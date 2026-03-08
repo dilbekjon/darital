@@ -36,6 +36,7 @@ import { NoopGuard } from './common/guards/noop.guard';
 import { AllExceptionsFilter } from './filters/all-exceptions.filter';
 import { PrismaModule } from './prisma.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -76,7 +77,7 @@ import { AlertsModule } from './alerts/alerts.module';
     AdminModule, // Temporary admin creation module - can be removed after use
     AlertsModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, HealthController],
   providers: [
     AppService,
     {

@@ -14,6 +14,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3002
+RUN apk add --no-cache curl
 COPY --from=builder /app/apps/tenant-web/.next/standalone ./
 COPY --from=builder /app/apps/tenant-web/.next/static ./apps/tenant-web/.next/static
 COPY --from=builder /app/apps/tenant-web/public ./apps/tenant-web/public
