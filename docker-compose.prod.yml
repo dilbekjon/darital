@@ -87,7 +87,8 @@ services:
     environment:
       PORT: 3000
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      # Use root path for healthcheck – Next.js app always serves this
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -107,7 +108,8 @@ services:
     environment:
       PORT: 3002
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/healthz"]
+      # Use root path for healthcheck – tenant Next.js app always serves this
+      test: ["CMD", "curl", "-f", "http://localhost:3002/"]
       interval: 10s
       timeout: 3s
       retries: 5
