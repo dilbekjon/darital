@@ -53,7 +53,7 @@ export function StartChatModal({ open, onClose, onSubmit }: StartChatModalProps)
       
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6">
           {/* Header */}
           <div className="mb-4">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -79,7 +79,7 @@ export function StartChatModal({ open, onClose, onSubmit }: StartChatModalProps)
               }}
               onKeyPress={handleKeyPress}
               placeholder={t.topicPlaceholder}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full min-h-[48px] px-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               autoFocus
             />
             {error && (
@@ -94,14 +94,14 @@ export function StartChatModal({ open, onClose, onSubmit }: StartChatModalProps)
           <div className="flex justify-end gap-2">
             <button
               onClick={handleClose}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+              className="min-h-[48px] px-4 py-3 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors touch-manipulation"
             >
               {t.cancel}
             </button>
             <button
               onClick={handleSubmit}
               disabled={topic.trim().length < 3}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              className="min-h-[48px] px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors touch-manipulation"
             >
               {t.chat}
             </button>

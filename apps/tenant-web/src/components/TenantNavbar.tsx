@@ -22,6 +22,13 @@ export default function TenantNavbar() {
 
   if (!user) return null;
 
+  const initials = (user.fullName || user.email || 'U')
+    .split(/\s+/)
+    .map((s) => s[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
     <nav className={`${
       darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
@@ -30,13 +37,12 @@ export default function TenantNavbar() {
       backdropFilter: 'none',
       WebkitBackdropFilter: 'none'
     }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          {/* Logo/Brand */}
-          <div className="flex items-center">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-14 sm:h-16">
+          <div className="flex items-center min-w-0">
             <button
               onClick={() => router.push('/tenant')}
-              className={`text-xl font-bold ${
+              className={`text-lg sm:text-xl font-bold truncate min-h-[44px] flex items-center ${
                 darkMode ? 'text-yellow-400' : 'text-blue-600'
               }`}
             >
@@ -44,12 +50,10 @@ export default function TenantNavbar() {
             </button>
           </div>
 
-          {/* Right side: Theme, User */}
-          <div className="flex items-center space-x-4">
-            {/* Theme Toggle */}
+          <div className="flex items-center gap-1 sm:gap-4 flex-shrink-0">
             <button
               onClick={toggleTheme}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-sm font-medium transition-colors touch-manipulation ${
                 darkMode
                   ? 'bg-yellow-600 text-black hover:bg-yellow-500'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -58,20 +62,25 @@ export default function TenantNavbar() {
               {darkMode ? '☀️' : '🌙'}
             </button>
 
-            {/* Notification Center */}
-            <NotificationCenter />
+            <div className="min-h-[44px] min-w-[44px] flex items-center justify-center">
+              <NotificationCenter />
+            </div>
 
-            {/* User Menu */}
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`min-h-[44px] min-w-[44px] sm:min-w-0 sm:px-4 sm:py-2 flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors touch-manipulation ${
                   darkMode
                     ? 'bg-gray-700 text-white hover:bg-gray-600'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {user.fullName || user.email}
+                <span className="sm:hidden w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
+                  {initials}
+                </span>
+                <span className="hidden sm:inline truncate max-w-[120px]">
+                  {user.fullName || user.email}
+                </span>
               </button>
               {showUserMenu && (
                 <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg ${

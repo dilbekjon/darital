@@ -222,64 +222,63 @@ export default function TenantChatPage() {
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
 
+  const showListOnMobile = !selectedConversation;
+  const showChatOnMobile = !!selectedConversation;
+
   return (
     <>
       <TenantNavbar />
-      <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Left Panel - Conversation List */}
-      <div className="w-1/3 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-xl font-bold text-gray-800 dark:text-white">💬 {t.supportChat}</h1>
+      <div className="flex flex-col md:flex-row h-[100dvh] md:h-screen bg-gray-100 dark:bg-gray-900">
+      {/* Left Panel - Conversation List (hidden on mobile when chat is open) */}
+      <div className={`${showListOnMobile ? 'flex' : 'hidden'} md:flex w-full md:w-80 lg:w-96 flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-shrink-0`}>
+        {/* Header - compact on mobile */}
+        <div className="p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between items-center gap-2 mb-3">
+            <h1 className="text-lg md:text-xl font-bold text-gray-800 dark:text-white truncate">💬 {t.supportChat}</h1>
             <a
               href="/tenant"
-              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+              className="flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
             >
               ← {t.home}
             </a>
           </div>
           
-          {/* Status indicator */}
-          <div className="flex items-center gap-2 mb-4">
-            <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="flex items-center gap-2 mb-3">
+            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className="text-sm text-gray-600 dark:text-gray-400 truncate">
               {connected ? t.connected : t.connecting}
             </span>
           </div>
 
-          {/* New Chat Button */}
           <button
             onClick={handleStartNewChatClick}
             disabled={creatingConversation}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 transition-colors"
+            className="w-full min-h-[48px] px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-300 transition-colors font-medium text-base touch-manipulation"
           >
             {creatingConversation ? t.creating : t.startNewChat}
           </button>
         </div>
 
-        {/* Start Chat Modal */}
         <StartChatModal
           open={modalOpen}
           onClose={() => setModalOpen(false)}
           onSubmit={handleStartNewChat}
         />
 
-        {/* Conversation List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {loading ? (
             <div className="p-4 text-center text-gray-500 dark:text-gray-400">{t.loading}</div>
           ) : conversations.length === 0 ? (
             <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-              <p className="mb-4">{t.noConversations}</p>
-              <p className="text-sm">{t.clickStartChat}</p>
+              <p className="mb-2 text-base">{t.noConversations}</p>
+              <p className="text-sm text-gray-400">{t.welcomeToChat}</p>
             </div>
           ) : (
             conversations.map((conv) => (
               <div
                 key={conv.id}
                 onClick={() => handleSelectConversation(conv)}
-                className={`p-4 border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                className={`p-4 min-h-[60px] border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 active:bg-gray-100 dark:active:bg-gray-600 transition-colors touch-manipulation ${
                   selectedConversation?.id === conv.id ? 'bg-blue-50 dark:bg-blue-900/30' : ''
                 }`}
               >
@@ -323,30 +322,39 @@ export default function TenantChatPage() {
         </div>
       </div>
 
-      {/* Right Panel - Message Thread */}
-      <div className="flex-1 flex flex-col">
+      {/* Right Panel - Message Thread (hidden on mobile when no chat selected) */}
+      <div className={`${showChatOnMobile ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-w-0`}>
         {selectedConversation ? (
           <>
-            {/* Chat Header */}
-            <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="font-bold text-gray-900 dark:text-white text-lg">
+            {/* Chat Header - with back button on mobile */}
+            <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-3 md:p-4">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSelectedConversation(null)}
+                  className="md:hidden flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center -ml-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  aria-label={t.home}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-bold text-gray-900 dark:text-white text-base md:text-lg truncate">
                     {selectedConversation.topic || t.supportChat}
                   </h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                     {selectedConversation.admin 
-                      ? `${selectedConversation.admin.fullName} • ${selectedConversation.admin.email}`
+                      ? selectedConversation.admin.fullName
                       : t.supportTeam}
                   </p>
                 </div>
                 <span
-                  className={`text-xs px-3 py-1 rounded-full font-medium ${
+                  className={`flex-shrink-0 text-xs px-2 py-1 rounded-full font-medium ${
                     selectedConversation.status === 'OPEN'
-                      ? 'bg-green-100 text-green-800'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                       : selectedConversation.status === 'PENDING'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-gray-100 text-gray-800'
+                      ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                   }`}
                 >
                   {selectedConversation.status}
@@ -418,7 +426,7 @@ export default function TenantChatPage() {
             </div>
 
             {/* Input Box */}
-            <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
+            <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-3 md:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               {error && (
                 <div className="mb-2 text-sm text-red-600 dark:text-red-400">{t.error}: {error}</div>
               )}
@@ -439,13 +447,13 @@ export default function TenantChatPage() {
                     }
                   }}
                   placeholder={selectedConversation.status === 'CLOSED' ? 'Conversation is closed' : t.typeMessage}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
+                  className="flex-1 min-h-[48px] px-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
                   disabled={sending || !connected || selectedConversation.status === 'CLOSED'}
                 />
                 <button
                   onClick={handleSendMessage}
                   disabled={!messageInput.trim() || sending || !connected || selectedConversation.status === 'CLOSED'}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  className="min-h-[48px] px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium touch-manipulation"
                 >
                   {sending ? t.sending : t.send}
                 </button>
@@ -453,8 +461,8 @@ export default function TenantChatPage() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-            <div className="text-center">
+          <div className="hidden md:flex flex-1 items-center justify-center text-gray-500 dark:text-gray-400">
+            <div className="text-center px-4">
               <svg
                 className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
                 fill="none"
@@ -469,7 +477,7 @@ export default function TenantChatPage() {
                 />
               </svg>
               <p className="mt-4 text-lg font-medium">{t.welcomeToChat}</p>
-              <p className="mt-2">{t.clickStartChat}</p>
+              <p className="mt-2 text-sm">{t.selectConversation}</p>
             </div>
           </div>
         )}
