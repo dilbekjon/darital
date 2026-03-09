@@ -12,7 +12,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unknown error');
     console.error(`[ChatAPI] HTTP ${response.status} - ${response.statusText}:`, errorText);
-    throw new Error(`Failed: ${response.status} ${response.statusText}`);
+    let message = `${response.status} ${response.statusText}`;
+    try {
+      const data = JSON.parse(errorText);
+      if (data.message) message = typeof data.message === 'string' ? data.message : data.message.join?.(' ') || message;
+    } catch {
+      if (errorText && errorText.length < 200) message = errorText;
+    }
+    throw new Error(message);
   }
   return response.json();
 }

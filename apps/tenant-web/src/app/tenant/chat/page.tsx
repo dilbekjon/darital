@@ -175,7 +175,8 @@ export default function TenantChatPage() {
       handleSelectConversation(newConv);
     } catch (error) {
       console.error('Failed to create conversation:', error);
-      alert('Failed to start conversation. Please try again.');
+      const msg = error instanceof Error ? error.message : 'Failed to start conversation. Please try again.';
+      alert(msg);
     } finally {
       setCreatingConversation(false);
     }
