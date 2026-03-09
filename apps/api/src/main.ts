@@ -105,6 +105,7 @@ async function bootstrap() {
     'http://127.0.0.1:3001',
     'http://127.0.0.1:3002',
     'http://127.0.0.1:8081',
+    'http://193.203.163.148',
     'http://admin.darital-arenda.uz',
     'http://darital-arenda.uz',
     'http://www.darital-arenda.uz',

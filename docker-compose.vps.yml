@@ -9,7 +9,7 @@ services:
   tenant-web:
     build:
       args:
-        NEXT_PUBLIC_API_URL: https://api.darital-arenda.uz/api
+        NEXT_PUBLIC_API_URL: /api
   api:
     environment:
       MINIO_ENDPOINT: minio
