@@ -228,13 +228,12 @@ export default function TenantChatPage() {
   return (
     <>
       <TenantNavbar />
-      <div className="flex flex-col md:flex-row h-[100dvh] md:h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Left Panel - Conversation List (hidden on mobile when chat is open) */}
-      <div className={`${showListOnMobile ? 'flex' : 'hidden'} md:flex w-full md:w-80 lg:w-96 flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-shrink-0`}>
-        {/* Header - compact on mobile */}
-        <div className="p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex flex-col lg:flex-row h-[100dvh] lg:h-screen bg-gray-100 dark:bg-gray-900">
+      {/* Left Panel - Conversation List (hidden on mobile/tablet when chat is open) */}
+      <div className={`${showListOnMobile ? 'flex' : 'hidden'} lg:flex w-full lg:w-80 xl:w-96 flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-shrink-0`}>
+        <div className="p-3 lg:p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center gap-2 mb-3">
-            <h1 className="text-lg md:text-xl font-bold text-gray-800 dark:text-white truncate">💬 {t.supportChat}</h1>
+            <h1 className="text-lg lg:text-xl font-bold text-gray-800 dark:text-white truncate">💬 {t.supportChat}</h1>
             <a
               href="/tenant"
               className="flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
@@ -322,16 +321,15 @@ export default function TenantChatPage() {
         </div>
       </div>
 
-      {/* Right Panel - Message Thread (hidden on mobile when no chat selected) */}
-      <div className={`${showChatOnMobile ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-w-0`}>
+      {/* Right Panel - Message Thread (hidden on mobile/tablet when no chat selected) */}
+      <div className={`${showChatOnMobile ? 'flex' : 'hidden'} lg:flex flex-1 flex-col min-w-0`}>
         {selectedConversation ? (
           <>
-            {/* Chat Header - with back button on mobile */}
-            <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-3 md:p-4">
+            <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-3 lg:p-4">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSelectedConversation(null)}
-                  className="md:hidden flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center -ml-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                  className="lg:hidden flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center -ml-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                   aria-label={t.home}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -339,7 +337,7 @@ export default function TenantChatPage() {
                   </svg>
                 </button>
                 <div className="flex-1 min-w-0">
-                  <h2 className="font-bold text-gray-900 dark:text-white text-base md:text-lg truncate">
+                  <h2 className="font-bold text-gray-900 dark:text-white text-base lg:text-lg truncate">
                     {selectedConversation.topic || t.supportChat}
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
@@ -426,7 +424,7 @@ export default function TenantChatPage() {
             </div>
 
             {/* Input Box */}
-            <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-3 md:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-3 lg:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               {error && (
                 <div className="mb-2 text-sm text-red-600 dark:text-red-400">{t.error}: {error}</div>
               )}
@@ -461,7 +459,7 @@ export default function TenantChatPage() {
             </div>
           </>
         ) : (
-          <div className="hidden md:flex flex-1 items-center justify-center text-gray-500 dark:text-gray-400">
+          <div className="hidden lg:flex flex-1 items-center justify-center text-gray-500 dark:text-gray-400">
             <div className="text-center px-4">
               <svg
                 className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
