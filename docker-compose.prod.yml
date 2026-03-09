@@ -100,21 +100,17 @@ services:
   nginx:
     image: nginx:alpine
     container_name: darital-nginx
+    restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
     volumes:
       - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certbot-webroot:/var/www/certbot:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
-    restart: unless-stopped
     depends_on:
-      api:
-        condition: service_started
-      admin-web:
-        condition: service_started
-      tenant-web:
-        condition: service_started
+      - api
+      - admin-web
+      - tenant-web
     networks:
       - darital-network
 
