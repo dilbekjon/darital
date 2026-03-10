@@ -2,6 +2,16 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/a
 
 export function getSocketBaseUrl(): string {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
+
+  // If API URL is a relative path like "/api", use the current origin in the browser.
+  // This is the case on the VPS where NEXT_PUBLIC_API_URL=/api so sockets should go to the same host.
+  if (apiUrl && apiUrl.startsWith('/')) {
+    if (typeof window !== 'undefined') {
+      return window.location.origin
+    }
+    return 'http://localhost:3001'
+  }
+
   if (!apiUrl || apiUrl === 'http' || apiUrl === 'https') return 'http://localhost:3001'
   try {
     const url = new URL(apiUrl)
