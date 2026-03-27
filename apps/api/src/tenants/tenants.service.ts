@@ -151,7 +151,9 @@ export class TenantsService {
       this.logger.warn(`SMS not sent to ${tenant.phone}: ${smsResult.error}. Setup link (send to tenant manually): ${setupUrl}`);
       return {
         success: false,
-        message: smsResult.error === 'SMS not configured' ? 'SMS not configured (set ESKIZ_EMAIL, ESKIZ_PASSWORD)' : 'SMS failed',
+        message: smsResult.error === 'SMS not configured'
+          ? 'SMS not configured (set SMS_PROVIDER and provider credentials such as DEVSMS_TOKEN)'
+          : 'SMS failed',
         setupLink: setupUrl,
       };
     }
@@ -398,5 +400,4 @@ export class TenantsService {
     });
   }
 }
-
 

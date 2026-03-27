@@ -9,42 +9,87 @@ export interface SmsSendResult {
 @Injectable()
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
-  private readonly baseUrl = 'https://notify.eskiz.uz/api';
-  private token: string | null = null;
+  private readonly eskizBaseUrl = 'https://notify.eskiz.uz/api';
+  private readonly devSmsBaseUrl = 'https://devsms.uz/api';
+  private eskizToken: string | null = null;
 
-  private async getToken(): Promise<string | null> {
+  private getConfiguredProvider(): 'devsms' | 'eskiz' | null {
+    const explicitProvider = (process.env.SMS_PROVIDER || '').trim().toLowerCase();
+    if (explicitProvider === 'devsms') return 'devsms';
+    if (explicitProvider === 'eskiz') return 'eskiz';
+    if (process.env.DEVSMS_TOKEN) return 'devsms';
+    if (process.env.ESKIZ_EMAIL && process.env.ESKIZ_PASSWORD) return 'eskiz';
+    return null;
+  }
+
+  private normalizeUzPhone(phone: string): string {
+    const cleanPhone = phone.replace(/\D/g, '');
+    return cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
+  }
+
+  private async getEskizToken(): Promise<string | null> {
     const email = process.env.ESKIZ_EMAIL;
     const password = process.env.ESKIZ_PASSWORD;
     if (!email || !password) {
       this.logger.warn('ESKIZ_EMAIL or ESKIZ_PASSWORD not set, SMS will not be sent');
       return null;
     }
-    if (this.token) return this.token;
+    if (this.eskizToken) return this.eskizToken;
     try {
-      const res = await fetch(`${this.baseUrl}/auth/login`, {
+      const res = await fetch(`${this.eskizBaseUrl}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      this.token = data?.data?.token || null;
-      return this.token;
+      this.eskizToken = data?.data?.token || null;
+      return this.eskizToken;
     } catch (e) {
       this.logger.error('Eskiz auth failed', e);
       return null;
     }
   }
 
-  async sendSms(phone: string, text: string): Promise<SmsSendResult> {
-    const token = await this.getToken();
+  private async sendViaDevSms(phone: string, text: string): Promise<SmsSendResult> {
+    const token = process.env.DEVSMS_TOKEN;
     if (!token) {
-      this.logger.log(`[SMS would send] To: ${phone} | ${text}`);
       return { success: false, error: 'SMS not configured' };
     }
-    const cleanPhone = phone.replace(/\D/g, '');
-    const uzbPhone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
+    const uzbPhone = this.normalizeUzPhone(phone);
     try {
-      const res = await fetch(`${this.baseUrl}/message/sms/send`, {
+      const res = await fetch(`${this.devSmsBaseUrl}/send_sms.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          phone: uzbPhone,
+          message: text,
+          from: process.env.DEVSMS_FROM || '4546',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && (data?.success === true || data?.status === 'sent' || data?.id)) {
+        this.logger.log(`SMS sent via DevSMS to ${uzbPhone}`);
+        return { success: true, messageId: String(data?.id || '') || undefined };
+      }
+      this.logger.warn(`DevSMS failed: ${JSON.stringify(data)}`);
+      return { success: false, error: data?.message || 'Unknown error' };
+    } catch (e: any) {
+      this.logger.error('DevSMS send error', e);
+      return { success: false, error: e?.message };
+    }
+  }
+
+  private async sendViaEskiz(phone: string, text: string): Promise<SmsSendResult> {
+    const token = await this.getEskizToken();
+    if (!token) {
+      return { success: false, error: 'SMS not configured' };
+    }
+    const uzbPhone = this.normalizeUzPhone(phone);
+    try {
+      const res = await fetch(`${this.eskizBaseUrl}/message/sms/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,15 +103,29 @@ export class SmsService {
       });
       const data = await res.json();
       if (data?.status === 'success' || res.ok) {
-        this.logger.log(`SMS sent to ${uzbPhone}`);
+        this.logger.log(`SMS sent via Eskiz to ${uzbPhone}`);
         return { success: true, messageId: data?.id };
       }
-      this.logger.warn(`SMS failed: ${JSON.stringify(data)}`);
+      this.logger.warn(`Eskiz failed: ${JSON.stringify(data)}`);
       return { success: false, error: data?.message || 'Unknown error' };
     } catch (e: any) {
-      this.logger.error('SMS send error', e);
+      this.logger.error('Eskiz send error', e);
       return { success: false, error: e?.message };
     }
+  }
+
+  async sendSms(phone: string, text: string): Promise<SmsSendResult> {
+    const provider = this.getConfiguredProvider();
+    if (!provider) {
+      this.logger.log(`[SMS would send] To: ${phone} | ${text}`);
+      return { success: false, error: 'SMS not configured' };
+    }
+
+    if (provider === 'devsms') {
+      return this.sendViaDevSms(phone, text);
+    }
+
+    return this.sendViaEskiz(phone, text);
   }
 
   async sendTenantSetupLink(phone: string, fullName: string, setupUrl: string): Promise<SmsSendResult> {
