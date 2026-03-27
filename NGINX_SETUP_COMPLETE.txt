@@ -1,0 +1,90 @@
+Status: nginx symlink already exists, no action required (normal).
+
+Objective: put the final ready-to-paste nginx site config into /etc/nginx/sites-available/darital and keep the steps in this file.
+
+---
+
+1) Write site config (paste this into /etc/nginx/sites-available/darital):
+
+sudo tee /etc/nginx/sites-available/darital > /dev/null <<'EOF'
+server {
+    listen 80;
+    server_name admin.darital-arenda.uz tenant.darital-arenda.uz api.darital-arenda.uz;
+
+    # api service
+    location / {
+        proxy_pass http://api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        # Use built-in variable to avoid unknown custom variable error.
+        proxy_set_header Connection $http_connection;
+    }
+}
+
+server {
+    listen 80;
+    server_name httpbin.example.com; # optional add your www redirects or additional hosts
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+EOF
+
+# Ensure only server blocks (no events/http wrappers) exist in this file:
+# cat /etc/nginx/sites-available/darital | sed -n '1,30p'
+
+2) Validate config:
+
+sudo nginx -t
+
+Expected:
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+3) Restart nginx:
+
+sudo systemctl restart nginx
+
+4) Confirm site connectivity:
+
+curl -I http://46.8.176.171
+# if DNS is set:
+curl -I http://admin.darital-arenda.uz
+
+5) If issues remain, inspect logs:
+
+sudo journalctl -u nginx --no-pager --since "5 minutes ago"
+
+6) Optional: restore minimal /etc/nginx/nginx.conf if accidentally broken:
+
+sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak
+cat > /etc/nginx/nginx.conf <<'EOF'
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+events { worker_connections 1024; }
+http {
+    sendfile on;
+    tcp_nopush on;
+    types_hash_max_size 2048;
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}
+EOF
+sudo nginx -t
+sudo systemctl restart nginx
+
+7) Final check:
+
+sudo nginx -t
+
+8) Continue with certbot + DNS and HTTPS setup after server blocks are confirmed working.
+
+

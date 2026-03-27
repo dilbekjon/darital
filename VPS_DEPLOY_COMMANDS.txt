@@ -1,0 +1,99 @@
+====== DARITAL VPS DEPLOYMENT COMMANDS ======
+
+Copy and paste each line below into your VPS terminal, one at a time.
+Press Enter after each command.
+
+====== STEP 1: FIX DOCKER PERMISSIONS ======
+
+sudo usermod -aG docker $USER
+
+newgrp docker
+
+docker --version
+
+====== STEP 2: SETUP ENVIRONMENT FILE ======
+
+cd ~/darital
+
+cp env.production .env
+
+====== STEP 3: DEPLOY APPLICATION ======
+
+docker compose -f docker-compose.prod.yml up -d
+
+====== STEP 4: CHECK STATUS ======
+
+docker compose ps
+
+====== STEP 5: VIEW LOGS ======
+
+docker compose logs -f
+
+(Press Ctrl+C to stop viewing logs)
+
+====== STEP 6: RUN DATABASE MIGRATIONS ======
+
+docker compose exec api npx prisma migrate deploy
+
+====== TROUBLESHOOTING ======
+
+If you get permission error, use sudo:
+
+sudo docker compose -f docker-compose.prod.yml up -d
+
+Check if containers are running:
+
+sudo docker compose ps
+
+View full logs:
+
+sudo docker compose logs -f
+
+Check disk space:
+
+df -h
+
+====== EXPECTED OUTPUT ======
+
+When you run "docker compose ps", you should see:
+
+NAME               STATUS
+darital-postgres   Up
+darital-redis      Up
+darital-minio      Up
+darital-api        Up
+darital-admin      Up
+darital-tenant     Up
+darital-nginx      Up
+
+====== SUCCESS ======
+
+If all containers say "Up", your app is running!
+
+Test it:
+
+curl http://localhost:10000/api/health
+
+====== NEXT STEPS ======
+
+1. Configure DNS for your domain
+2. Setup SSL with Certbot
+3. Configure Nginx reverse proxy
+4. Create superadmin user in database
+
+See CHECKLIST.md for complete guide.
+
+====== IMPORTANT PASSWORDS ======
+
+Database: postgres / Darital-2026
+MinIO: minioadmin / Darital-2026
+JWT Secret: Change to something random!
+Email: Your Gmail credentials
+
+====== HELP ======
+
+All commands work on Ubuntu 22.04
+VPS IP: 46.8.176.171
+Domain: darital-arenda.uz
+
+Questions? Check VPS_DEPLOYMENT.md or DEPLOYMENT_QUICK_START.md

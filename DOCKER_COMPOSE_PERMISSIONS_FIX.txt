@@ -1,0 +1,53 @@
+1) Ensure docker group is set up and user is in it.
+
+Run as your user:
+
+sudo usermod -aG docker $USER
+
+Then exit from SSH and reconnect:
+
+exit
+jdmkT9Jlf7
+2) Verify group membership:
+
+id
+
+Output should include "docker" in groups.
+
+3) Go to project
+
+cd ~/darital
+
+4) Run compose with sudo if still failing:
+
+sudo docker-compose -f docker-compose.prod.yml up -d
+sudo docker-compose ps
+sudo docker-compose logs -f
+
+5) If `docker-compose` not found or you want plugin form:
+
+sudo docker compose -f docker-compose.prod.yml up -d
+sudo docker compose ps
+sudo docker compose logs -f
+
+6) Check docker socket permissions:
+
+ls -l /var/run/docker.sock
+
+Expected: srw-rw---- 1 root docker ... /var/run/docker.sock
+
+7) If still permission denied, run:
+
+sudo chmod 666 /var/run/docker.sock
+
+(Temporary fix; not best practice)
+
+8) After successful startup, run migrations:
+
+sudo docker-compose exec api npx prisma migrate deploy
+
+9) Check services:
+
+sudo docker-compose ps
+
+That is the complete set of commands in one place for your VPS.

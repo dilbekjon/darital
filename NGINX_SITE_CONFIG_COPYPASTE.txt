@@ -1,0 +1,36 @@
+# NGINX copy/paste deployment config for /etc/nginx/sites-available/darital
+
+sudo tee /etc/nginx/sites-available/darital > /dev/null <<'EOF'
+server {
+    listen 80;
+    server_name admin.darital-arenda.uz tenant.darital-arenda.uz api.darital-arenda.uz;
+
+    location / {
+        proxy_pass http://api;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        # Use standard header variable; no custom map required.
+        proxy_set_header Connection $http_connection;
+    }
+}
+
+# Optional redirect block for HTTP to HTTPS path (if you plan to set up SSL after this):
+# server {
+#     listen 80;
+#     server_name admin.darital-arenda.uz tenant.darital-arenda.uz api.darital-arenda.uz;
+#     return 301 https://$host$request_uri;
+# }
+EOF
+
+sudo nginx -t
+sudo systemctl restart nginx
+
+curl -I http://46.8.176.171
+curl -I http://admin.darital-arenda.uz
+
+# If there are validation issues:
+# sudo journalctl -u nginx --no-pager --since "5 minutes ago"
