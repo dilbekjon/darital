@@ -6,6 +6,19 @@ import { Decimal } from '@prisma/client/runtime/library';
 export class BuildingsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private normalizeFloorsCount(floorsCount?: number | null): number {
+    const normalized = Number(floorsCount ?? 1);
+    return Number.isFinite(normalized) && normalized >= 1 ? Math.floor(normalized) : 1;
+  }
+
+  private normalizeOccupiedFloors(input?: number[] | null, fallbackFloor?: number | null): number[] {
+    const raw = (input && input.length ? input : fallbackFloor ? [fallbackFloor] : [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && value >= 1);
+
+    return [...new Set(raw)].sort((a, b) => a - b);
+  }
+
   async findAll() {
     const buildings = await this.prisma.building.findMany({
       include: {
@@ -16,6 +29,7 @@ export class BuildingsService {
             status: true,
             price: true,
             floor: true,
+            occupiedFloors: true,
           },
         },
         _count: {
@@ -57,13 +71,17 @@ export class BuildingsService {
     const mapUnit = (u: (typeof building.units)[0]) => ({
       ...u,
       price: typeof u.price === 'object' && u.price !== null && 'toNumber' in u.price ? (u.price as Decimal).toNumber() : Number(u.price),
+      occupiedFloors: this.normalizeOccupiedFloors(u.occupiedFloors, u.floor),
     });
 
     const unitsByFloor: Record<number, ReturnType<typeof mapUnit>[]> = {};
     for (const u of building.units) {
-      const f = u.floor ?? 0;
-      if (!unitsByFloor[f]) unitsByFloor[f] = [];
-      unitsByFloor[f].push(mapUnit(u));
+      const mapped = mapUnit(u);
+      const floors = mapped.occupiedFloors.length ? mapped.occupiedFloors : [mapped.floor ?? 1];
+      for (const floor of floors) {
+        if (!unitsByFloor[floor]) unitsByFloor[floor] = [];
+        unitsByFloor[floor].push(mapped);
+      }
     }
 
     return {
@@ -92,7 +110,7 @@ export class BuildingsService {
         address: data.address,
         description: data.description,
         areaType: data.areaType ?? 'BUILDING',
-        floorsCount: data.floorsCount ?? 0,
+        floorsCount: this.normalizeFloorsCount(data.floorsCount),
       },
     });
   }
@@ -114,31 +132,37 @@ export class BuildingsService {
 
     return this.prisma.building.update({
       where: { id },
-      data,
+      data: {
+        ...data,
+        floorsCount: data.floorsCount === undefined ? undefined : this.normalizeFloorsCount(data.floorsCount),
+      },
     });
   }
 
   async bulkCreateUnits(
     buildingId: string,
-    payload: { floor?: number; units: Array<{ name: string; area?: number; price: number }> },
+    payload: { units: Array<{ name: string; area?: number; occupiedFloors?: number[] }> },
   ) {
     const building = await this.prisma.building.findUnique({ where: { id: buildingId } });
     if (!building) {
       throw new NotFoundException('Building not found');
     }
 
-    const floor = payload.floor ?? 0;
     const created = await this.prisma.$transaction(
       payload.units.map((u) =>
-        this.prisma.unit.create({
-          data: {
-            name: u.name,
-            price: new Decimal(u.price),
-            area: u.area ?? null,
-            floor,
-            buildingId,
-          },
-        }),
+        {
+          const occupiedFloors = this.normalizeOccupiedFloors(u.occupiedFloors);
+          return this.prisma.unit.create({
+            data: {
+              name: u.name,
+              price: new Decimal(0),
+              area: u.area ?? null,
+              floor: occupiedFloors[0] ?? null,
+              occupiedFloors,
+              buildingId,
+            },
+          });
+        }
       ),
     );
 

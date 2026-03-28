@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsEnum, IsPositive, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEnum, IsPositive, Min, IsArray } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { UnitStatus } from '@prisma/client';
 
@@ -23,8 +23,15 @@ export class UpdateUnitDto {
   @ApiPropertyOptional({ example: 1 })
   @IsOptional()
   @IsNumber()
-  @Min(0)
+  @Min(1)
   floor?: number;
+
+  @ApiPropertyOptional({ example: [1, 2], description: 'Floors occupied by this room' })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @Min(1, { each: true })
+  occupiedFloors?: number[];
 
   @ApiPropertyOptional({ enum: UnitStatus, example: UnitStatus.FREE })
   @IsOptional()
@@ -41,4 +48,3 @@ export class UpdateUnitDto {
   @IsString()
   companyId?: string | null;
 }
-

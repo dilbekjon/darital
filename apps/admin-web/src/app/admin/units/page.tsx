@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -26,6 +25,7 @@ interface Unit {
   price: number;
   area?: number;
   floor?: number;
+  occupiedFloors?: number[];
   status: 'FREE' | 'BUSY' | 'MAINTENANCE';
   buildingId?: string | null;
   building?: Building | null;
@@ -55,7 +55,6 @@ export default function AdminUnitsPage() {
   const { user, loading, hasPermission } = useAuth();
   const t = useUntypedTranslations();
   const { darkMode } = useTheme();
-  const router = useRouter();
   const [units, setUnits] = useState<Unit[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -70,14 +69,22 @@ export default function AdminUnitsPage() {
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    price: '',
     area: '',
-    floor: '',
+    occupiedFloors: '1',
     status: 'FREE' as 'FREE' | 'BUSY' | 'MAINTENANCE',
     buildingId: '',
     companyId: '',
   });
   const [submitting, setSubmitting] = useState(false);
+
+  const parseOccupiedFloors = (value: string): number[] => {
+    const parsed = value
+      .split(',')
+      .map((part) => Number(part.trim()))
+      .filter((part) => Number.isInteger(part) && part >= 1);
+
+    return [...new Set(parsed)].sort((a, b) => a - b);
+  };
 
   // Filter units based on search query and status
   const filteredUnits = useMemo(() => {
@@ -94,8 +101,8 @@ export default function AdminUnitsPage() {
       filtered = filtered.filter(
         (unit) =>
           unit.name.toLowerCase().includes(query) ||
-          unit.price.toString().includes(query) ||
           (unit.area && unit.area.toString().includes(query)) ||
+          (unit.occupiedFloors && unit.occupiedFloors.join(',').includes(query)) ||
           (unit.floor && unit.floor.toString().includes(query)) ||
           unit.status.toLowerCase().includes(query)
       );
@@ -167,7 +174,7 @@ export default function AdminUnitsPage() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', price: '', area: '', floor: '', status: 'FREE', buildingId: '', companyId: '' });
+    setFormData({ name: '', area: '', occupiedFloors: '1', status: 'FREE', buildingId: '', companyId: '' });
     setEditingUnit(null);
   };
 
@@ -182,9 +189,8 @@ export default function AdminUnitsPage() {
     setEditingUnit(unit);
     setFormData({
       name: unit.name,
-      price: String(unit.price),
       area: unit.area ? String(unit.area) : '',
-      floor: unit.floor ? String(unit.floor) : '',
+      occupiedFloors: (unit.occupiedFloors && unit.occupiedFloors.length ? unit.occupiedFloors : unit.floor ? [unit.floor] : []).join(', '),
       status: unit.status,
       buildingId: unit.buildingId || '',
       companyId: unit.companyId || '',
@@ -203,11 +209,11 @@ export default function AdminUnitsPage() {
     try {
       const payload: any = {
         name: formData.name,
-        price: parseFloat(formData.price),
       };
       
       if (formData.area) payload.area = parseFloat(formData.area);
-      if (formData.floor) payload.floor = parseInt(formData.floor);
+      const occupiedFloors = parseOccupiedFloors(formData.occupiedFloors);
+      if (occupiedFloors.length > 0) payload.occupiedFloors = occupiedFloors;
       if (editingUnit) payload.status = formData.status;
       if (formData.buildingId) {
         payload.buildingId = formData.buildingId;
@@ -241,6 +247,7 @@ export default function AdminUnitsPage() {
           price: typeof response.price === 'number' ? response.price : parseFloat(response.price) || 0,
           area: response.area,
           floor: response.floor,
+          occupiedFloors: response.occupiedFloors,
           status: response.status,
           buildingId: response.buildingId,
           building: response.building,
@@ -451,17 +458,12 @@ export default function AdminUnitsPage() {
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    {t.price || 'Price'}
-                  </th>
-                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                    darkMode ? 'text-gray-300' : 'text-gray-500'
-                  }`}>
                     {t.area || 'Area'}
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    {t.floor || 'Floor'}
+                    Qavatlar
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -530,17 +532,16 @@ export default function AdminUnitsPage() {
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
-                        UZS {unit.price.toLocaleString()}
-                      </td>
-                      <td className={`px-6 py-4 whitespace-nowrap text-sm ${
-                        darkMode ? 'text-gray-300' : 'text-gray-500'
-                      }`}>
                         {unit.area ? `${unit.area}m²` : '-'}
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
-                        {unit.floor !== undefined && unit.floor !== null ? `${t.floor} ${unit.floor}` : '-'}
+                        {unit.occupiedFloors && unit.occupiedFloors.length > 0
+                          ? unit.occupiedFloors.join(', ')
+                          : unit.floor !== undefined && unit.floor !== null
+                          ? String(unit.floor)
+                          : '-'}
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -686,26 +687,6 @@ export default function AdminUnitsPage() {
                   placeholder="e.g., Unit 101"
                 />
               </div>
-              <div className="mb-4">
-                <label htmlFor="price" className={`block text-sm font-medium mb-1 ${
-                  darkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                  {t.price} (UZS) *
-                </label>
-                <input
-                  type="number"
-                  id="price"
-                  required
-                  min="0"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${
-                    darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                  placeholder="150000"
-                />
-              </div>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <label htmlFor="area" className={`block text-sm font-medium mb-1 ${
@@ -727,24 +708,41 @@ export default function AdminUnitsPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="floor" className={`block text-sm font-medium mb-1 ${
+                  <label htmlFor="occupiedFloors" className={`block text-sm font-medium mb-1 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    {t.floor || 'Floor'}
+                    Qavatlar
                   </label>
                   <input
-                    type="number"
-                    id="floor"
-                    min="0"
-                    value={formData.floor}
-                    onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
+                    type="text"
+                    id="occupiedFloors"
+                    value={formData.occupiedFloors}
+                    onChange={(e) => setFormData({ ...formData, occupiedFloors: e.target.value })}
                     className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
-                    placeholder="1"
+                    placeholder="1, 2"
                   />
                 </div>
               </div>
+              {editingUnit && (
+                <div className="mb-4">
+                  <label htmlFor="price" className={`block text-sm font-medium mb-1 ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    {t.price} (UZS)
+                  </label>
+                  <input
+                    type="number"
+                    id="price"
+                    value={editingUnit.price}
+                    disabled
+                    className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${
+                      darkMode ? 'bg-gray-900 border-blue-600/20 text-gray-400' : 'bg-gray-50 border-gray-300 text-gray-500'
+                    }`}
+                  />
+                </div>
+              )}
               <div className="mb-4">
                 <label htmlFor="buildingId" className={`block text-sm font-medium mb-1 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
@@ -853,4 +851,3 @@ export default function AdminUnitsPage() {
     </div>
   );
 }
-

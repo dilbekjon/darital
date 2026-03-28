@@ -2,14 +2,13 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { NoAccess } from '../../../components/common/NoAccess';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { EmptyState } from '../../../components/EmptyState';
-import { fetchApi, ApiError } from '../../../lib/api';
+import { fetchApi } from '../../../lib/api';
 import DaritalLoader from '../../../components/DaritalLoader';
 
 interface Unit {
@@ -18,6 +17,7 @@ interface Unit {
   status: string;
   price: number;
   floor: number | null;
+  occupiedFloors?: number[];
   area?: number;
   contracts?: { tenant?: { fullName: string } }[];
 }
@@ -40,7 +40,6 @@ export default function BuildingsPage() {
   const { user, loading, hasPermission } = useAuth();
   const t = useUntypedTranslations();
   const { darkMode } = useTheme();
-  const router = useRouter();
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,15 +52,23 @@ export default function BuildingsPage() {
     address: '',
     description: '',
     areaType: 'BUILDING' as 'OPEN_AREA' | 'BUILDING',
-    floorsCount: 0,
+    floorsCount: 1,
   });
   const [saving, setSaving] = useState(false);
   const [detailBuilding, setDetailBuilding] = useState<Building | null>(null);
   const [detailUnitsByFloor, setDetailUnitsByFloor] = useState<Record<number, Unit[]>>({});
-  const [addUnitsFloor, setAddUnitsFloor] = useState<number>(0);
-  const [addUnitsRows, setAddUnitsRows] = useState<Array<{ name: string; area: string; price: string }>>([{ name: '', area: '', price: '' }]);
+  const [addUnitsRows, setAddUnitsRows] = useState<Array<{ name: string; area: string; floors: string }>>([{ name: '', area: '', floors: '1' }]);
   const [showAddUnitsModal, setShowAddUnitsModal] = useState(false);
   const [addingUnits, setAddingUnits] = useState(false);
+
+  const parseOccupiedFloors = (value: string): number[] => {
+    const parsed = value
+      .split(',')
+      .map((part) => Number(part.trim()))
+      .filter((part) => Number.isInteger(part) && part >= 1);
+
+    return [...new Set(parsed)].sort((a, b) => a - b);
+  };
 
   const loadBuildings = async () => {
     try {
@@ -109,7 +116,7 @@ export default function BuildingsPage() {
         }),
       });
       setShowCreateModal(false);
-      setFormData({ name: '', address: '', description: '', areaType: 'BUILDING', floorsCount: 0 });
+      setFormData({ name: '', address: '', description: '', areaType: 'BUILDING', floorsCount: 1 });
       loadBuildings();
     } catch (err) {
       console.error(err);
@@ -135,7 +142,7 @@ export default function BuildingsPage() {
       });
       setShowEditModal(false);
       setSelectedBuilding(null);
-      setFormData({ name: '', address: '', description: '', areaType: 'BUILDING', floorsCount: 0 });
+      setFormData({ name: '', address: '', description: '', areaType: 'BUILDING', floorsCount: 1 });
       loadBuildings();
     } catch (err) {
       console.error(err);
@@ -164,30 +171,29 @@ export default function BuildingsPage() {
     }
   };
 
-  const openAddUnitsModal = (floor: number) => {
-    setAddUnitsFloor(floor);
-    setAddUnitsRows([{ name: '', area: '', price: '' }]);
+  const openAddUnitsModal = () => {
+    setAddUnitsRows([{ name: '', area: '', floors: '1' }]);
     setShowAddUnitsModal(true);
   };
 
   const handleBulkAddUnits = async () => {
     if (!detailBuilding) return;
     const units = addUnitsRows
-      .filter((r) => r.name.trim() && r.price.trim())
+      .filter((r) => r.name.trim())
       .map((r) => ({
         name: r.name.trim(),
         area: r.area ? parseFloat(r.area) : undefined,
-        price: parseFloat(r.price),
+        occupiedFloors: parseOccupiedFloors(r.floors),
       }));
     if (units.length === 0) {
-      alert('Kamida bitta xona nomi va narxini kiriting.');
+      alert('Kamida bitta xona nomini kiriting.');
       return;
     }
     setAddingUnits(true);
     try {
       await fetchApi(`/buildings/${detailBuilding.id}/units/bulk`, {
         method: 'POST',
-        body: JSON.stringify({ floor: addUnitsFloor, units }),
+        body: JSON.stringify({ units }),
       });
       setShowAddUnitsModal(false);
       openDetail(detailBuilding);
@@ -218,7 +224,7 @@ export default function BuildingsPage() {
       address: building.address || '',
       description: building.description || '',
       areaType: building.areaType || 'BUILDING',
-      floorsCount: building.floorsCount ?? 0,
+      floorsCount: Math.max(1, building.floorsCount ?? 1),
     });
     setShowEditModal(true);
   };
@@ -402,7 +408,7 @@ export default function BuildingsPage() {
                             : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                         }`}
                       >
-                        3D View
+                        2D View
                       </Link>
                       <button
                         onClick={() => openEditModal(building)}
@@ -453,9 +459,9 @@ export default function BuildingsPage() {
                 </label>
                 <input
                   type="number"
-                  min={0}
+                  min={1}
                   value={formData.floorsCount}
-                  onChange={(e) => setFormData({ ...formData, floorsCount: parseInt(e.target.value, 10) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, floorsCount: Math.max(1, parseInt(e.target.value, 10) || 1) })}
                   className={`w-full px-4 py-3 rounded-xl border-2 ${
                     darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
@@ -544,9 +550,9 @@ export default function BuildingsPage() {
                 </label>
                 <input
                   type="number"
-                  min={0}
+                  min={1}
                   value={formData.floorsCount}
-                  onChange={(e) => setFormData({ ...formData, floorsCount: parseInt(e.target.value, 10) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, floorsCount: Math.max(1, parseInt(e.target.value, 10) || 1) })}
                   className={`w-full px-4 py-3 rounded-xl border ${
                     darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-800'
                   } focus:outline-none focus:ring-2 focus:ring-blue-500`}
@@ -632,55 +638,72 @@ export default function BuildingsPage() {
             </div>
             <div className="p-4 overflow-y-auto flex-1">
               <p className={`text-sm mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                {(detailBuilding.floorsCount ?? 0) > 0
-                  ? `${detailBuilding.floorsCount} qavat. Har qavatda xonalarni ketma-ket qo'shing.`
-                  : 'Qavatsiz bino. Xonalarni qo\'shing.'}
+                {`${Math.max(1, detailBuilding.floorsCount ?? 1)} qavat. Xonalarni oddiy tartibda qo'shing va ular egallaydigan qavatlarni kiriting.`}
               </p>
+              {hasPermission('units.create') && (
+                <div className="mb-4">
+                  <button
+                    onClick={() => openAddUnitsModal()}
+                    className="px-4 py-2 rounded-xl text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    + Xona qo'shish
+                  </button>
+                </div>
+              )}
               {(() => {
-                const floorsCount = detailBuilding.floorsCount ?? 0;
-                const floors = floorsCount > 0
-                  ? Array.from({ length: floorsCount }, (_, i) => i)
-                  : [0];
-                return floors.map((floorIndex) => {
-                  const units = detailUnitsByFloor[floorIndex] || [];
+                const floorsCount = Math.max(1, detailBuilding.floorsCount ?? 1);
+                const floors = Array.from({ length: floorsCount }, (_, i) => i + 1);
+                return floors.map((floorNumber) => {
+                  const units = detailUnitsByFloor[floorNumber] || [];
                   const free = units.filter((u) => u.status === 'FREE').length;
                   const busy = units.filter((u) => u.status === 'BUSY').length;
                   return (
-                    <div key={floorIndex} className={`mb-4 rounded-xl border ${darkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div key={floorNumber} className={`mb-4 rounded-xl border ${darkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className={`px-4 py-2 flex justify-between items-center ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
                         <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                          {floorIndex === 0 && floorsCount === 0 ? 'Xonalar (qavatsiz)' : `Qavat ${floorIndex + 1}`}
+                          {`Qavat ${floorNumber}`}
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-green-600">{busy} band</span>
                           <span className="text-sm text-blue-600">{free} bo'sh</span>
-                          {hasPermission('units.create') && (
-                            <button
-                              onClick={() => openAddUnitsModal(floorIndex)}
-                              className="px-3 py-1 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
-                            >
-                              + Xona qo'shish
-                            </button>
-                          )}
                         </div>
                       </div>
-                      <div className="p-3 flex flex-wrap gap-2">
+                      <div className="p-3 grid gap-3 sm:grid-cols-2">
                         {units.length === 0 ? (
                           <span className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Hona yo'q</span>
                         ) : (
                           units.map((u) => (
-                            <span
+                            <div
                               key={u.id}
-                              className={`px-2 py-1 rounded text-sm ${
+                              className={`rounded-xl border px-3 py-3 text-sm ${
                                 u.status === 'BUSY'
-                                  ? darkMode ? 'bg-green-900/40 text-green-300' : 'bg-green-100 text-green-800'
+                                  ? darkMode ? 'border-green-800 bg-green-900/20 text-green-300' : 'border-green-200 bg-green-50 text-green-800'
                                   : u.status === 'MAINTENANCE'
-                                  ? 'bg-amber-100 text-amber-800'
-                                  : darkMode ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-100 text-blue-800'
+                                  ? darkMode ? 'border-amber-700 bg-amber-900/20 text-amber-200' : 'border-amber-200 bg-amber-50 text-amber-800'
+                                  : darkMode ? 'border-blue-800 bg-blue-900/20 text-blue-300' : 'border-blue-200 bg-blue-50 text-blue-800'
                               }`}
                             >
-                              {u.name} {u.area ? `(${u.area} m²)` : ''} — {u.status === 'BUSY' ? (u.contracts?.[0]?.tenant?.fullName || 'Band') : u.status === 'FREE' ? 'Bo\'sh' : 'Ta\'mir'}
-                            </span>
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="font-semibold">{u.name}</div>
+                                  <div className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    {u.area ? `${u.area} m²` : 'Maydon kiritilmagan'}
+                                  </div>
+                                </div>
+                                <div className={`text-xs px-2 py-1 rounded-full ${darkMode ? 'bg-black/30' : 'bg-white/80'}`}>
+                                  {(u.occupiedFloors?.length ?? 0) > 1
+                                    ? `${u.occupiedFloors?.join(', ')}-qavatlar`
+                                    : `Qavat ${u.occupiedFloors?.[0] ?? u.floor ?? floorNumber}`}
+                                </div>
+                              </div>
+                              <div className="mt-2">
+                                {u.status === 'BUSY'
+                                  ? (u.contracts?.[0]?.tenant?.fullName || 'Band')
+                                  : u.status === 'FREE'
+                                  ? 'Bo\'sh'
+                                  : 'Ta\'mir'}
+                              </div>
+                            </div>
                           ))
                         )}
                       </div>
@@ -699,7 +722,7 @@ export default function BuildingsPage() {
           <div className={`w-full max-w-lg rounded-2xl shadow-2xl ${darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white'}`}>
             <div className={`p-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
               <h2 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                Xona qo'shish — {(detailBuilding.floorsCount ?? 0) === 0 ? 'Qavatsiz' : `Qavat ${addUnitsFloor + 1}`}
+                Xona qo'shish
               </h2>
             </div>
             <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
@@ -731,12 +754,12 @@ export default function BuildingsPage() {
                     }`}
                   />
                   <input
-                    type="number"
-                    placeholder="Narx"
-                    value={row.price}
+                    type="text"
+                    placeholder="Qavatlar: 1,2"
+                    value={row.floors}
                     onChange={(e) => {
                       const next = [...addUnitsRows];
-                      next[idx] = { ...next[idx], price: e.target.value };
+                      next[idx] = { ...next[idx], floors: e.target.value };
                       setAddUnitsRows(next);
                     }}
                     className={`col-span-4 px-3 py-2 rounded-lg border text-sm ${
@@ -754,7 +777,7 @@ export default function BuildingsPage() {
               ))}
               <button
                 type="button"
-                onClick={() => setAddUnitsRows([...addUnitsRows, { name: '', area: '', price: '' }])}
+                onClick={() => setAddUnitsRows([...addUnitsRows, { name: '', area: '', floors: '1' }])}
                 className={`w-full py-2 rounded-lg border border-dashed ${darkMode ? 'border-gray-600 text-gray-400 hover:bg-gray-800' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
               >
                 + Qator qo'shish
@@ -771,7 +794,7 @@ export default function BuildingsPage() {
               </button>
               <button
                 onClick={handleBulkAddUnits}
-                disabled={addingUnits || addUnitsRows.every((r) => !r.name.trim() || !r.price.trim())}
+                disabled={addingUnits || addUnitsRows.every((r) => !r.name.trim())}
                 className="flex-1 py-2 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
               >
                 {addingUnits ? '...' : 'Qo\'shish'}

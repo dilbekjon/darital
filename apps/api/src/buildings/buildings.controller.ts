@@ -63,7 +63,7 @@ export class BuildingsController {
   @ApiOperation({ summary: 'Create multiple units for a building (ketma-ket hona qoshish)' })
   bulkCreateUnits(
     @Param('id') id: string,
-    @Body() payload: { floor?: number; units: Array<{ name: string; area?: number; price: number }> },
+    @Body() payload: { units: Array<{ name: string; area?: number; occupiedFloors?: number[] }> },
   ) {
     return this.buildingsService.bulkCreateUnits(id, payload);
   }

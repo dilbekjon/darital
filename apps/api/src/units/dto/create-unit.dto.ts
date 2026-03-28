@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsPositive, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsPositive, Min, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUnitDto {
@@ -6,10 +6,11 @@ export class CreateUnitDto {
   @IsString()
   name!: string;
 
-  @ApiProperty({ example: 150000.50, description: 'Unit price' })
+  @ApiPropertyOptional({ example: 150000.50, description: 'Unit price' })
+  @IsOptional()
   @IsNumber()
   @IsPositive()
-  price!: number;
+  price?: number;
 
   @ApiPropertyOptional({ example: 75.5, description: 'Area in square meters' })
   @IsOptional()
@@ -20,8 +21,15 @@ export class CreateUnitDto {
   @ApiPropertyOptional({ example: 1, description: 'Floor number' })
   @IsOptional()
   @IsNumber()
-  @Min(0)
+  @Min(1)
   floor?: number;
+
+  @ApiPropertyOptional({ example: [1, 2], description: 'Floors occupied by this room' })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
+  @Min(1, { each: true })
+  occupiedFloors?: number[];
 
   @ApiPropertyOptional({ example: 'clx123...', description: 'Building ID to assign this unit to' })
   @IsOptional()
@@ -33,4 +41,3 @@ export class CreateUnitDto {
   @IsString()
   companyId?: string;
 }
-

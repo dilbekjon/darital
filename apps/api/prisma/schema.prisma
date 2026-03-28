@@ -120,7 +120,7 @@ model Building {
   description String?
   totalUnits  Int       @default(0)
   areaType    AreaType  @default(BUILDING)  // Hudud turi
-  floorsCount Int       @default(0)          // Qavatlar soni (0 = qavatsiz / bitta qavat)
+  floorsCount Int       @default(1)          // Qavatlar soni, 1 dan boshlanadi
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   units       Unit[]
@@ -149,6 +149,7 @@ model Unit {
   price      Decimal
   area       Float?
   floor      Int?
+  occupiedFloors Int[]  @default([])
   status     UnitStatus @default(FREE)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
