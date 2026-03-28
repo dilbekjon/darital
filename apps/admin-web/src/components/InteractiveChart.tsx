@@ -65,7 +65,7 @@ const InteractiveChart: React.FC<InteractiveChartProps> = ({
 
     // Draw title
     ctx.fillStyle = darkMode ? '#ffffff' : '#1a1a1a';
-    ctx.font = 'bold 20px Inter, sans-serif';
+    ctx.font = 'bold 20px Outfit, sans-serif';
     ctx.fillText(title, 20, 40);
 
     // Draw chart based on type
@@ -85,7 +85,7 @@ const InteractiveChart: React.FC<InteractiveChartProps> = ({
 
         // Label
         ctx.fillStyle = darkMode ? '#888888' : '#666666';
-        ctx.font = '12px Inter, sans-serif';
+        ctx.font = '12px Outfit, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(d.label, x + barWidth / 2, chartY + chartHeight + 20);
 
@@ -123,7 +123,7 @@ const InteractiveChart: React.FC<InteractiveChartProps> = ({
 
     // Draw legend
     let legendY = chartY + chartHeight + 50;
-    ctx.font = '14px Inter, sans-serif';
+    ctx.font = '14px Outfit, sans-serif';
     data.forEach((d, i) => {
       const legendX = 50 + (i % 3) * 250;
       if (i > 0 && i % 3 === 0) legendY += 25;

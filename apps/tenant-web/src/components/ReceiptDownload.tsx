@@ -80,7 +80,7 @@ const ReceiptDownload: React.FC<ReceiptDownloadProps> = ({ receiptData, onClose 
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { 
-            font-family: 'Segoe UI', Arial, sans-serif; 
+            font-family: 'Outfit', sans-serif; 
             padding: 40px; 
             max-width: 800px; 
             margin: 0 auto;

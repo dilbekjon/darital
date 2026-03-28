@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
-import { Inter } from 'next/font/google'
+import { Outfit } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 import { TelegramInitializer } from './TelegramInitializer'
 
-const inter = Inter({ subsets: ['latin'] })
+const outfit = Outfit({ subsets: ['latin'] })
 const GA_ID = 'G-MNM97QNQMC'
 
 export const metadata: Metadata = {
@@ -29,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="uz" suppressHydrationWarning>
       <head />
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={outfit.className} suppressHydrationWarning>
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
           strategy="afterInteractive"
@@ -57,4 +57,3 @@ export default function RootLayout({
     </html>
   )
 }
-

@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
 import Script from 'next/script'
+import { Outfit } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 
 const GA_ID = 'G-MNM97QNQMC'
+const outfit = Outfit({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Darital Admin',
@@ -19,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="uz" suppressHydrationWarning>
       <head />
-      <body suppressHydrationWarning>
+      <body className={outfit.className} suppressHydrationWarning>
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
           strategy="afterInteractive"
