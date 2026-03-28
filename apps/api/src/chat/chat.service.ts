@@ -36,23 +36,30 @@ export class ChatService {
    * Links User → Tenant by email (since they're separate tables)
    */
   async resolveTenantForUser(user: any) {
-    const email = user.email;
-    const identifier = user.email;
-    if (!identifier) {
+    const tenantId = user.id || user.sub || null;
+    const identifier = user.email || user.phone || null;
+
+    if (!tenantId && !identifier) {
       throw new ForbiddenException({
         code: 'NO_IDENTIFIER',
         message: 'User identifier not found in token',
       });
     }
 
-    const cleanPhone = identifier.replace(/\D/g, '');
-    const phone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
-    const tenant = identifier.includes('@')
-      ? await this.prisma.tenant.findUnique({ where: { email: identifier } })
-      : await this.prisma.tenant.findUnique({ where: { phone } });
+    let tenant = tenantId
+      ? await this.prisma.tenant.findUnique({ where: { id: tenantId } })
+      : null;
+
+    if (!tenant && identifier) {
+      const cleanPhone = identifier.replace(/\D/g, '');
+      const phone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
+      tenant = identifier.includes('@')
+        ? await this.prisma.tenant.findUnique({ where: { email: identifier } })
+        : await this.prisma.tenant.findUnique({ where: { phone } });
+    }
 
     if (!tenant) {
-      console.error(`[ChatService] No tenant found for user: ${identifier}`);
+      console.error(`[ChatService] No tenant found for user: ${tenantId || identifier}`);
       throw new NotFoundException({
         code: 'TENANT_NOT_FOUND',
         message: 'Tenant profile not linked to this user. Please ensure tenant account exists.',
@@ -694,4 +701,3 @@ export class ChatService {
     return unreadConversations.length;
   }
 }
-
