@@ -15,6 +15,7 @@ interface Tenant {
   id: string;
   fullName: string;
   phone: string;
+  email?: string;
   createdAt: string;
   isArchived?: boolean;
   archivedAt?: string;
@@ -37,6 +38,7 @@ export default function AdminTenantsPage() {
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
+    email: '',
     password: '',
     confirmPassword: '',
   });
@@ -51,7 +53,8 @@ export default function AdminTenantsPage() {
     return tenants.filter(
       (tenant) =>
         tenant.fullName.toLowerCase().includes(query) ||
-        tenant.phone.toLowerCase().includes(query)
+        tenant.phone.toLowerCase().includes(query) ||
+        (tenant.email || '').toLowerCase().includes(query)
     );
   }, [tenants, searchQuery]);
 
@@ -73,7 +76,7 @@ export default function AdminTenantsPage() {
           if (err instanceof ApiError) {
             setError(err.message);
           } else {
-            setError('An unexpected error occurred.');
+            setError('Kutilmagan xato yuz berdi.');
           }
         } finally {
           setPageLoading(false);
@@ -104,7 +107,7 @@ export default function AdminTenantsPage() {
 
     if (pageLoading || tenants.length === 0) {
       console.warn('Tenants not loaded yet, cannot archive');
-      setError('Please wait for tenants to load before archiving.');
+      setError('Ijarachilar to‘liq yuklanguncha kuting.');
       return;
     }
 
@@ -226,7 +229,7 @@ export default function AdminTenantsPage() {
   const handlePermanentDeleteTenant = async (tenantId: string) => {
     if (!canDeleteTenants) return;
 
-    if (!confirm('⚠️ This will permanently delete the tenant and cannot be undone. Continue?')) {
+    if (!confirm('⚠️ Bu amal ijarachini butunlay o‘chiradi va ortga qaytarib bo‘lmaydi. Davom etilsinmi?')) {
       return;
     }
 
@@ -249,7 +252,7 @@ export default function AdminTenantsPage() {
   };
 
   const resetForm = () => {
-    setFormData({ fullName: '', phone: '', password: '', confirmPassword: '' });
+    setFormData({ fullName: '', phone: '', email: '', password: '', confirmPassword: '' });
     setEditingTenant(null);
   };
 
@@ -267,6 +270,7 @@ export default function AdminTenantsPage() {
     setFormData({
       fullName: tenant.fullName,
       phone: tenant.phone,
+      email: tenant.email || '',
       password: '',
       confirmPassword: '',
     });
@@ -286,9 +290,10 @@ export default function AdminTenantsPage() {
     
     try {
       if (editingTenant) {
-        const updatePayload: { fullName: string; phone: string; password?: string } = {
+        const updatePayload: { fullName: string; phone: string; email?: string | null; password?: string } = {
           fullName: formData.fullName,
           phone: formData.phone,
+          email: formData.email.trim() || null,
         };
         if (formData.password) {
           if (formData.password !== formData.confirmPassword) {
@@ -307,6 +312,7 @@ export default function AdminTenantsPage() {
           id: response.id,
           fullName: response.fullName,
           phone: response.phone,
+          email: response.email || '',
           createdAt: response.createdAt || editingTenant.createdAt,
         };
 
@@ -319,6 +325,7 @@ export default function AdminTenantsPage() {
           body: JSON.stringify({
             fullName: formData.fullName,
             phone: formData.phone,
+            email: formData.email.trim() || undefined,
           }),
         });
         
@@ -327,6 +334,7 @@ export default function AdminTenantsPage() {
           id: response.id,
           fullName: response.fullName,
           phone: response.phone,
+          email: response.email || '',
           createdAt: response.createdAt || new Date().toISOString(),
         };
         
@@ -764,10 +772,10 @@ export default function AdminTenantsPage() {
                 </div>
 
                 {/* Phone */}
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    {t.phone} *
-                  </label>
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      {t.phone} *
+                    </label>
                   <input
                     type="tel"
                     id="phone"
@@ -779,6 +787,24 @@ export default function AdminTenantsPage() {
                         ? 'bg-gray-700 border-gray-600 text-white' 
                         : 'bg-white border-gray-300 text-gray-900'
                     } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {t.email || 'Email'}
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className={`w-full rounded-lg border ${
+                      darkMode 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+                    placeholder="ixtiyoriy@email.uz"
                   />
                 </div>
               </div>
@@ -824,7 +850,7 @@ export default function AdminTenantsPage() {
 
               {!editingTenant && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  {t.createTenantSmsHint || 'SMS will be sent to the tenant with a link to set their password.'}
+                  {t.createTenantSmsHint || 'Ijarachiga parolni sozlash uchun SMS orqali havola yuboriladi.'}
                 </p>
               )}
 

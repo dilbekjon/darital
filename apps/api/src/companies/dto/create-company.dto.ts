@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { ArrayUnique, IsArray, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateCompanyDto {
@@ -10,5 +10,15 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsString()
   description?: string;
-}
 
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['cm123...', 'cm456...'],
+    description: 'Tenants that should belong to this company group',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  tenantIds?: string[];
+}

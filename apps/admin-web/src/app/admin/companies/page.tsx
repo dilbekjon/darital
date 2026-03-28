@@ -14,7 +14,16 @@ interface Company {
   name: string;
   description?: string | null;
   unitsCount: number;
+  tenantsCount: number;
+  tenants: TenantSummary[];
   createdAt: string;
+}
+
+interface TenantSummary {
+  id: string;
+  fullName: string;
+  phone: string;
+  email?: string;
 }
 
 export default function AdminCompaniesPage() {
@@ -23,6 +32,7 @@ export default function AdminCompaniesPage() {
   const { darkMode } = useTheme();
 
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [tenants, setTenants] = useState<TenantSummary[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -32,7 +42,9 @@ export default function AdminCompaniesPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    tenantIds: [] as string[],
   });
+  const [tenantSearchQuery, setTenantSearchQuery] = useState('');
 
   const filteredCompanies = useMemo(() => {
     if (!searchQuery.trim()) return companies;
@@ -53,12 +65,16 @@ export default function AdminCompaniesPage() {
 
       const load = async () => {
         try {
-          const data = await fetchApi<Company[]>('/companies');
-          setCompanies(data);
+          const [companiesData, tenantsData] = await Promise.all([
+            fetchApi<Company[]>('/companies'),
+            fetchApi<TenantSummary[]>('/tenants'),
+          ]);
+          setCompanies(companiesData);
+          setTenants(tenantsData);
         } catch (err) {
           console.error('Failed to load companies:', err);
           if (err instanceof ApiError) setError(err.message);
-          else setError('An unexpected error occurred.');
+          else setError('Kutilmagan xato yuz berdi.');
         } finally {
           setPageLoading(false);
         }
@@ -92,8 +108,9 @@ export default function AdminCompaniesPage() {
   const canDelete = hasPermission('companies.delete');
 
   const resetForm = () => {
-    setFormData({ name: '', description: '' });
+    setFormData({ name: '', description: '', tenantIds: [] });
     setEditingCompany(null);
+    setTenantSearchQuery('');
   };
 
   const openCreateModal = () => {
@@ -107,9 +124,34 @@ export default function AdminCompaniesPage() {
     setFormData({
       name: company.name,
       description: company.description || '',
+      tenantIds: company.tenants.map((tenant) => tenant.id),
     });
     setError(null);
     setIsModalOpen(true);
+  };
+
+  const filteredTenantOptions = useMemo(() => {
+    const query = tenantSearchQuery.trim().toLowerCase();
+    if (!query) return tenants;
+    return tenants.filter((tenant) =>
+      tenant.fullName.toLowerCase().includes(query) ||
+      tenant.phone.toLowerCase().includes(query) ||
+      (tenant.email || '').toLowerCase().includes(query),
+    );
+  }, [tenants, tenantSearchQuery]);
+
+  const selectedTenants = useMemo(
+    () => tenants.filter((tenant) => formData.tenantIds.includes(tenant.id)),
+    [tenants, formData.tenantIds],
+  );
+
+  const toggleTenant = (tenantId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      tenantIds: prev.tenantIds.includes(tenantId)
+        ? prev.tenantIds.filter((id) => id !== tenantId)
+        : [...prev.tenantIds, tenantId],
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,6 +168,7 @@ export default function AdminCompaniesPage() {
           body: JSON.stringify({
             name: formData.name,
             description: formData.description || undefined,
+            tenantIds: formData.tenantIds,
           }),
         });
         setCompanies((prev) => prev.map((c) => (c.id === editingCompany.id ? response : c)));
@@ -135,6 +178,7 @@ export default function AdminCompaniesPage() {
           body: JSON.stringify({
             name: formData.name,
             description: formData.description || undefined,
+            tenantIds: formData.tenantIds,
           }),
         });
         setCompanies((prev) => [response, ...prev]);
@@ -146,7 +190,7 @@ export default function AdminCompaniesPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('An unexpected error occurred while saving company.');
+        setError('Kompaniyani saqlashda kutilmagan xato yuz berdi.');
       }
     } finally {
       setSubmitting(false);
@@ -157,7 +201,7 @@ export default function AdminCompaniesPage() {
     if (!canDelete) return;
     if (
       !confirm(
-        `Kompaniya "${company.name}" ni o'chirmoqchimisiz?\n\nBu faqat kompaniyaga birorta ham xona biriktirilmagan bo'lsa ruxsat etiladi.`,
+        `Kompaniya "${company.name}" ni o'chirmoqchimisiz?\n\nBu faqat kompaniyaga xona yoki ijarachi biriktirilmagan bo'lsa ruxsat etiladi.`,
       )
     ) {
       return;
@@ -369,6 +413,13 @@ export default function AdminCompaniesPage() {
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}
                   >
+                    Ijarachilar
+                  </th>
+                  <th
+                    className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      darkMode ? 'text-gray-300' : 'text-gray-500'
+                    }`}
+                  >
                     {t.createdAt || 'Yaratilgan sana'}
                   </th>
                   {(canCreateOrUpdate || canDelete) && (
@@ -436,6 +487,40 @@ export default function AdminCompaniesPage() {
                       {company.unitsCount}
                     </td>
                     <td
+                      className={`px-6 py-4 text-sm ${
+                        darkMode ? 'text-gray-300' : 'text-gray-500'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {company.tenantsCount} ta
+                        </span>
+                        {company.tenants.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {company.tenants.slice(0, 3).map((tenant) => (
+                              <span
+                                key={tenant.id}
+                                className={`inline-flex rounded-full px-2 py-0.5 text-xs ${
+                                  darkMode ? 'bg-blue-600/20 text-blue-300' : 'bg-blue-100 text-blue-700'
+                                }`}
+                              >
+                                {tenant.fullName}
+                              </span>
+                            ))}
+                            {company.tenantsCount > 3 && (
+                              <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                +{company.tenantsCount - 3} ta
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className={darkMode ? 'text-gray-500' : 'text-gray-400'}>
+                            Biriktirilmagan
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td
                       className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}
@@ -494,7 +579,7 @@ export default function AdminCompaniesPage() {
           }`}
         >
           <div
-            className={`rounded-lg shadow-xl p-6 w-full max-w-md mx-auto border ${
+            className={`rounded-lg shadow-xl p-6 w-full max-w-4xl mx-auto border ${
               darkMode
                 ? 'bg-black border-blue-600/30'
                 : 'bg-white border-gray-200'
@@ -521,8 +606,10 @@ export default function AdminCompaniesPage() {
                 {error}
               </div>
             )}
-            <form onSubmit={handleSubmit}>
-              <div className="mb-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="space-y-4">
+              <div>
                 <label
                   htmlFor="name"
                   className={`block text-sm font-medium mb-1 ${
@@ -547,7 +634,7 @@ export default function AdminCompaniesPage() {
                   placeholder="Masalan, Darital Group"
                 />
               </div>
-              <div className="mb-4">
+              <div>
                 <label
                   htmlFor="description"
                   className={`block text-sm font-medium mb-1 ${
@@ -573,6 +660,110 @@ export default function AdminCompaniesPage() {
                     'Ixtiyoriy tavsif yoki izoh'
                   }
                 />
+              </div>
+                  <div className={`rounded-xl border p-4 ${darkMode ? 'border-blue-600/30 bg-blue-600/5' : 'border-blue-100 bg-blue-50/60'}`}>
+                    <p className={`text-sm font-semibold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Kompaniya nima qiladi?
+                    </p>
+                    <p className={`text-sm leading-6 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      Bu yerda kompaniya bitta “super ijarachi” kabi ishlaydi: ichiga bir nechta ijarachini biriktirib, ularni bitta guruh sifatida boshqarasiz.
+                    </p>
+                  </div>
+                </div>
+
+                <div className={`rounded-2xl border p-4 ${darkMode ? 'border-blue-600/30 bg-black/60' : 'border-gray-200 bg-gray-50/70'}`}>
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                      <h3 className={`text-base font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        Guruhga qo‘shiladigan ijarachilar
+                      </h3>
+                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Tanlangan ijarachilar shu kompaniya guruhiga biriktiriladi.
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${darkMode ? 'bg-blue-600/20 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                      {formData.tenantIds.length} ta tanlandi
+                    </span>
+                  </div>
+
+                  <div className="mb-3">
+                    <input
+                      type="text"
+                      value={tenantSearchQuery}
+                      onChange={(e) => setTenantSearchQuery(e.target.value)}
+                      placeholder="Ism, telefon yoki email bo‘yicha qidiring"
+                      className={`w-full rounded-lg border px-3 py-2 ${
+                        darkMode
+                          ? 'bg-black border-blue-600/30 text-white placeholder-gray-500'
+                          : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                      }`}
+                    />
+                  </div>
+
+                  {selectedTenants.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {selectedTenants.map((tenant) => (
+                        <button
+                          key={tenant.id}
+                          type="button"
+                          onClick={() => toggleTenant(tenant.id)}
+                          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${
+                            darkMode ? 'bg-blue-600/20 text-blue-300 hover:bg-blue-600/30' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          }`}
+                        >
+                          <span>{tenant.fullName}</span>
+                          <span>×</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className={`max-h-72 overflow-y-auto rounded-xl border ${darkMode ? 'border-blue-600/20' : 'border-gray-200'} divide-y ${darkMode ? 'divide-blue-600/20' : 'divide-gray-200'}`}>
+                    {filteredTenantOptions.length === 0 ? (
+                      <div className={`p-4 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Mos ijarachi topilmadi.
+                      </div>
+                    ) : (
+                      filteredTenantOptions.map((tenant) => {
+                        const checked = formData.tenantIds.includes(tenant.id);
+                        return (
+                          <label
+                            key={tenant.id}
+                            className={`flex cursor-pointer items-start gap-3 p-3 transition-colors ${
+                              checked
+                                ? darkMode
+                                  ? 'bg-blue-600/10'
+                                  : 'bg-blue-50'
+                                : darkMode
+                                  ? 'hover:bg-blue-600/5'
+                                  : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleTenant(tenant.id)}
+                              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div className="min-w-0">
+                              <div className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {tenant.fullName}
+                              </div>
+                              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {tenant.phone}
+                              </div>
+                              {tenant.email && (
+                                <div className={`truncate text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                  {tenant.email}
+                                </div>
+                              )}
+                            </div>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="flex justify-end gap-3">
                 <button

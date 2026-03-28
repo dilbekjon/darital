@@ -126,7 +126,6 @@ export class ContractsService {
 
     // Create contract and mark unit as BUSY in a transaction
     const contract = await this.prisma.$transaction(async (tx) => {
-      // Create contract (status: DRAFT by default)
       const newContract = await tx.contract.create({
       data: {
         tenantId: dto.tenantId,
@@ -136,6 +135,7 @@ export class ContractsService {
         pdfUrl,
         amount: new Decimal(dto.amount),
           notes: dto.notes || null,
+          status: ContractStatus.ACTIVE,
       },
       include: { tenant: true, unit: true },
       });
@@ -437,4 +437,3 @@ export class ContractsService {
     });
   }
 }
-

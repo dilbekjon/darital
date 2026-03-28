@@ -445,7 +445,7 @@ export default function AdminContractsPage() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            {t.createContract || 'Create Contract'}
+            {t.createContract || 'Shartnoma yaratish'}
           </button>
         )}
       </div>
@@ -486,7 +486,7 @@ export default function AdminContractsPage() {
                   : 'bg-white border-gray-300 text-gray-900'
               } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
             >
-              <option value="ALL">{t.allStatus || 'All Status'}</option>
+              <option value="ALL">{t.allStatus || 'Barcha holatlar'}</option>
               <option value="DRAFT">{t.statusDraft}</option>
               <option value="ACTIVE">{t.statusActive}</option>
               <option value="COMPLETED">{t.statusCompleted}</option>
@@ -512,7 +512,7 @@ export default function AdminContractsPage() {
                 ? t.getStartedByCreating
                 : t.tryAdjustingFilters
             }
-            actionLabel={contracts.length === 0 && canCreateContracts ? (t.createContract || 'Create Contract') : undefined}
+            actionLabel={contracts.length === 0 && canCreateContracts ? (t.createContract || 'Shartnoma yaratish') : undefined}
             onAction={contracts.length === 0 && canCreateContracts ? () => setIsModalOpen(true) : undefined}
             secondaryActionLabel={contracts.length > 0 ? (t.clearFilters || 'Filtrlarni tozalash') : undefined}
             onSecondaryAction={contracts.length > 0 ? () => { setStatusFilter('ALL'); setSearchQuery(''); } : undefined}

@@ -135,6 +135,7 @@ model Company {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   units       Unit[]
+  tenants     Tenant[]
 
   @@map("companies")
 }
@@ -172,6 +173,8 @@ model Tenant {
   fullName      String
   phone         String         @unique
   email         String?        @unique
+  companyId     String?
+  company       Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
   password      String
   setupTokens   TenantSetupToken[]
   contracts     Contract[]
@@ -188,6 +191,7 @@ model Tenant {
   archiveReason String?        // Reason for archiving
 
   @@index([phone])
+  @@index([companyId])
   @@index([createdAt])
   @@index([isArchived])
 }
@@ -237,7 +241,7 @@ model Contract {
   endDate     DateTime
   pdfUrl      String
   amount      Decimal
-  status      ContractStatus  @default(DRAFT)
+  status      ContractStatus  @default(ACTIVE)
   notes       String?         // Additional contract notes/description
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt

@@ -91,12 +91,14 @@ export class TenantsService {
   async create(dto: CreateTenantDto) {
     try {
       const normalizedPhone = this.normalizePhone(dto.phone);
+      const normalizedEmail = dto.email?.trim() ? dto.email.trim().toLowerCase() : null;
       const tempPassword = crypto.randomBytes(16).toString('hex');
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
       const tenant = await this.prisma.tenant.create({
         data: {
           fullName: dto.fullName,
           phone: normalizedPhone,
+          email: normalizedEmail,
           password: hashedPassword,
         },
       });
@@ -128,6 +130,10 @@ export class TenantsService {
       };
     } catch (err: any) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        const target = Array.isArray(err.meta?.target) ? err.meta?.target : [];
+        if (target.includes('email')) {
+          throw new ConflictException({ code: 'EMAIL_TAKEN', message: 'Email already exists' });
+        }
         throw new ConflictException({ code: 'PHONE_TAKEN', message: 'Phone number already exists' });
       }
       throw err;
@@ -167,6 +173,9 @@ export class TenantsService {
     const updateData: Prisma.TenantUpdateInput = { ...dto };
     if (dto.phone) {
       updateData.phone = this.normalizePhone(dto.phone);
+    }
+    if (dto.email !== undefined) {
+      updateData.email = dto.email?.trim() ? dto.email.trim().toLowerCase() : null;
     }
     if (dto.password) {
       updateData.password = await bcrypt.hash(dto.password, 10);
