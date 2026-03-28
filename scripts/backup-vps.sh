@@ -15,10 +15,84 @@ TIMESTAMP="$(date +"%Y-%m-%d_%H-%M-%S")"
 RUN_DIR="$BACKUP_BASE_DIR/$TIMESTAMP"
 
 DOCKER_COMPOSE=(docker-compose "${COMPOSE_FILES[@]}" --env-file "$ENV_FILE")
+BACKUP_FAILED=0
 
 log() {
   printf '[backup] %s\n' "$*"
 }
+
+load_env_file() {
+  if [[ -f "$ENV_FILE" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    set +a
+  fi
+}
+
+send_telegram_message() {
+  local message="$1"
+  local token="${BACKUP_TELEGRAM_BOT_TOKEN:-${TELEGRAM_BOT_TOKEN:-}}"
+  local chat_id="${BACKUP_TELEGRAM_CHAT_ID:-${TELEGRAM_ADMIN_CHAT_ID:-}}"
+
+  if [[ -z "$token" || -z "$chat_id" ]]; then
+    log "telegram alert skipped; bot token or chat id not set"
+    return
+  fi
+
+  if ! command -v curl >/dev/null 2>&1; then
+    log "telegram alert skipped; curl not installed"
+    return
+  fi
+
+  curl -fsS -X POST "https://api.telegram.org/bot${token}/sendMessage" \
+    --data-urlencode "chat_id=$chat_id" \
+    --data-urlencode "text=$message" \
+    --data-urlencode "disable_web_page_preview=true" \
+    >/dev/null || log "failed to send telegram alert"
+}
+
+notify_success() {
+  local message
+  message=$(
+    cat <<EOF
+Darital backup success
+Host: $(hostname)
+Time: $TIMESTAMP
+Local: $RUN_DIR
+Off-site: ${BACKUP_RCLONE_REMOTE:-not configured}
+EOF
+  )
+  send_telegram_message "$message"
+}
+
+notify_failure() {
+  local exit_code="${1:-1}"
+  local message
+  message=$(
+    cat <<EOF
+Darital backup failed
+Host: $(hostname)
+Time: $TIMESTAMP
+Step: ${CURRENT_STEP:-unknown}
+Exit code: $exit_code
+Local dir: $RUN_DIR
+Off-site: ${BACKUP_RCLONE_REMOTE:-not configured}
+EOF
+  )
+  send_telegram_message "$message"
+}
+
+handle_exit() {
+  local exit_code=$?
+  if [[ $exit_code -ne 0 ]]; then
+    BACKUP_FAILED=1
+    notify_failure "$exit_code"
+  fi
+  exit "$exit_code"
+}
+
+trap handle_exit EXIT
 
 require_file() {
   local path="$1"
@@ -29,10 +103,12 @@ require_file() {
 }
 
 create_directories() {
+  CURRENT_STEP="create_directories"
   mkdir -p "$RUN_DIR/db" "$RUN_DIR/files" "$RUN_DIR/configs" "$RUN_DIR/logs"
 }
 
 backup_database() {
+  CURRENT_STEP="backup_database"
   log "creating PostgreSQL dump"
   "${DOCKER_COMPOSE[@]}" exec -T postgres sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' \
     > "$RUN_DIR/db/darital.dump"
@@ -40,6 +116,7 @@ backup_database() {
 }
 
 backup_minio_files() {
+  CURRENT_STEP="backup_minio_files"
   log "copying MinIO data"
   docker cp darital-minio:/data "$RUN_DIR/files/minio-data"
   tar -C "$RUN_DIR/files" -czf "$RUN_DIR/files/minio-data.tar.gz" minio-data
@@ -48,6 +125,7 @@ backup_minio_files() {
 }
 
 backup_configs() {
+  CURRENT_STEP="backup_configs"
   log "copying configuration files"
   require_file "$ENV_FILE"
   cp "$ENV_FILE" "$RUN_DIR/configs/.env.production"
@@ -73,6 +151,7 @@ EOF
 }
 
 write_manifest() {
+  CURRENT_STEP="write_manifest"
   log "writing manifest"
   cat > "$RUN_DIR/manifest.txt" <<EOF
 backup_timestamp=$TIMESTAMP
@@ -84,6 +163,7 @@ EOF
 }
 
 offsite_sync() {
+  CURRENT_STEP="offsite_sync"
   if [[ -z "${BACKUP_RCLONE_REMOTE:-}" ]]; then
     log "BACKUP_RCLONE_REMOTE not set; skipping off-site sync"
     return
@@ -99,11 +179,13 @@ offsite_sync() {
 }
 
 prune_old_backups() {
+  CURRENT_STEP="prune_old_backups"
   log "pruning local backups older than $RETENTION_DAYS days"
   find "$BACKUP_BASE_DIR" -mindepth 1 -maxdepth 1 -type d -mtime +"$RETENTION_DAYS" -exec rm -rf {} +
 }
 
 main() {
+  load_env_file
   create_directories
   backup_database
   backup_minio_files
@@ -111,7 +193,11 @@ main() {
   write_manifest
   offsite_sync
   prune_old_backups
+  CURRENT_STEP="completed"
   log "backup completed: $RUN_DIR"
+  if [[ $BACKUP_FAILED -eq 0 ]]; then
+    notify_success
+  fi
 }
 
 main "$@"

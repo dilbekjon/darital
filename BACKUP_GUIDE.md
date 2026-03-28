@@ -158,7 +158,47 @@ Recommended remote targets:
 
 If `BACKUP_RCLONE_REMOTE` is not set, the script still creates local backups.
 
-## Step 6: Restore Drill
+## Step 6: Add Telegram Alerts
+
+The backup script can send Telegram alerts on both success and failure.
+
+It will use these values from your env file by default:
+
+```env
+TELEGRAM_BOT_TOKEN=your-bot-token
+TELEGRAM_ADMIN_CHAT_ID=your-chat-id
+```
+
+If you want a separate bot or chat just for backups, set:
+
+```env
+BACKUP_TELEGRAM_BOT_TOKEN=your-backup-bot-token
+BACKUP_TELEGRAM_CHAT_ID=your-backup-chat-id
+```
+
+Example success message:
+
+```text
+Darital backup success
+Host: your-vps
+Time: 2026-03-28_18-32-58
+Local: /opt/darital-backups/2026-03-28_18-32-58
+Off-site: darital-backup:darital/backups
+```
+
+Example failure message:
+
+```text
+Darital backup failed
+Host: your-vps
+Time: 2026-03-28_18-32-58
+Step: offsite_sync
+Exit code: 1
+Local dir: /opt/darital-backups/2026-03-28_18-32-58
+Off-site: darital-backup:darital/backups
+```
+
+## Step 7: Restore Drill
 
 At least once a week, test a restore.
 
@@ -181,6 +221,7 @@ Then copy them back to MinIO storage if needed.
 
 - Keep at least 14 daily local backups.
 - Keep an off-site copy in a different provider or storage account.
+- Add Telegram alerts so backup failures are visible immediately.
 - Do not rely on the application archive system as backup.
 - Do not keep the only backup on the same VPS.
 - Test restore regularly.
