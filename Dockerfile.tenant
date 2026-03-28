@@ -6,6 +6,7 @@ WORKDIR /app
 FROM base AS builder
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_TELEMETRY_DISABLED=1
 COPY . .
 RUN pnpm install
 RUN pnpm --filter tenant-web build
@@ -14,6 +15,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3002
+ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=builder /app/apps/tenant-web/.next/standalone ./
 COPY --from=builder /app/apps/tenant-web/.next/static ./apps/tenant-web/.next/static
 COPY --from=builder /app/apps/tenant-web/public ./apps/tenant-web/public

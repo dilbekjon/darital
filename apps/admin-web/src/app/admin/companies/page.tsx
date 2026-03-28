@@ -84,6 +84,21 @@ export default function AdminCompaniesPage() {
     }
   }, [loading, user, hasPermission]);
 
+  const filteredTenantOptions = useMemo(() => {
+    const query = tenantSearchQuery.trim().toLowerCase();
+    if (!query) return tenants;
+    return tenants.filter((tenant) =>
+      tenant.fullName.toLowerCase().includes(query) ||
+      tenant.phone.toLowerCase().includes(query) ||
+      (tenant.email || '').toLowerCase().includes(query),
+    );
+  }, [tenants, tenantSearchQuery]);
+
+  const selectedTenants = useMemo(
+    () => tenants.filter((tenant) => formData.tenantIds.includes(tenant.id)),
+    [tenants, formData.tenantIds],
+  );
+
   if (loading || pageLoading) {
     return (
       <div
@@ -129,21 +144,6 @@ export default function AdminCompaniesPage() {
     setError(null);
     setIsModalOpen(true);
   };
-
-  const filteredTenantOptions = useMemo(() => {
-    const query = tenantSearchQuery.trim().toLowerCase();
-    if (!query) return tenants;
-    return tenants.filter((tenant) =>
-      tenant.fullName.toLowerCase().includes(query) ||
-      tenant.phone.toLowerCase().includes(query) ||
-      (tenant.email || '').toLowerCase().includes(query),
-    );
-  }, [tenants, tenantSearchQuery]);
-
-  const selectedTenants = useMemo(
-    () => tenants.filter((tenant) => formData.tenantIds.includes(tenant.id)),
-    [tenants, formData.tenantIds],
-  );
 
   const toggleTenant = (tenantId: string) => {
     setFormData((prev) => ({
