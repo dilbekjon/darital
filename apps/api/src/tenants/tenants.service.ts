@@ -193,111 +193,104 @@ export class TenantsService {
       throw new ConflictException('Tenant is already archived');
     }
 
-    // Automatically archive all related data in cascade order
     const archiveReason = reason || 'Archived along with tenant';
+    const archivedAt = new Date();
 
-    // 1. Archive all payments (through invoices)
-    await this.prisma.payment.updateMany({
-      where: {
-        invoice: {
-          contract: {
-            tenantId: id,
-            isArchived: false,
+    return this.prisma.$transaction(async (tx) => {
+      await tx.payment.updateMany({
+        where: {
+          invoice: {
+            contract: {
+              tenantId: id,
+            },
           },
-        },
-        isArchived: false,
-      },
-      data: {
-        isArchived: true,
-        archivedAt: new Date(),
-        archivedBy: adminId,
-        archiveReason,
-      },
-    });
-
-    // 2. Archive all invoices
-    await this.prisma.invoice.updateMany({
-      where: {
-        contract: {
-          tenantId: id,
           isArchived: false,
         },
-        isArchived: false,
-      },
-      data: {
-        isArchived: true,
-        archivedAt: new Date(),
-        archivedBy: adminId,
-        archiveReason,
-      },
-    });
-
-    // 3. Archive all contracts
-    await this.prisma.contract.updateMany({
-      where: {
-        tenantId: id,
-        isArchived: false,
-      },
-      data: {
-        isArchived: true,
-        archivedAt: new Date(),
-        archivedBy: adminId,
-        archiveReason,
-      },
-    });
-
-    // 4. Archive all conversations (move to archived_conversations table)
-    const tenantConversations = await this.prisma.conversation.findMany({
-      where: { tenantId: id },
-      include: { messages: true },
-    });
-
-    for (const conversation of tenantConversations) {
-      // Archive conversation
-      await this.prisma.archivedConversation.create({
         data: {
-          originalId: conversation.id,
-          tenantId: conversation.tenantId,
-          adminId: conversation.adminId,
-          topic: conversation.topic,
-          status: conversation.status,
-          createdAt: conversation.createdAt,
-          updatedAt: conversation.updatedAt,
-          archivedAt: new Date(),
+          isArchived: true,
+          archivedAt,
           archivedBy: adminId,
           archiveReason,
         },
       });
 
-      // Archive all messages from this conversation
-      for (const message of conversation.messages) {
-        await this.prisma.archivedMessage.create({
+      await tx.invoice.updateMany({
+        where: {
+          contract: {
+            tenantId: id,
+          },
+          isArchived: false,
+        },
+        data: {
+          isArchived: true,
+          archivedAt,
+          archivedBy: adminId,
+          archiveReason,
+        },
+      });
+
+      await tx.contract.updateMany({
+        where: {
+          tenantId: id,
+          isArchived: false,
+        },
+        data: {
+          isArchived: true,
+          archivedAt,
+          archivedBy: adminId,
+          archiveReason,
+        },
+      });
+
+      const tenantConversations = await tx.conversation.findMany({
+        where: { tenantId: id },
+        include: { messages: true },
+      });
+
+      for (const conversation of tenantConversations) {
+        const archivedConversation = await tx.archivedConversation.create({
           data: {
-            originalId: message.id,
-            conversationId: conversation.id,
-            senderRole: message.senderRole,
-            senderId: message.senderId,
-            content: message.content,
-            fileUrl: message.fileUrl,
-            status: message.status,
-            createdAt: message.createdAt,
+            originalId: conversation.id,
+            tenantId: conversation.tenantId,
+            adminId: conversation.adminId,
+            topic: conversation.topic,
+            status: conversation.status,
+            createdAt: conversation.createdAt,
+            updatedAt: conversation.updatedAt,
+            archivedAt,
+            archivedBy: adminId,
+            archiveReason,
           },
         });
+
+        for (const message of conversation.messages) {
+          await tx.archivedMessage.create({
+            data: {
+              originalId: message.id,
+              conversationId: archivedConversation.id,
+              senderRole: message.senderRole,
+              senderId: message.senderId,
+              content: message.content,
+              fileUrl: message.fileUrl,
+              status: message.status,
+              createdAt: message.createdAt,
+              archivedAt,
+            },
+          });
+        }
+
+        await tx.conversation.delete({ where: { id: conversation.id } });
       }
 
-      // Delete the original conversation (cascade will delete messages)
-      await this.prisma.conversation.delete({ where: { id: conversation.id } });
-    }
-
-    // 5. Archive the tenant
-    return this.prisma.tenant.update({
-      where: { id },
-      data: {
-        isArchived: true,
-        archivedAt: new Date(),
-        archivedBy: adminId,
-        archiveReason: reason || 'Archived by admin',
-      },
+      return tx.tenant.update({
+        where: { id },
+        data: {
+          isArchived: true,
+          archivedAt,
+          archivedBy: adminId,
+          archiveReason: reason || 'Archived by admin',
+        },
+      });
     });
   }
 
@@ -308,67 +301,129 @@ export class TenantsService {
       throw new ConflictException('Tenant is not archived');
     }
 
-    // Automatically unarchive all related data in reverse cascade order
+    return this.prisma.$transaction(async (tx) => {
+      const archivedConversations = await tx.archivedConversation.findMany({
+        where: { tenantId: id },
+        orderBy: { createdAt: 'asc' },
+      });
 
-    // 1. Unarchive all contracts
-    await this.prisma.contract.updateMany({
-      where: {
-        tenantId: id,
-        isArchived: true,
-      },
-      data: {
-        isArchived: false,
-        archivedAt: null,
-        archivedBy: null,
-        archiveReason: null,
-      },
-    });
+      for (const archivedConversation of archivedConversations) {
+        const archivedMessages = await tx.archivedMessage.findMany({
+          where: {
+            OR: [
+              { conversationId: archivedConversation.id },
+              { conversationId: archivedConversation.originalId },
+            ],
+          },
+          orderBy: { createdAt: 'asc' },
+        });
 
-    // 2. Unarchive all invoices
-    await this.prisma.invoice.updateMany({
-      where: {
-        contract: {
+        const existingConversation = await tx.conversation.findUnique({
+          where: { id: archivedConversation.originalId },
+          select: { id: true },
+        });
+
+        if (!existingConversation) {
+          await tx.conversation.create({
+            data: {
+              id: archivedConversation.originalId,
+              tenantId: archivedConversation.tenantId,
+              adminId: archivedConversation.adminId,
+              topic: archivedConversation.topic,
+              status: archivedConversation.status,
+              createdAt: archivedConversation.createdAt,
+              updatedAt: archivedConversation.updatedAt,
+            },
+          });
+        }
+
+        for (const archivedMessage of archivedMessages) {
+          const existingMessage = await tx.message.findUnique({
+            where: { id: archivedMessage.originalId },
+            select: { id: true },
+          });
+
+          if (!existingMessage) {
+            await tx.message.create({
+              data: {
+                id: archivedMessage.originalId,
+                conversationId: archivedConversation.originalId,
+                senderRole: archivedMessage.senderRole,
+                senderId: archivedMessage.senderId,
+                content: archivedMessage.content,
+                fileUrl: archivedMessage.fileUrl,
+                status: archivedMessage.status,
+                createdAt: archivedMessage.createdAt,
+              },
+            });
+          }
+        }
+
+        await tx.archivedMessage.deleteMany({
+          where: {
+            OR: [
+              { conversationId: archivedConversation.id },
+              { conversationId: archivedConversation.originalId },
+            ],
+          },
+        });
+        await tx.archivedConversation.delete({ where: { id: archivedConversation.id } });
+      }
+
+      await tx.payment.updateMany({
+        where: {
+          invoice: {
+            contract: {
+              tenantId: id,
+            },
+          },
+          isArchived: true,
+        },
+        data: {
+          isArchived: false,
+          archivedAt: null,
+          archivedBy: null,
+          archiveReason: null,
+        },
+      });
+
+      await tx.invoice.updateMany({
+        where: {
+          contract: {
+            tenantId: id,
+          },
+          isArchived: true,
+        },
+        data: {
+          isArchived: false,
+          archivedAt: null,
+          archivedBy: null,
+          archiveReason: null,
+        },
+      });
+
+      await tx.contract.updateMany({
+        where: {
           tenantId: id,
           isArchived: true,
         },
-        isArchived: true,
-      },
-      data: {
-        isArchived: false,
-        archivedAt: null,
-        archivedBy: null,
-        archiveReason: null,
-      },
-    });
-
-    // 3. Unarchive all payments
-    await this.prisma.payment.updateMany({
-      where: {
-        invoice: {
-          contract: {
-            tenantId: id,
-            isArchived: true,
-          },
+        data: {
+          isArchived: false,
+          archivedAt: null,
+          archivedBy: null,
+          archiveReason: null,
         },
-        isArchived: true,
-      },
-      data: {
-        isArchived: false,
-        archivedAt: null,
-        archivedBy: null,
-        archiveReason: null,
-      },
-    });
+      });
 
-    // 4. Unarchive the tenant
-    return this.prisma.tenant.update({
-      where: { id },
-      data: {
-        isArchived: false,
-        archivedAt: null,
-        archivedBy: null,
-        archiveReason: null,
-      },
+      return tx.tenant.update({
+        where: { id },
+        data: {
+          isArchived: false,
+          archivedAt: null,
+          archivedBy: null,
+          archiveReason: null,
+        },
+      });
     });
   }
 
@@ -388,16 +443,31 @@ export class TenantsService {
       throw new ConflictException('Cannot delete tenant with existing contracts. Please delete contracts first.');
     }
 
-    // Delete balance if it exists (one-to-one relationship)
-    await this.prisma.balance.deleteMany({
-      where: { tenantId: id },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const archivedConversationIds = (
+        await tx.archivedConversation.findMany({
+          where: { tenantId: id },
+          select: { id: true, originalId: true },
+        })
+      ).flatMap((conversation) => [conversation.id, conversation.originalId]);
 
-    // Conversations will be automatically deleted due to onDelete: Cascade
-    // Delete the tenant
-    return this.prisma.tenant.delete({
-      where: { id },
+      if (archivedConversationIds.length > 0) {
+        await tx.archivedMessage.deleteMany({
+          where: {
+            conversationId: { in: archivedConversationIds },
+          },
+        });
+      }
+
+      await tx.archivedConversation.deleteMany({ where: { tenantId: id } });
+
+      await tx.balance.deleteMany({
+        where: { tenantId: id },
+      });
+
+      return tx.tenant.delete({
+        where: { id },
+      });
     });
   }
 }
-

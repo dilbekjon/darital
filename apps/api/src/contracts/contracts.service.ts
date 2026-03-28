@@ -285,6 +285,22 @@ export class ContractsService {
     
     // Archive contract and all related invoices in a transaction
     return this.prisma.$transaction(async (tx) => {
+      // Archive all payments related to this contract first
+      const archivedPayments = await tx.payment.updateMany({
+        where: {
+          invoice: { contractId: id },
+          isArchived: false,
+        },
+        data: {
+          isArchived: true,
+          archivedAt,
+          archivedBy: adminId,
+          archiveReason: reason || 'Contract archived',
+        },
+      });
+
+      this.logger.log(`📦 Archived ${archivedPayments.count} payment(s) for contract ${id}`);
+
       // Archive all invoices related to this contract
       const archivedInvoices = await tx.invoice.updateMany({
         where: { contractId: id },
@@ -328,6 +344,22 @@ export class ContractsService {
 
     // Unarchive contract and all related invoices in a transaction
     return this.prisma.$transaction(async (tx) => {
+      // Unarchive all payments related to this contract first
+      const unarchivedPayments = await tx.payment.updateMany({
+        where: {
+          invoice: { contractId: id },
+          isArchived: true,
+        },
+        data: {
+          isArchived: false,
+          archivedAt: null,
+          archivedBy: null,
+          archiveReason: null,
+        },
+      });
+
+      this.logger.log(`📤 Unarchived ${unarchivedPayments.count} payment(s) for contract ${id}`);
+
       // Unarchive all invoices related to this contract
       const unarchivedInvoices = await tx.invoice.updateMany({
         where: { contractId: id },
@@ -405,5 +437,4 @@ export class ContractsService {
     });
   }
 }
-
 

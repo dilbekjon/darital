@@ -339,14 +339,29 @@ export class InvoicesService {
     }
 
     const archivedAt = new Date();
-    return this.prisma.invoice.update({
-      where: { id },
-      data: {
-        isArchived: true,
-        archivedAt,
-        archivedBy: adminId,
-        archiveReason: reason,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.payment.updateMany({
+        where: {
+          invoiceId: id,
+          isArchived: false,
+        },
+        data: {
+          isArchived: true,
+          archivedAt,
+          archivedBy: adminId,
+          archiveReason: reason || 'Invoice archived',
+        },
+      });
+
+      return tx.invoice.update({
+        where: { id },
+        data: {
+          isArchived: true,
+          archivedAt,
+          archivedBy: adminId,
+          archiveReason: reason,
+        },
+      });
     });
   }
 
@@ -363,14 +378,29 @@ export class InvoicesService {
       throw new ConflictException('Invoice is not archived');
     }
 
-    return this.prisma.invoice.update({
-      where: { id },
-      data: {
-        isArchived: false,
-        archivedAt: null,
-        archivedBy: null,
-        archiveReason: null,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.payment.updateMany({
+        where: {
+          invoiceId: id,
+          isArchived: true,
+        },
+        data: {
+          isArchived: false,
+          archivedAt: null,
+          archivedBy: null,
+          archiveReason: null,
+        },
+      });
+
+      return tx.invoice.update({
+        where: { id },
+        data: {
+          isArchived: false,
+          archivedAt: null,
+          archivedBy: null,
+          archiveReason: null,
+        },
+      });
     });
   }
 
@@ -416,5 +446,4 @@ export class InvoicesService {
     return { message: 'Invoice deleted successfully', id };
   }
 }
-
 

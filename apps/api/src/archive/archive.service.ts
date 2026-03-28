@@ -110,7 +110,7 @@ export class ArchiveService {
     let messagesArchived = 0;
 
     for (const conversation of oldConversations) {
-      await this.prisma.archivedConversation.create({
+      const archivedConversation = await this.prisma.archivedConversation.create({
         data: {
           originalId: conversation.id,
           tenantId: conversation.tenantId,
@@ -129,7 +129,8 @@ export class ArchiveService {
         await this.prisma.archivedMessage.create({
           data: {
             originalId: message.id,
-            conversationId: conversation.id,
+            // Link messages to the archived conversation record so archive UI and restore work consistently.
+            conversationId: archivedConversation.id,
             senderRole: message.senderRole,
             senderId: message.senderId,
             content: message.content,
@@ -244,8 +245,20 @@ export class ArchiveService {
    * Get archived messages for a conversation
    */
   async getArchivedMessages(conversationId: string) {
+    const archivedConversation = await this.prisma.archivedConversation.findUnique({
+      where: { id: conversationId },
+      select: { id: true, originalId: true },
+    });
+
     return this.prisma.archivedMessage.findMany({
-      where: { conversationId },
+      where: archivedConversation
+        ? {
+            OR: [
+              { conversationId: archivedConversation.id },
+              { conversationId: archivedConversation.originalId },
+            ],
+          }
+        : { conversationId },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -264,7 +277,12 @@ export class ArchiveService {
 
     // Get all archived messages for this conversation
     const archivedMessages = await this.prisma.archivedMessage.findMany({
-      where: { conversationId: archivedId },
+      where: {
+        OR: [
+          { conversationId: archived.id },
+          { conversationId: archived.originalId },
+        ],
+      },
     });
 
     // Restore conversation

@@ -343,10 +343,13 @@ export class PaymentsService {
     const skip = (safePage - 1) * safeLimit;
     const where: Prisma.PaymentWhereInput = {};
 
+    const onlyArchivedBool = onlyArchived === true || String(onlyArchived) === 'true' || String(onlyArchived) === '1';
+    const includeArchivedBool = includeArchived === true || String(includeArchived) === 'true' || String(includeArchived) === '1';
+
     // Archive filtering
-    if (onlyArchived) {
+    if (onlyArchivedBool) {
       where.isArchived = true;
-    } else if (!includeArchived) {
+    } else if (!includeArchivedBool) {
       where.isArchived = false;
     }
 
@@ -1068,5 +1071,4 @@ export class PaymentsService {
     return { message: 'Payment deleted successfully', id: paymentId };
   }
 }
-
 
