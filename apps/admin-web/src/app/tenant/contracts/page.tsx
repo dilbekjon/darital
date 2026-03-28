@@ -189,7 +189,7 @@ const ContractsPage = () => {
                       }`}
                     >
                       <td className={`px-6 py-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {contract.unit?.name || 'N/A'}
+                        {contract.unit?.name || 'Mavjud emas'}
                       </td>
                       <td className={`px-6 py-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                         {formatDate(contract.startDate)}
@@ -246,4 +246,3 @@ const ContractsPage = () => {
 };
 
 export default ContractsPage;
-

@@ -27,6 +27,19 @@ export default function TenantChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('');
 
+  const getConversationStatusLabel = (status: string) => {
+    switch (status) {
+      case 'OPEN':
+        return t.open || 'Ochiq';
+      case 'PENDING':
+        return t.pending || 'Kutilmoqda';
+      case 'CLOSED':
+        return t.closed || 'Yopilgan';
+      default:
+        return status;
+    }
+  };
+
   // Initialize socket
   const { connected, error, sendMessage, markAsRead } = useChatSocket({
     conversationId: selectedConversation?.id,
@@ -173,8 +186,8 @@ export default function TenantChatPage() {
       
       handleSelectConversation(newConv);
     } catch (error) {
-      console.error('Failed to create conversation:', error);
-      alert('Failed to start conversation. Please try again.');
+      console.error('Suhbatni yaratishda xato:', error);
+      alert('Suhbatni boshlashda xato yuz berdi. Qayta urinib ko‘ring.');
     } finally {
       setCreatingConversation(false);
     }
@@ -191,7 +204,7 @@ export default function TenantChatPage() {
     try {
       sendMessage(content, currentUserId, selectedConversation.id);
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error('Xabar yuborishda xato:', error);
       // Restore message input on error
       setMessageInput(content);
     } finally {
@@ -305,7 +318,7 @@ export default function TenantChatPage() {
                         : 'bg-gray-100 text-gray-800'
                     }`}
                   >
-                    {conv.status}
+                    {getConversationStatusLabel(conv.status)}
                   </span>
                 </div>
               </div>
@@ -328,7 +341,7 @@ export default function TenantChatPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {selectedConversation.admin 
                       ? `${selectedConversation.admin.fullName} • ${selectedConversation.admin.email}`
-                      : t.supportTeam}
+                      : (t.supportTeam || 'Qo‘llab-quvvatlash jamoasi')}
                   </p>
                 </div>
                 <span
@@ -340,7 +353,7 @@ export default function TenantChatPage() {
                       : 'bg-gray-100 text-gray-800'
                   }`}
                 >
-                  {selectedConversation.status}
+                  {getConversationStatusLabel(selectedConversation.status)}
                 </span>
               </div>
             </div>
@@ -366,7 +379,7 @@ export default function TenantChatPage() {
                           {msg.fileUrl.match(/\.(jpg|jpeg|png|gif)$/i) ? (
                             <img
                               src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${msg.fileUrl}`}
-                              alt="Attachment"
+                              alt="Biriktirma"
                               className="max-w-full rounded"
                             />
                           ) : (
@@ -381,7 +394,7 @@ export default function TenantChatPage() {
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                               </svg>
-                              <span className="underline">View File</span>
+                              <span className="underline">Faylni ko‘rish</span>
                             </a>
                           )}
                         </div>
@@ -463,4 +476,3 @@ export default function TenantChatPage() {
     </div>
   );
 }
-

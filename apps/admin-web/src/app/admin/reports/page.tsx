@@ -267,7 +267,7 @@ export default function AdminReportsPage() {
       <Breadcrumbs
         items={[
           { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
-          { label: t.reports || 'Reports' },
+          { label: t.reports || 'Hisobotlar' },
         ]}
       />
 
@@ -277,10 +277,10 @@ export default function AdminReportsPage() {
             darkMode ? 'text-white' : 'text-gray-900'
           }`}
         >
-          {t.reports || 'Reports'}
+          {t.reports || 'Hisobotlar'}
         </h1>
         <p className={`text-sm mt-1 transition-colors ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          {t.generateAndViewReports || 'Generate and view financial reports'}
+          {t.generateAndViewReports || 'Moliyaviy hisobotlarni yaratish va ko‘rish'}
         </p>
       </div>
 

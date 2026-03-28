@@ -98,7 +98,7 @@ export default function ArchiveManagementPage() {
     setError(null);
     try {
       const result = await runAutoArchive();
-      setSuccess(`Archive completed: ${result.conversationsArchived} conversations, ${result.messagesArchived} messages archived`);
+      setSuccess(`Arxivlash yakunlandi: ${result.conversationsArchived} ta suhbat, ${result.messagesArchived} ta xabar arxivlandi`);
       await loadData(); // Refresh data
     } catch (err) {
       console.error('Failed to run auto archive:', err);
@@ -227,18 +227,18 @@ export default function ArchiveManagementPage() {
   };
 
   const handleCleanupOldArchives = async () => {
-    const days = prompt('Enter number of days (minimum 30):', '365');
+    const days = prompt('Kunlar sonini kiriting (kamida 30):', '365');
     if (!days || parseInt(days) < 30) return;
 
     setCleaning(true);
     setError(null);
     try {
       const result = await cleanupOldArchives(parseInt(days));
-      setSuccess(`Cleanup completed: ${result.conversationsDeleted} conversations, ${result.messagesDeleted} messages deleted`);
+      setSuccess(`Tozalash yakunlandi: ${result.conversationsDeleted} ta suhbat, ${result.messagesDeleted} ta xabar o'chirildi`);
       await loadData(); // Refresh data
     } catch (err) {
       console.error('Failed to cleanup archives:', err);
-      setError('Failed to cleanup archives');
+      setError('Eski arxivlarni tozalashda xato');
     } finally {
       setCleaning(false);
     }
@@ -273,17 +273,17 @@ export default function ArchiveManagementPage() {
         <Breadcrumbs
           items={[
             { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
-            { label: 'Archive Management' },
+            { label: 'Arxiv boshqaruvi' },
           ]}
         />
 
         {/* Header */}
         <div className="mb-8">
           <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-            📦 Archive Management
+            📦 Arxiv boshqaruvi
           </h1>
           <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-            Manage archived data and automatic cleanup processes
+            Arxivlangan ma'lumotlar va avtomatik tozalash jarayonlarini boshqarish
           </p>
         </div>
 
@@ -307,57 +307,57 @@ export default function ArchiveManagementPage() {
           }`}>
             <div className="flex items-center justify-between mb-6">
               <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                Archive Summary
+                Arxiv xulosasi
               </h2>
               <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Last archive: {formatDate(summary.lastArchiveDate)}
+                Oxirgi arxiv: {formatDate(summary.lastArchiveDate)}
               </div>
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Tenants</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Ijara oluvchilar</div>
                 <div className="flex items-center gap-2">
                   <span className="text-green-600 font-semibold">{summary.stats.tenants.active}</span>
-                  <span className="text-xs text-gray-500">active</span>
+                  <span className="text-xs text-gray-500">faol</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-orange-600 font-semibold">{summary.stats.tenants.archived}</span>
-                  <span className="text-xs text-gray-500">archived</span>
+                  <span className="text-xs text-gray-500">arxivlangan</span>
                 </div>
               </div>
 
               <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Contracts</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Shartnomalar</div>
                 <div className="flex items-center gap-2">
                   <span className="text-green-600 font-semibold">{summary.stats.contracts.active}</span>
-                  <span className="text-xs text-gray-500">active</span>
+                  <span className="text-xs text-gray-500">faol</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-orange-600 font-semibold">{summary.stats.contracts.archived}</span>
-                  <span className="text-xs text-gray-500">archived</span>
+                  <span className="text-xs text-gray-500">arxivlangan</span>
                 </div>
               </div>
 
               <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Conversations</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Suhbatlar</div>
                 <div className="flex items-center gap-2">
                   <span className="text-green-600 font-semibold">{summary.stats.conversations.active}</span>
-                  <span className="text-xs text-gray-500">active</span>
+                  <span className="text-xs text-gray-500">faol</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-orange-600 font-semibold">{summary.stats.conversations.archived}</span>
-                  <span className="text-xs text-gray-500">archived</span>
+                  <span className="text-xs text-gray-500">arxivlangan</span>
                 </div>
               </div>
 
               <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                <div className="text-sm text-gray-600 dark:text-gray-400">Storage</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Saqlash hajmi</div>
                 <div className="text-lg font-semibold text-blue-600">
                   {formatBytes(summary.totalArchivedSize)}
                 </div>
-                <div className="text-xs text-gray-500">archived data</div>
+                <div className="text-xs text-gray-500">arxivlangan ma'lumot</div>
               </div>
             </div>
 
@@ -372,7 +372,7 @@ export default function ArchiveManagementPage() {
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
-                {archiving ? 'Archiving...' : 'Run Auto Archive'}
+                {archiving ? 'Arxivlanmoqda...' : 'Avto-arxivni ishga tushirish'}
               </button>
 
               <button
@@ -384,7 +384,7 @@ export default function ArchiveManagementPage() {
                     : 'bg-red-600 text-white hover:bg-red-700'
                 }`}
               >
-                {cleaning ? 'Cleaning...' : 'Cleanup Old Archives'}
+                {cleaning ? 'Tozalanmoqda...' : 'Eski arxivlarni tozalash'}
               </button>
             </div>
           </div>
@@ -406,7 +406,7 @@ export default function ArchiveManagementPage() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Tenants ({archivedTenants.length})
+              Ijara oluvchilar ({archivedTenants.length})
             </button>
             <button
               onClick={() => setActiveTab('contracts')}
@@ -418,7 +418,7 @@ export default function ArchiveManagementPage() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Contracts ({archivedContracts.length})
+              Shartnomalar ({archivedContracts.length})
             </button>
             <button
               onClick={() => setActiveTab('invoices')}
@@ -442,7 +442,7 @@ export default function ArchiveManagementPage() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Payments ({archivedPayments.length})
+              To'lovlar ({archivedPayments.length})
             </button>
             <button
               onClick={() => setActiveTab('conversations')}
@@ -454,7 +454,7 @@ export default function ArchiveManagementPage() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Conversations ({archivedConversations.length})
+              Suhbatlar ({archivedConversations.length})
             </button>
           </div>
 
@@ -462,7 +462,7 @@ export default function ArchiveManagementPage() {
           {activeTab === 'tenants' && (
             <div>
               <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                Archived Tenants ({archivedTenants.length})
+                Arxivlangan ijara oluvchilar ({archivedTenants.length})
               </h2>
               {archivedTenants.length === 0 ? (
                 <EmptyState
@@ -487,11 +487,11 @@ export default function ArchiveManagementPage() {
                             {tenant.fullName}
                           </h3>
                           <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            {tenant.phone} • Archived: {formatDate(tenant.archivedAt)}
+                            {tenant.phone} • Arxivlangan: {formatDate(tenant.archivedAt)}
                           </div>
                           {tenant.archiveReason && (
                             <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                              Reason: {tenant.archiveReason}
+                              Sabab: {tenant.archiveReason}
                             </div>
                           )}
                         </div>
@@ -530,7 +530,7 @@ export default function ArchiveManagementPage() {
           {activeTab === 'contracts' && (
             <div>
               <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                Archived Contracts ({archivedContracts.length})
+                Arxivlangan shartnomalar ({archivedContracts.length})
               </h2>
               {archivedContracts.length === 0 ? (
                 <EmptyState
@@ -556,7 +556,7 @@ export default function ArchiveManagementPage() {
                           </h3>
                           <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                             {new Date(contract.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })} - {new Date(contract.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })} •
-                            ${contract.amount} • {contract.status} • Archived: {formatDate(contract.archivedAt)}
+                            ${contract.amount} • {contract.status} • Arxivlangan: {formatDate(contract.archivedAt)}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -666,7 +666,7 @@ export default function ArchiveManagementPage() {
           {activeTab === 'payments' && (
             <div>
               <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                Archived Payments ({archivedPayments.length})
+                Arxivlangan to'lovlar ({archivedPayments.length})
               </h2>
               {archivedPayments.length === 0 ? (
                 <EmptyState
@@ -688,11 +688,11 @@ export default function ArchiveManagementPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                            Payment #{payment.id.slice(-8)}
+                            To'lov #{payment.id.slice(-8)}
                           </h3>
                           <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                             ${payment.amount} • {payment.provider} • {payment.status} •
-                            Archived: {formatDate(payment.archivedAt)}
+                            Arxivlangan: {formatDate(payment.archivedAt)}
                           </div>
                         </div>
                         <span className={`px-3 py-1 rounded text-sm font-medium ${
@@ -713,7 +713,7 @@ export default function ArchiveManagementPage() {
           {activeTab === 'conversations' && (
             <div>
               <h2 className={`text-xl font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                Archived Conversations ({archivedConversations.length})
+                Arxivlangan suhbatlar ({archivedConversations.length})
               </h2>
               {archivedConversations.length === 0 ? (
                 <EmptyState
@@ -747,9 +747,9 @@ export default function ArchiveManagementPage() {
                             </span>
                           </div>
                           <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            Tenant ID: {conversation.tenantId} •
-                            {conversation._count.messages} messages •
-                            Archived: {formatDate(conversation.archivedAt)}
+                            Ijarachi ID: {conversation.tenantId} •
+                            {conversation._count.messages} ta xabar •
+                            Arxivlangan: {formatDate(conversation.archivedAt)}
                           </div>
                         </div>
 
@@ -762,7 +762,7 @@ export default function ArchiveManagementPage() {
                               : 'bg-green-600 text-white hover:bg-green-700'
                           }`}
                         >
-                          {restoring === conversation.id ? 'Restoring...' : 'Restore'}
+                          {restoring === conversation.id ? 'Tiklanmoqda...' : 'Tiklash'}
                         </button>
                       </div>
                     </div>

@@ -120,7 +120,7 @@ export default function AdminTenantsPage() {
         setTenants(currentTenants);
       } catch (refreshErr) {
         console.error('Failed to refresh tenants:', refreshErr);
-        setError('Failed to load tenant data. Please try again.');
+        setError('Ijara oluvchi ma\'lumotlarini yuklashda xato. Iltimos, qayta urinib ko\'ring.');
         return;
       }
     }
@@ -129,13 +129,13 @@ export default function AdminTenantsPage() {
     const tenant = currentTenants.find(t => t.id === tenantId);
     if (!tenant) {
       console.error('Tenant not found for archiving:', tenantId, 'Available tenant IDs:', currentTenants.map(t => ({ id: t.id, name: t.fullName })));
-      setError('Tenant not found. Please refresh the page and try again.');
+      setError('Ijara oluvchi topilmadi. Sahifani yangilang va qayta urinib ko\'ring.');
       return;
     }
 
     console.log('Found tenant for archiving:', tenant.fullName);
 
-    const reason = prompt(`Archive Tenant: ${tenant.fullName}\n\nThis will archive the tenant and ALL their related data:\n• Contracts\n• Invoices  \n• Payments\n\n${t.archiveTenantPrompt || 'Enter reason for archiving this tenant (optional):'}`);
+    const reason = prompt(`Ijarachini arxivlash: ${tenant.fullName}\n\nBu amal ijarachi bilan bog'liq BARCHA ma'lumotlarni arxivlaydi:\n• Shartnomalar\n• Hisob-fakturalar\n• To'lovlar\n• Suhbatlar\n\n${t.archiveTenantPrompt || 'Arxivlash sababini kiriting (ixtiyoriy):'}`);
     if (reason === null) return; // User cancelled
 
     try {
@@ -155,7 +155,7 @@ export default function AdminTenantsPage() {
       };
       await loadTenants();
     setError(null);
-    setSuccess(`Tenant "${tenant.fullName}" and all related data (contracts, invoices, payments, conversations) have been archived successfully. You can view them in the Archive Management page.`);
+    setSuccess(`"${tenant.fullName}" ijarachisi va unga bog'liq barcha ma'lumotlar muvaffaqiyatli arxivlandi. Ularni Arxiv boshqaruvi sahifasida ko'rishingiz mumkin.`);
 
     // Clear success message after 10 seconds
     setTimeout(() => setSuccess(null), 10000);
@@ -164,7 +164,7 @@ export default function AdminTenantsPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('Failed to archive tenant.');
+        setError('Ijarachini arxivlashda xato.');
       }
     }
   };
@@ -193,7 +193,7 @@ export default function AdminTenantsPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('Failed to unarchive tenant.');
+        setError('Ijarachini arxivdan chiqarishda xato.');
       }
     }
   };
@@ -206,9 +206,9 @@ export default function AdminTenantsPage() {
     try {
       const res = await fetchApi<{ success: boolean; message?: string; setupLink?: string }>(`/tenants/${tenantId}/reset-password`, { method: 'PUT' });
       if (res.success) {
-        setSuccess(t.resetPasswordSmsSent || 'SMS with setup link sent to tenant');
+        setSuccess(t.resetPasswordSmsSent || 'Sozlash havolasi bilan SMS ijarachiga yuborildi');
       } else {
-        setSuccess(res.message || 'SMS failed');
+        setSuccess(res.message || 'SMS yuborilmadi');
         if (res.setupLink) setSetupLinkFromReset(res.setupLink);
       }
       setTimeout(() => {
@@ -243,7 +243,7 @@ export default function AdminTenantsPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('Failed to permanently delete tenant.');
+        setError('Ijarachini butunlay o\'chirishda xato.');
       }
     }
   };
@@ -292,7 +292,7 @@ export default function AdminTenantsPage() {
         };
         if (formData.password) {
           if (formData.password !== formData.confirmPassword) {
-            setError('New password and confirmation do not match.');
+            setError('Yangi parol va tasdiqlash bir xil emas.');
             setSubmitting(false);
             return;
           }
@@ -390,7 +390,7 @@ export default function AdminTenantsPage() {
               {success}
               {setupLinkFromReset && (
                 <div className="mt-2 p-2 rounded bg-green-200/50 dark:bg-green-800/30 break-all text-sm">
-                  <span className="font-medium">Send this link to tenant: </span>
+                  <span className="font-medium">Bu havolani ijarachiga yuboring: </span>
                   <a href={setupLinkFromReset} target="_blank" rel="noopener noreferrer" className="underline ml-1">{setupLinkFromReset}</a>
                   <button
                     type="button"
@@ -399,7 +399,7 @@ export default function AdminTenantsPage() {
                     }}
                     className="ml-2 px-2 py-1 rounded bg-green-600 text-white text-xs font-medium"
                   >
-                    Copy
+                    Nusxalash
                   </button>
                 </div>
               )}
@@ -461,7 +461,7 @@ export default function AdminTenantsPage() {
                 ? t.getStartedByCreatingTenant
                 : t.tryAdjustingFilters
             }
-            actionLabel={tenants.length === 0 && canCreateTenants ? (t.createTenant || 'Create Tenant') : undefined}
+            actionLabel={tenants.length === 0 && canCreateTenants ? (t.createTenant || 'Ijara oluvchi yaratish') : undefined}
             onAction={tenants.length === 0 && canCreateTenants ? openCreateModal : undefined}
           />
         ) : (
@@ -487,7 +487,7 @@ export default function AdminTenantsPage() {
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                             darkMode ? 'bg-orange-900/30 text-orange-300' : 'bg-orange-100 text-orange-800'
                           }`}>
-                            Archived
+                            Arxivlangan
                           </span>
                         )}
                       </div>
@@ -503,7 +503,7 @@ export default function AdminTenantsPage() {
                             disabled={!!resettingPassword}
                             className={`text-sm font-medium ${darkMode ? 'text-amber-400' : 'text-amber-600'}`}
                           >
-                            {t.resetPassword || 'Reset password'}
+                            {t.resetPassword || 'Parolni tiklash'}
                           </button>
                           <button
                             onClick={() => openEditModal(tenant)}
@@ -529,7 +529,7 @@ export default function AdminTenantsPage() {
                                 : 'text-orange-600 hover:text-orange-800'
                           }`}
                         >
-                          Archive
+                          Arxivlash
                         </button>
                       )}
                       {canArchiveTenants && tenant.isArchived && (
@@ -542,7 +542,7 @@ export default function AdminTenantsPage() {
                                 : 'text-green-600 hover:text-green-800'
                             }`}
                           >
-                            Unarchive
+                            Arxivdan chiqarish
                           </button>
                           <button
                             onClick={() => handlePermanentDeleteTenant(tenant.id)}
@@ -552,7 +552,7 @@ export default function AdminTenantsPage() {
                                 : 'text-red-600 hover:text-red-800'
                             }`}
                           >
-                            Delete
+                            O'chirish
                           </button>
                         </>
                       )}
@@ -613,7 +613,7 @@ export default function AdminTenantsPage() {
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                               darkMode ? 'bg-orange-900/30 text-orange-300' : 'bg-orange-100 text-orange-800'
                             }`}>
-                              Archived
+                              Arxivlangan
                             </span>
                           )}
                         </div>
@@ -639,7 +639,7 @@ export default function AdminTenantsPage() {
                                   darkMode ? 'text-amber-400 hover:text-amber-300' : 'text-amber-600 hover:text-amber-700'
                                 }`}
                               >
-                                {resettingPassword === tenant.id ? t.loading : (t.resetPassword || 'Reset password')}
+                        {resettingPassword === tenant.id ? t.loading : (t.resetPassword || 'Parolni tiklash')}
                               </button>
                               <button
                                 onClick={() => openEditModal(tenant)}
@@ -665,7 +665,7 @@ export default function AdminTenantsPage() {
                                     : 'text-orange-600 hover:text-orange-900'
                               }`}
                             >
-                              Archive
+                              Arxivlash
                             </button>
                           )}
                           {canArchiveTenants && tenant.isArchived && (
@@ -678,7 +678,7 @@ export default function AdminTenantsPage() {
                                     : 'text-green-600 hover:text-green-900'
                                 }`}
                               >
-                                Unarchive
+                                Arxivdan chiqarish
                               </button>
                               <button
                                 onClick={() => handlePermanentDeleteTenant(tenant.id)}
@@ -688,7 +688,7 @@ export default function AdminTenantsPage() {
                                     : 'text-red-600 hover:text-red-900'
                                 }`}
                               >
-                                Delete
+                                O'chirish
                               </button>
                             </>
                           )}
@@ -717,14 +717,14 @@ export default function AdminTenantsPage() {
                 {success}
                 {setupLinkFromReset && (
                   <div className="mt-2 p-2 rounded bg-green-200/50 dark:bg-green-800/30 break-all text-sm">
-                    <span className="font-medium">Send this link to tenant: </span>
+                    <span className="font-medium">Bu havolani ijarachiga yuboring: </span>
                     <a href={setupLinkFromReset} target="_blank" rel="noopener noreferrer" className="underline ml-1">{setupLinkFromReset}</a>
                     <button
                       type="button"
                       onClick={() => navigator.clipboard.writeText(setupLinkFromReset)}
                       className="ml-2 px-2 py-1 rounded bg-green-600 text-white text-xs font-medium"
                     >
-                      Copy
+                      Nusxalash
                     </button>
                   </div>
                 )}

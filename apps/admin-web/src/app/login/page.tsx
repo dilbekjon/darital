@@ -47,20 +47,16 @@ export default function LoginPage() {
       try {
         const user = await getMe()
         
-        // Force a page reload to refresh AuthContext with new user data
         if (user.role === 'TENANT_USER' || user.role === 'TENANT') {
-          // Redirect to tenant portal
           window.location.href = 'http://localhost:3002/login'
         } else {
-          // Redirect to admin dashboard
           window.location.href = '/dashboard'
         }
       } catch (meError) {
-        // If getMe fails, still try to redirect (token is valid)
         if (meError instanceof ApiError) {
-          setError(`Login successful but failed to fetch user info: ${meError.message}. Redirecting...`)
+          setError(`Kirish muvaffaqiyatli bo‘ldi, lekin foydalanuvchi ma’lumotlarini olishda xato yuz berdi: ${meError.message}. Yo‘naltirilmoqda...`)
         } else {
-          setError('Login successful but failed to fetch user info. Redirecting...')
+          setError('Kirish muvaffaqiyatli bo‘ldi, lekin foydalanuvchi ma’lumotlarini olishda xato yuz berdi. Yo‘naltirilmoqda...')
         }
         setTimeout(() => {
           window.location.href = '/dashboard'
@@ -179,7 +175,7 @@ export default function LoginPage() {
                       ? 'text-gray-400 hover:text-yellow-400 hover:bg-gray-700/50'
                       : 'text-gray-600 hover:text-blue-600 hover:bg-gray-100'
                   }`}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? 'Parolni yashirish' : 'Parolni ko‘rsatish'}
                   tabIndex={-1}
                 >
                   {showPassword ? (
@@ -210,7 +206,7 @@ export default function LoginPage() {
           </form>
           <p className="mt-6 text-center">
             <Link href="/docs" className={`text-sm ${darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'} transition-colors`}>
-              To‘liq qo‘llanma (Docs) →
+              To‘liq qo‘llanma →
             </Link>
           </p>
         </div>

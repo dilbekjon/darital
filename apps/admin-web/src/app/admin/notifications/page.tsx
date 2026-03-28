@@ -232,18 +232,18 @@ export default function AdminNotificationsPage() {
         {/* Breadcrumbs */}
       <Breadcrumbs
         items={[
-          { label: t.dashboard || 'Dashboard', href: '/dashboard' },
-          { label: t.notifications || 'Notifications' },
+          { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
+          { label: t.notifications || 'Bildirishnomalar' },
         ]}
       />
 
       {/* Header */}
       <div className="mb-8">
         <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
-          {t.notificationsManagement || 'Notifications Management'}
+          {t.notificationsManagement || 'Bildirishnomalar boshqaruvi'}
         </h1>
         <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          {t.sendTestNotifications || 'Send test notifications and custom messages to tenants via Email and Telegram'}
+          {t.sendTestNotifications || 'Ijarachilarga Email va Telegram orqali test bildirishnomalar hamda maxsus xabarlar yuboring'}
         </p>
       </div>
 
@@ -258,7 +258,7 @@ export default function AdminNotificationsPage() {
               {success.message}
             </p>
             <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-              {t.sentTo || 'Sent to'}: {success.tenantName}
+              {t.sentTo || 'Yuborildi'}: {success.tenantName}
             </p>
           </div>
           <button
@@ -306,7 +306,7 @@ export default function AdminNotificationsPage() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">
-                  {t.sendTestNotifications || 'Send Test Notifications'}
+                  {t.sendTestNotifications || 'Test bildirishnoma yuborish'}
                 </h2>
                 <p className="text-sm text-blue-100">{t.email} + Telegram</p>
               </div>
@@ -466,7 +466,7 @@ export default function AdminNotificationsPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>{t.sending || 'Sending...'}</span>
+                  <span>{t.sending || 'Yuborilmoqda...'}</span>
                 </>
               ) : (
                 <>
@@ -493,7 +493,7 @@ export default function AdminNotificationsPage() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-white">
-                  {t.sendCustomTelegram || 'Send Custom Telegram Message'}
+                  {t.sendCustomTelegram || 'Maxsus Telegram xabari yuborish'}
                 </h2>
                 <p className="text-sm text-purple-100">{t.message} {t.to.toLowerCase()} {t.tenant.toLowerCase()}</p>
               </div>
@@ -574,7 +574,7 @@ export default function AdminNotificationsPage() {
                   {imagePreview && (
                     <img
                       src={imagePreview}
-                      alt="Preview"
+                      alt="Ko‘rinish"
                       className={`w-full h-48 object-contain rounded-lg border ${
                         darkMode 
                           ? 'border-blue-600/30 bg-blue-600/5' 
@@ -611,7 +611,7 @@ export default function AdminNotificationsPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>{t.sending || 'Sending...'}</span>
+                  <span>{t.sending || 'Yuborilmoqda...'}</span>
                 </>
               ) : (
                 <>

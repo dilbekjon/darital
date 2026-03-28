@@ -36,6 +36,19 @@ export default function AdminChatPage() {
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const getConversationStatusLabel = (status: string) => {
+    switch (status) {
+      case 'OPEN':
+        return t.open || 'Ochiq';
+      case 'PENDING':
+        return t.pending || 'Kutilmoqda';
+      case 'CLOSED':
+        return t.closed || 'Yopilgan';
+      default:
+        return status;
+    }
+  };
+
   // Check permissions and load data (Chat tab hidden for PAYMENT_COLLECTOR / tolovyiguvchi)
   useEffect(() => {
     if (!authLoading) {
@@ -421,7 +434,7 @@ export default function AdminChatPage() {
             <div className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {connected ? 'Online' : 'Offline'}
+                {connected ? 'Onlayn' : 'Oflayn'}
               </span>
             </div>
           </div>
@@ -579,7 +592,7 @@ export default function AdminChatPage() {
                           : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                       }`}
                     >
-                      {conv.status}
+                        {getConversationStatusLabel(conv.status)}
                     </span>
                     {conv.adminId ? (
                       <span className={`text-xs px-3 py-1 rounded-full font-medium flex items-center gap-1 ${
@@ -590,11 +603,11 @@ export default function AdminChatPage() {
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                         </svg>
-                        {isAssignedToMe ? 'Me' : conv.admin?.fullName?.split(' ')[0] || 'Assigned'}
+                        {isAssignedToMe ? 'Men' : conv.admin?.fullName?.split(' ')[0] || 'Tayinlangan'}
                       </span>
                     ) : (
                       <span className="text-xs px-3 py-1 rounded-full bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 font-medium">
-                        Unassigned
+                        Tayinlanmagan
                       </span>
                     )}
                     {(conv.messages[0] as any)?.fileUrl?.startsWith('telegram:') && (
@@ -650,7 +663,7 @@ export default function AdminChatPage() {
                         : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
                     }`}
                   >
-                    {selectedConversation.status}
+                    {getConversationStatusLabel(selectedConversation.status)}
                   </span>
                 </div>
               </div>
@@ -668,7 +681,7 @@ export default function AdminChatPage() {
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                           </svg>
-                          Assigned to Me
+                          Menga biriktirilgan
                         </span>
                       ) : (
                         <span>
@@ -683,7 +696,7 @@ export default function AdminChatPage() {
                           darkMode ? 'bg-red-600 hover:bg-red-700' : 'bg-red-600 hover:bg-red-700'
                         }`}
                       >
-                        Unassign from Me
+                        Mendan yechish
                       </button>
                     )}
                   </>
@@ -693,7 +706,7 @@ export default function AdminChatPage() {
                       onClick={() => handleAssign(selectedConversation.id)}
                       className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium transition-colors"
                     >
-                      {t.assignToMe || 'Assign to Me'}
+                      {t.assignToMe || 'Menga biriktirish'}
                     </button>
                   )
                 )}
@@ -753,7 +766,7 @@ export default function AdminChatPage() {
                               return (
                                 <img
                                   src={fileUrl}
-                                  alt="Attachment"
+                                  alt="Biriktirma"
                                   className="max-w-full rounded cursor-pointer hover:opacity-90"
                                   onClick={() => window.open(fileUrl, '_blank')}
                                   onError={(e) => {
@@ -803,7 +816,7 @@ export default function AdminChatPage() {
                                   preload="metadata"
                                 >
                                   {t.browserNoVideoSupport}
-                                  <a href={fileUrl} className="text-blue-500 underline">Download video</a>
+                                  <a href={fileUrl} className="text-blue-500 underline">Videoni yuklab olish</a>
                                 </video>
                               );
                             }
@@ -839,7 +852,7 @@ export default function AdminChatPage() {
                         {!isAdmin && msg.fileUrl?.startsWith('telegram:') && (
                           <span className={`ml-1 flex items-center gap-1 ${
                             darkMode ? 'text-purple-400' : 'text-purple-600'
-                          }`} title="Sent via Telegram">
+                          }`} title="Telegram orqali yuborilgan">
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.658-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/>
                             </svg>
@@ -888,7 +901,7 @@ export default function AdminChatPage() {
                   />
                   {typingUsers.size > 0 && (
                     <div className="absolute -top-6 left-0 text-xs text-gray-500 dark:text-gray-400">
-                      {Array.from(typingUsers).join(', ')} typing...
+                      {Array.from(typingUsers).join(', ')} yozmoqda...
                     </div>
                   )}
                 </div>
@@ -953,4 +966,3 @@ export default function AdminChatPage() {
     </div>
   );
 }
-

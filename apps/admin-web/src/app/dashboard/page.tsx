@@ -212,7 +212,7 @@ export default function DashboardPage() {
                 <div>
                   <p className={`text-xs font-medium mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.activeContracts}</p>
                   <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{stats?.activeContracts || 0}</p>
-                  <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>of {stats?.contracts || 0} total</p>
+                  <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>jami {stats?.contracts || 0} ta</p>
                 </div>
                 <div className={`p-3 rounded-lg ${
                   darkMode ? 'bg-green-500/20' : 'bg-green-100'
@@ -240,7 +240,7 @@ export default function DashboardPage() {
                     <p className={`text-2xl font-bold ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
                       {new Intl.NumberFormat('uz-UZ', { style: 'currency', currency: 'UZS', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(stats?.totalRevenue || 0)}
                     </p>
-                    <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>All time</p>
+                    <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Barcha davr uchun</p>
                   </div>
                   <div className={`p-3 rounded-lg ${
                     darkMode ? 'bg-green-500/20' : 'bg-green-100'

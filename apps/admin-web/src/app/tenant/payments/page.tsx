@@ -152,7 +152,7 @@ const PaymentsPage = () => {
                   {/* Paid Date */}
                   <div>
                     <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {payment.paidAt ? t.paidAt : (t.createdAt || 'Created')}
+                      {payment.paidAt ? t.paidAt : (t.createdAt || 'Yaratilgan sana')}
                     </p>
                     <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                       {payment.paidAt 

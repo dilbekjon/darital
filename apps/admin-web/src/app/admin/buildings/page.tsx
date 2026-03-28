@@ -207,13 +207,13 @@ export default function BuildingsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this building? Units will be unlinked.')) return;
+    if (!confirm('Bu binoni o\'chirmoqchimisiz? Xonalar bog\'lanishdan chiqariladi.')) return;
     try {
       await fetchApi(`/buildings/${id}`, { method: 'DELETE' });
       loadBuildings();
     } catch (err) {
       console.error(err);
-      alert('Failed to delete building');
+      alert('Binoni o\'chirishda xato');
     }
   };
 
@@ -249,7 +249,7 @@ export default function BuildingsPage() {
         <Breadcrumbs
           items={[
             { label: t.dashboard, href: '/dashboard' },
-            { label: t.buildings || 'Buildings' },
+            { label: t.buildings || 'Binolar' },
           ]}
         />
 
@@ -257,10 +257,10 @@ export default function BuildingsPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
           <div>
             <h1 className={`text-3xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-              🏢 {t.buildings || 'Building Management'}
+              🏢 {t.buildings || 'Binolar boshqaruvi'}
             </h1>
             <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-              {t.manageBuildingsDesc || 'Organize and manage your properties by building'}
+              {t.manageBuildingsDesc || 'Mulklaringizni binolar bo\'yicha tartiblang va boshqaring'}
             </p>
           </div>
           {hasPermission('units.create') && (
@@ -268,7 +268,7 @@ export default function BuildingsPage() {
               onClick={() => setShowCreateModal(true)}
               className="mt-4 md:mt-0 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg"
             >
-              + {t.addBuilding || 'Add Building'}
+              + {t.addBuilding || 'Bino qo\'shish'}
             </button>
           )}
         </div>
@@ -276,19 +276,19 @@ export default function BuildingsPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className={`p-4 rounded-xl ${darkMode ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'}`}>
-            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.totalBuildings || 'Total Buildings'}</p>
+            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.totalBuildings || 'Jami binolar'}</p>
             <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{buildings.length}</p>
           </div>
           <div className={`p-4 rounded-xl ${darkMode ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'}`}>
-            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.totalUnits || 'Total Units'}</p>
+            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.totalUnits || 'Jami xonalar'}</p>
             <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>{totalUnits}</p>
           </div>
           <div className={`p-4 rounded-xl ${darkMode ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
-            <p className={`text-sm ${darkMode ? 'text-green-400' : 'text-green-600'}`}>{t.occupied || 'Occupied'}</p>
+            <p className={`text-sm ${darkMode ? 'text-green-400' : 'text-green-600'}`}>{t.occupied || 'Band'}</p>
             <p className={`text-2xl font-bold ${darkMode ? 'text-green-300' : 'text-green-700'}`}>{totalOccupied}</p>
           </div>
           <div className={`p-4 rounded-xl ${darkMode ? 'bg-blue-500/10 border border-blue-500/30' : 'bg-blue-50 border border-blue-200'}`}>
-            <p className={`text-sm ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{t.available || 'Available'}</p>
+            <p className={`text-sm ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{t.available || 'Bo\'sh'}</p>
             <p className={`text-2xl font-bold ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>{totalFree}</p>
           </div>
         </div>
@@ -297,7 +297,7 @@ export default function BuildingsPage() {
         <div className="mb-6">
           <input
             type="text"
-            placeholder={t.searchBuildings || 'Search buildings...'}
+            placeholder={t.searchBuildings || 'Binolarni qidirish...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={`w-full md:w-96 px-4 py-3 rounded-xl border ${
@@ -312,10 +312,10 @@ export default function BuildingsPage() {
         {filteredBuildings.length === 0 ? (
           <EmptyState
             icon={<span className="text-6xl">🏢</span>}
-            title={buildings.length === 0 ? (t.noBuildings || 'No Buildings') : (t.noResultsFound || 'No Results')}
+            title={buildings.length === 0 ? (t.noBuildings || 'Binolar yo\'q') : (t.noResultsFound || 'Natija topilmadi')}
             description={buildings.length === 0 
-              ? (t.createFirstBuilding || 'Create your first building to organize units')
-              : (t.tryDifferentSearch || 'Try a different search term')
+              ? (t.createFirstBuilding || 'Xonalarni tartibga solish uchun birinchi binoni yarating')
+              : (t.tryDifferentSearch || 'Boshqa qidiruv so\'zini sinab ko\'ring')
             }
           />
         ) : (
@@ -344,7 +344,7 @@ export default function BuildingsPage() {
                         occupancyRate >= 80 ? 'text-green-500' : 
                         occupancyRate >= 50 ? 'text-yellow-500' : 'text-blue-500'
                       }`}>
-                        {occupancyRate}% {t.occupied || 'occupied'}
+                        {occupancyRate}% {t.occupied || 'band'}
                       </span>
                     </div>
                     {/* Progress bar */}
@@ -372,7 +372,7 @@ export default function BuildingsPage() {
                         <p className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
                           {building.totalUnits}
                         </p>
-                        <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>{t.total || 'Total'}</p>
+                        <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>{t.total || 'Jami'}</p>
                       </div>
                       <div className={`text-center p-2 rounded-lg ${darkMode ? 'bg-green-500/10' : 'bg-green-50'}`}>
                         <p className={`text-lg font-bold ${darkMode ? 'text-green-400' : 'text-green-600'}`}>
@@ -408,7 +408,7 @@ export default function BuildingsPage() {
                             : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                         }`}
                       >
-                        2D View
+                        2D ko\'rinish
                       </Link>
                       <button
                         onClick={() => openEditModal(building)}
@@ -418,7 +418,7 @@ export default function BuildingsPage() {
                             : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                         }`}
                       >
-                        ✏️ {t.edit || 'Edit'}
+                        ✏️ {t.edit || 'Tahrirlash'}
                       </button>
                       {hasPermission('units.delete') && (
                         <button
@@ -498,7 +498,7 @@ export default function BuildingsPage() {
               </div>
               <div>
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {t.description || 'Description'}
+                  {t.description || 'Tavsif'}
                 </label>
                 <textarea
                   value={formData.description}
@@ -518,14 +518,14 @@ export default function BuildingsPage() {
                   darkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {t.cancel || 'Cancel'}
+                {t.cancel || 'Bekor qilish'}
               </button>
               <button
                 onClick={handleCreate}
                 disabled={saving || !formData.name.trim()}
                 className="flex-1 py-3 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 disabled:opacity-50"
               >
-                {saving ? '...' : (t.create || 'Create')}
+                {saving ? '...' : (t.create || 'Yaratish')}
               </button>
             </div>
           </div>
@@ -573,7 +573,7 @@ export default function BuildingsPage() {
               </div>
               <div>
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {t.address || 'Address'}
+                  {t.address || 'Manzil'}
                 </label>
                 <input
                   type="text"
@@ -586,7 +586,7 @@ export default function BuildingsPage() {
               </div>
               <div>
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  {t.description || 'Description'}
+                  {t.description || 'Tavsif'}
                 </label>
                 <textarea
                   value={formData.description}
@@ -605,14 +605,14 @@ export default function BuildingsPage() {
                   darkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {t.cancel || 'Cancel'}
+                {t.cancel || 'Bekor qilish'}
               </button>
               <button
                 onClick={handleUpdate}
                 disabled={saving || !formData.name.trim()}
                 className="flex-1 py-3 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 disabled:opacity-50"
               >
-                {saving ? '...' : (t.save || 'Save')}
+                {saving ? '...' : (t.save || 'Saqlash')}
               </button>
             </div>
           </div>
@@ -670,7 +670,7 @@ export default function BuildingsPage() {
                       </div>
                       <div className="p-3 grid gap-3 sm:grid-cols-2">
                         {units.length === 0 ? (
-                          <span className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Hona yo'q</span>
+                          <span className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>Xona yo\'q</span>
                         ) : (
                           units.map((u) => (
                             <div

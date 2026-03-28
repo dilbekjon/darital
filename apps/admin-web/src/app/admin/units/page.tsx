@@ -135,7 +135,7 @@ export default function AdminUnitsPage() {
           if (err instanceof ApiError) {
             setError(err.message);
           } else {
-            setError('An unexpected error occurred.');
+        setError('Kutilmagan xatolik yuz berdi.');
           }
         } finally {
           setPageLoading(false);
@@ -276,7 +276,7 @@ export default function AdminUnitsPage() {
 
   const handleArchive = async (unitId: string) => {
     if (!canManageUnits) return;
-    if (!confirm('Archive this unit? It will be hidden from the main list but can be restored.')) return;
+    if (!confirm('Bu xonani arxivlamoqchimisiz? U asosiy ro\'yxatdan yashiriladi, keyin qayta tiklash mumkin bo\'ladi.')) return;
     setArchivingUnitId(unitId);
     setError(null);
     try {
@@ -286,7 +286,7 @@ export default function AdminUnitsPage() {
     } catch (err) {
       console.error('Failed to archive unit:', err);
       if (err instanceof ApiError) setError(err.data?.message || err.message);
-      else setError('Failed to archive unit.');
+      else setError('Xonani arxivlashda xato.');
     } finally {
       setArchivingUnitId(null);
     }
@@ -302,7 +302,7 @@ export default function AdminUnitsPage() {
     } catch (err) {
       console.error('Failed to unarchive unit:', err);
       if (err instanceof ApiError) setError(err.data?.message || err.message);
-      else setError('Failed to unarchive unit.');
+      else setError('Xonani arxivdan chiqarishda xato.');
     } finally {
       setArchivingUnitId(null);
     }
@@ -328,8 +328,8 @@ export default function AdminUnitsPage() {
       {/* Breadcrumbs */}
       <Breadcrumbs
         items={[
-          { label: t.dashboard || 'Dashboard', href: '/dashboard' },
-          { label: t.units || 'Units' },
+          { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
+          { label: t.units || 'Xonalar' },
         ]}
       />
 
@@ -337,7 +337,7 @@ export default function AdminUnitsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
         <div>
           <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-            {t.units || 'Units'}
+            {t.units || 'Xonalar'}
           </h1>
           <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
             {t.manageRentalUnits || 'Manage rental units and their availability'}
@@ -351,7 +351,7 @@ export default function AdminUnitsPage() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            {t.createUnit || 'Create Unit'}
+            {t.createUnit || 'Xona yaratish'}
           </button>
         )}
       </div>
@@ -415,7 +415,7 @@ export default function AdminUnitsPage() {
               className="rounded"
             />
             <span className={`text-sm ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-              {(t as any).includeArchived ?? 'Include archived'}
+              {(t as any).includeArchived ?? 'Arxivlanganlarni ko\'rsatish'}
             </span>
           </label>
         </div>
@@ -440,7 +440,7 @@ export default function AdminUnitsPage() {
                 ? t.getStartedByCreatingUnit
                 : t.tryAdjustingFilters
             }
-            actionLabel={units.length === 0 && canManageUnits ? (t.createUnit || 'Create Unit') : undefined}
+            actionLabel={units.length === 0 && canManageUnits ? (t.createUnit || 'Xona yaratish') : undefined}
             onAction={units.length === 0 && canManageUnits ? openCreateModal : undefined}
           />
         ) : (
@@ -453,7 +453,7 @@ export default function AdminUnitsPage() {
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    {t.unitName || 'Unit Name'}
+                    {t.unitName || 'Xona nomi'}
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -468,33 +468,33 @@ export default function AdminUnitsPage() {
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    {(t as any).building || 'Building'}
+                    {(t as any).building || 'Bino'}
                   </th>
               <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                 darkMode ? 'text-gray-300' : 'text-gray-500'
               }`}>
-                {(t as any).company || 'Company'}
+                {(t as any).company || 'Kompaniya'}
               </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    {t.status || 'Status'}
+                    {t.status || 'Holat'}
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    {t.tenantName || 'Current Tenant'}
+                    {t.tenantName || 'Joriy ijara oluvchi'}
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    {t.contracts || 'Contracts'}
+                    {t.contracts || 'Shartnomalar'}
                   </th>
                   {canManageUnits && (
                     <th className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}>
-                      {t.actions || 'Actions'}
+                      {t.actions || 'Amallar'}
                     </th>
                   )}
                 </tr>
@@ -524,7 +524,7 @@ export default function AdminUnitsPage() {
                             <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                               darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
                             }`}>
-                              Archived
+                              Arxivlangan
                             </span>
                           )}
                         </span>
@@ -563,7 +563,7 @@ export default function AdminUnitsPage() {
                         }`}>{unit.company.name}</span>
                       ) : (
                         <span className={darkMode ? 'text-gray-400' : 'text-gray-400'}>
-                          {(t as any).individual || 'Individual'}
+                          {(t as any).individual || 'Jismoniy shaxs'}
                         </span>
                       )}
                     </td>
@@ -612,7 +612,7 @@ export default function AdminUnitsPage() {
                                 : 'text-blue-600 hover:text-blue-900'
                             }`}
                           >
-                            {t.edit || 'Edit'}
+                            {t.edit || 'Tahrirlash'}
                           </button>
                           {unit.isArchived ? (
                             <button
@@ -622,7 +622,7 @@ export default function AdminUnitsPage() {
                                 archivingUnitId === unit.id ? 'opacity-50 cursor-not-allowed' : ''
                               } ${darkMode ? 'text-green-400 hover:text-green-300' : 'text-green-600 hover:text-green-800'}`}
                             >
-                              {archivingUnitId === unit.id ? '...' : ((t as any).unarchive ?? 'Unarchive')}
+                              {archivingUnitId === unit.id ? '...' : ((t as any).unarchive ?? 'Arxivdan chiqarish')}
                             </button>
                           ) : (
                             <button
@@ -632,7 +632,7 @@ export default function AdminUnitsPage() {
                                 archivingUnitId === unit.id ? 'opacity-50 cursor-not-allowed' : ''
                               } ${darkMode ? 'text-amber-400 hover:text-amber-300' : 'text-amber-600 hover:text-amber-800'}`}
                             >
-                              {archivingUnitId === unit.id ? '...' : ((t as any).archive ?? 'Archive')}
+                              {archivingUnitId === unit.id ? '...' : ((t as any).archive ?? 'Arxivlash')}
                             </button>
                           )}
                         </td>
@@ -684,7 +684,7 @@ export default function AdminUnitsPage() {
                   className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
-                  placeholder="e.g., Unit 101"
+                  placeholder="Masalan, Xona 101"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4 mb-4">
@@ -747,7 +747,7 @@ export default function AdminUnitsPage() {
                 <label htmlFor="buildingId" className={`block text-sm font-medium mb-1 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  {(t as any).building || 'Building'}
+                    {(t as any).building || 'Bino'}
                 </label>
                 <select
                   id="buildingId"
@@ -757,7 +757,7 @@ export default function AdminUnitsPage() {
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
                 >
-                  <option value="">{(t as any).noBuilding || 'No Building'}</option>
+                  <option value="">{(t as any).noBuilding || 'Bino yo\'q'}</option>
                   {buildings.map((building) => (
                     <option key={building.id} value={building.id}>
                       {building.name}
@@ -767,14 +767,14 @@ export default function AdminUnitsPage() {
                 <p className={`text-xs mt-1 ${
                   darkMode ? 'text-gray-400' : 'text-gray-500'
                 }`}>
-                   {(t as any).selectBuildingToAssign || 'Select a building to assign this unit to'}
+                   {(t as any).selectBuildingToAssign || 'Bu xonani biriktirish uchun binoni tanlang'}
                 </p>
               </div>
               <div className="mb-4">
                 <label htmlFor="companyId" className={`block text-sm font-medium mb-1 ${
                   darkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                  {(t as any).company || 'Company'}
+                  {(t as any).company || 'Kompaniya'}
                 </label>
                 <select
                   id="companyId"
@@ -785,7 +785,7 @@ export default function AdminUnitsPage() {
                   }`}
                 >
                   <option value="">
-                    {(t as any).noCompany || 'No Company (Individual)'}
+                    {(t as any).noCompany || 'Kompaniya yo\'q (jismoniy shaxs)'}
                   </option>
                   {companies.map((company) => (
                     <option key={company.id} value={company.id}>
@@ -797,7 +797,7 @@ export default function AdminUnitsPage() {
                   darkMode ? 'text-gray-400' : 'text-gray-500'
                 }`}>
                   {(t as any).selectCompanyToAssign ||
-                    'Assign this unit to a company, or leave as individual.'}
+                    'Bu xonani kompaniyaga biriktiring yoki jismoniy shaxs sifatida qoldiring.'}
                 </p>
               </div>
               {editingUnit && (

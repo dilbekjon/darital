@@ -157,7 +157,7 @@ export default function AdminCompaniesPage() {
     if (!canDelete) return;
     if (
       !confirm(
-        `Delete company "${company.name}"?\n\nThis is only allowed when no units are assigned to the company.`,
+        `Kompaniya "${company.name}" ni o'chirmoqchimisiz?\n\nBu faqat kompaniyaga birorta ham xona biriktirilmagan bo'lsa ruxsat etiladi.`,
       )
     ) {
       return;
@@ -173,7 +173,7 @@ export default function AdminCompaniesPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('Failed to delete company.');
+        setError('Kompaniyani o\'chirishda xato.');
       }
     }
   };
@@ -186,8 +186,8 @@ export default function AdminCompaniesPage() {
     >
       <Breadcrumbs
         items={[
-          { label: t.dashboard || 'Dashboard', href: '/dashboard' },
-          { label: (t as any).companies || 'Companies' },
+          { label: t.dashboard || 'Bosh sahifa', href: '/dashboard' },
+          { label: (t as any).companies || 'Kompaniyalar' },
         ]}
       />
 
@@ -198,7 +198,7 @@ export default function AdminCompaniesPage() {
               darkMode ? 'text-white' : 'text-gray-900'
             }`}
           >
-            {(t as any).companies || 'Companies'}
+            {(t as any).companies || 'Kompaniyalar'}
           </h1>
           <p
             className={`text-sm mt-1 ${
@@ -206,7 +206,7 @@ export default function AdminCompaniesPage() {
             }`}
           >
             {(t as any).manageCompanies ||
-              'Manage companies that can hold multiple units'}
+              'Bir nechta xonani birlashtira oladigan kompaniyalarni boshqarish'}
           </p>
         </div>
         {canCreateOrUpdate && (
@@ -227,7 +227,7 @@ export default function AdminCompaniesPage() {
                 d="M12 4v16m8-8H4"
               />
             </svg>
-            {(t as any).createCompany || 'Create Company'}
+            {(t as any).createCompany || 'Kompaniya yaratish'}
           </button>
         )}
       </div>
@@ -266,7 +266,7 @@ export default function AdminCompaniesPage() {
             <input
               type="text"
               placeholder={
-                (t as any).searchCompanies || 'Search companies by name...'
+                (t as any).searchCompanies || 'Kompaniyani nomi bo\'yicha qidirish...'
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -308,18 +308,18 @@ export default function AdminCompaniesPage() {
             }
             title={
               companies.length === 0
-                ? (t as any).noCompanies || 'No companies'
+                ? (t as any).noCompanies || 'Kompaniyalar yo\'q'
                 : t.noResultsFound
             }
             description={
               companies.length === 0
                 ? (t as any).getStartedByCreatingCompany ||
-                  'Start by creating your first company.'
+                  'Avval birinchi kompaniyangizni yarating.'
                 : t.tryAdjustingFilters
             }
             actionLabel={
               companies.length === 0 && canCreateOrUpdate
-                ? (t as any).createCompany || 'Create Company'
+                ? (t as any).createCompany || 'Kompaniya yaratish'
                 : undefined
             }
             onAction={
@@ -348,28 +348,28 @@ export default function AdminCompaniesPage() {
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}
                   >
-                    {(t as any).companyName || 'Company Name'}
+                    {(t as any).companyName || 'Kompaniya nomi'}
                   </th>
                   <th
                     className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}
                   >
-                    {t.description || 'Description'}
+                    {t.description || 'Tavsif'}
                   </th>
                   <th
                     className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}
                   >
-                    {(t as any).unitsCount || 'Units'}
+                    {(t as any).unitsCount || 'Xonalar'}
                   </th>
                   <th
                     className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}
                   >
-                    {t.createdAt || 'Created At'}
+                    {t.createdAt || 'Yaratilgan sana'}
                   </th>
                   {(canCreateOrUpdate || canDelete) && (
                     <th
@@ -377,7 +377,7 @@ export default function AdminCompaniesPage() {
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}
                     >
-                      {t.actions || 'Actions'}
+                      {t.actions || 'Amallar'}
                     </th>
                   )}
                 </tr>
@@ -424,7 +424,7 @@ export default function AdminCompaniesPage() {
                             darkMode ? 'text-gray-500' : 'text-gray-400'
                           }
                         >
-                          {(t as any).noDescription || 'No description'}
+                          {(t as any).noDescription || 'Tavsif yo\'q'}
                         </span>
                       )}
                     </td>
@@ -461,7 +461,7 @@ export default function AdminCompaniesPage() {
                                   : 'text-blue-600 hover:text-blue-900'
                               }`}
                             >
-                              {t.edit || 'Edit'}
+                              {t.edit || 'Tahrirlash'}
                             </button>
                           )}
                           {canDelete && (
@@ -473,7 +473,7 @@ export default function AdminCompaniesPage() {
                                   : 'text-red-600 hover:text-red-900'
                               }`}
                             >
-                              {t.delete || 'Delete'}
+                              {t.delete || 'O\'chirish'}
                             </button>
                           )}
                         </div>
@@ -506,8 +506,8 @@ export default function AdminCompaniesPage() {
               }`}
             >
               {editingCompany
-                ? (t as any).editCompany || 'Edit Company'
-                : (t as any).createCompany || 'Create Company'}
+                ? (t as any).editCompany || 'Kompaniyani tahrirlash'
+                : (t as any).createCompany || 'Kompaniya yaratish'}
             </h2>
             {error && (
               <div
@@ -529,7 +529,7 @@ export default function AdminCompaniesPage() {
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}
                 >
-                  {(t as any).companyName || 'Company Name'} *
+                  {(t as any).companyName || 'Kompaniya nomi'} *
                 </label>
                 <input
                   type="text"
@@ -544,7 +544,7 @@ export default function AdminCompaniesPage() {
                       ? 'bg-black border-blue-600/30 text-white'
                       : 'bg-white border-gray-300 text-gray-900'
                   }`}
-                  placeholder="Acme Corp"
+                  placeholder="Masalan, Darital Group"
                 />
               </div>
               <div className="mb-4">
@@ -554,7 +554,7 @@ export default function AdminCompaniesPage() {
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}
                 >
-                  {t.description || 'Description'}
+                  {t.description || 'Tavsif'}
                 </label>
                 <textarea
                   id="description"
@@ -570,7 +570,7 @@ export default function AdminCompaniesPage() {
                   }`}
                   placeholder={
                     (t as any).companyDescriptionPlaceholder ||
-                    'Optional description or notes'
+                    'Ixtiyoriy tavsif yoki izoh'
                   }
                 />
               </div>
@@ -605,4 +605,3 @@ export default function AdminCompaniesPage() {
     </div>
   );
 }
-

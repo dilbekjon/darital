@@ -15,7 +15,7 @@ const sections = [
     title: 'Nimadan boshlash kerak?',
     body: 'Tizimga kirish uchun admin hisobingiz bilan login qiling. Keyin quyidagi ketma-ketlikni kuzating: avval obyektlar (binolar / kvartiralar), keyin ijarachilar, shartnomalar, hisob-fakturalar va to\'lovlar. Har bir bo\'lim sidebar (chap menyu) orqali ochiladi.',
     steps: [
-      'Dashboard — umumiy statistika va tezkor ko\'rinish.',
+      'Bosh sahifa — umumiy statistika va tezkor ko\'rinish.',
       'Binolar va Kvartiralar — obyektlarni qo\'shish va tahrirlash.',
       'Ijarachilar — ijarachilarni ro\'yxatga olish.',
       'Shartnomalar — ijarachi bilan shartnoma yaratish (obyekt + muddat + narx).',
@@ -28,21 +28,21 @@ const sections = [
     title: 'Admin ish ketma-ketligi',
     body: 'Ma\'lumotlar ob\'ektlar → ijarachilar → shartnomalar → hisob-fakturalar → to\'lovlar tartibida kiritiladi.',
     items: [
-      { label: 'Dashboard', desc: 'Kirishdan keyin: ijarachilar, shartnomalar, to\'lovlar, daromad, kutilayotgan va muddati o\'tgan hisob-fakturalar.' },
-      { label: 'Reports', desc: 'Tanlangan davr bo\'yicha daromad, hisob-fakturalar, to\'lovlar; PDF eksport.' },
-      { label: 'Contracts', desc: 'Shartnoma yaratish, faol/arxiv, muddat va narxni boshqarish.' },
-      { label: 'Tenants', desc: 'Ijarachilar ro\'yxati, qo\'shish, tahrirlash.' },
-      { label: 'Units', desc: 'Kvartiralar (obyektlar) ro\'yxati va boshqaruvi.' },
-      { label: 'Buildings', desc: 'Binolar ro\'yxati va boshqaruvi.' },
-      { label: 'Payments', desc: 'To\'lovlar ro\'yxati, kutilayotganlarni tasdiqlash (Checkout.uz va boshqalar).' },
-      { label: 'Invoices', desc: 'Hisob-fakturalar, holatlar: kutilmoqda, to\'langan, muddati o\'tgan.' },
+      { label: 'Bosh sahifa', desc: 'Kirishdan keyin: ijarachilar, shartnomalar, to\'lovlar, daromad, kutilayotgan va muddati o\'tgan hisob-fakturalar.' },
+      { label: 'Hisobotlar', desc: 'Tanlangan davr bo\'yicha daromad, hisob-fakturalar, to\'lovlar; PDF eksport.' },
+      { label: 'Shartnomalar', desc: 'Shartnoma yaratish, faol/arxiv, muddat va narxni boshqarish.' },
+      { label: 'Ijarachilar', desc: 'Ijarachilar ro\'yxati, qo\'shish, tahrirlash.' },
+      { label: 'Xonalar', desc: 'Kvartiralar (obyektlar) ro\'yxati va boshqaruvi.' },
+      { label: 'Binolar', desc: 'Binolar ro\'yxati va boshqaruvi.' },
+      { label: 'To\'lovlar', desc: 'To\'lovlar ro\'yxati, kutilayotganlarni tasdiqlash (Checkout.uz va boshqalar).' },
+      { label: 'Hisob-fakturalar', desc: 'Hisob-fakturalar, holatlar: kutilmoqda, to\'langan, muddati o\'tgan.' },
       { label: 'Chat', desc: 'Admin panel ichida ijarachilar bilan yozishmalar (faqat chat ruxsati bor rollar).' },
-      { label: 'Notifications', desc: 'Tizim bildirishnomalarini sozlash va yuborish.' },
-      { label: 'Telegram Chat', desc: 'Telegram bot orqali ijarachilar bilan aloqa va to\'lovlar.' },
-      { label: 'Email Templates', desc: 'Email shablonlarini tahrirlash.' },
-      { label: 'Admin Users', desc: 'Admin foydalanuvchilar, rollar va ruxsatlar (RBAC).' },
-      { label: 'Activity Logs', desc: 'Tizimdagi harakatlar jurnali.' },
-      { label: 'Archive Management', desc: 'Arxivlangan ma\'lumotlar bilan ishlash.' },
+      { label: 'Bildirishnomalar', desc: 'Tizim bildirishnomalarini sozlash va yuborish.' },
+      { label: 'Telegram suhbati', desc: 'Telegram bot orqali ijarachilar bilan aloqa va to\'lovlar.' },
+      { label: 'Email shablonlari', desc: 'Email shablonlarini tahrirlash.' },
+      { label: 'Admin foydalanuvchilar', desc: 'Admin foydalanuvchilar, rollar va ruxsatlar (RBAC).' },
+      { label: 'Faoliyat jurnali', desc: 'Tizimdagi harakatlar jurnali.' },
+      { label: 'Arxiv boshqaruvi', desc: 'Arxivlangan ma\'lumotlar bilan ishlash.' },
     ],
   },
   {
@@ -97,14 +97,14 @@ export default function DocsPage() {
           <Link href="/dashboard" className="flex items-center gap-2 font-semibold hover:opacity-80 transition-opacity">
             <span className={darkMode ? 'text-white' : 'text-gray-900'}>Darital</span>
             <span className="text-gray-500">/</span>
-            <span className="text-blue-500">Docs</span>
+            <span className="text-blue-500">Qo‘llanma</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/login" className={`text-sm ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'} transition-colors`}>
               Kirish
             </Link>
             <Link href="/dashboard" className={`text-sm px-3 py-1.5 rounded-lg ${darkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'} transition-colors`}>
-              Dashboard
+              Bosh sahifa
             </Link>
           </div>
         </div>
@@ -141,7 +141,7 @@ export default function DocsPage() {
               Darital Admin — To‘liq qo‘llanma
             </h1>
             <p className={darkMode ? 'text-gray-400' : 'text-gray-500'}>
-              Sayt haqida to‘liq ma’lumot va qanday ketma-ketlikda ishlash.
+              Tizim haqida to‘liq ma’lumot va qanday ketma-ketlikda ishlash kerakligi.
             </p>
           </div>
 

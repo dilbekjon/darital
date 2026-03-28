@@ -48,7 +48,7 @@ const TenantDashboard = () => {
     );
   }
 
-  const activeUnit = profile?.contracts?.[0]?.unit?.name || 'N/A';
+  const activeUnit = profile?.contracts?.[0]?.unit?.name || 'Mavjud emas';
   const balanceAmount = balance?.current || 0;
 
   return (
@@ -248,7 +248,7 @@ const TenantDashboard = () => {
               </div>
               <div>
                 <p className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>💬 {t.getSupport}</p>
-                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Live Chat Support</p>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Jonli chat yordami</p>
               </div>
             </a>
           </div>

@@ -95,7 +95,7 @@ export default function AdminUsersPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('An unexpected error occurred.');
+        setError('Kutilmagan xato yuz berdi.');
       }
     } finally {
       setPageLoading(false);
@@ -127,7 +127,7 @@ export default function AdminUsersPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('An unexpected error occurred while updating role.');
+        setError('Rolni yangilashda kutilmagan xato yuz berdi.');
       }
     }
   };
@@ -147,7 +147,7 @@ export default function AdminUsersPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('An unexpected error occurred while deleting user.');
+        setError('Foydalanuvchini o‘chirishda kutilmagan xato yuz berdi.');
       }
     }
   };
@@ -174,7 +174,7 @@ export default function AdminUsersPage() {
       if (err instanceof ApiError) {
         setError(err.data?.message || err.message);
       } else {
-        setError('An unexpected error occurred while creating user.');
+        setError('Foydalanuvchini yaratishda kutilmagan xato yuz berdi.');
       }
     } finally {
       setIsSubmitting(false);
@@ -267,7 +267,7 @@ export default function AdminUsersPage() {
                   : 'bg-white border-gray-300 text-gray-900'
               } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
             >
-              <option value="ALL">{t.allRoles || 'All Roles'}</option>
+              <option value="ALL">{t.allRoles || 'Barcha rollar'}</option>
               <option value="SUPER_ADMIN">{t.superAdmin || 'Bosh Direktor'}</option>
               <option value="ADMIN">{t.admin || 'Admin'}</option>
               <option value="USER_MANAGER">{t.userManager || 'Foydalanuvchi Menejeri'}</option>
@@ -297,7 +297,7 @@ export default function AdminUsersPage() {
                 ? t.getStartedByCreatingUser
                 : t.tryAdjustingFilters
             }
-            actionLabel={users.length === 0 && canManageUsers ? (t.createUser || 'Create User') : undefined}
+            actionLabel={users.length === 0 && canManageUsers ? (t.createUser || 'Foydalanuvchi yaratish') : undefined}
             onAction={users.length === 0 && canManageUsers ? () => setIsCreateModalOpen(true) : undefined}
           />
         ) : (
@@ -310,7 +310,7 @@ export default function AdminUsersPage() {
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    {t.fullName || 'Full Name'}
+                    {t.fullName || 'To‘liq ism'}
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -320,15 +320,15 @@ export default function AdminUsersPage() {
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    {t.role || 'Role'}
+                    {t.role || 'Rol'}
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    {t.createdAt || 'Created At'}
+                    {t.createdAt || 'Yaratilgan sana'}
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    {t.actions || 'Actions'}
+                    {t.actions || 'Amallar'}
                   </th>
                 </tr>
               </thead>
