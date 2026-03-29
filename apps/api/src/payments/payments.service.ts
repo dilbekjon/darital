@@ -128,23 +128,53 @@ export class PaymentsService {
         data: updateData,
       });
 
-      // Check total confirmed payments for this invoice
-      const totalConfirmed = await tx.payment.aggregate({
-        where: {
-          invoiceId: invoice.id,
-          status: PaymentStatus.CONFIRMED,
-        },
-        _sum: { amount: true },
-      });
+      // Mark invoice as PAID only if both BANK and CASH parts are paid (split logic).
+      // Fallback to legacy behavior when split columns are empty (0 + 0).
+      const bankDue = new Decimal((invoice as any).bankAmount || 0);
+      const cashDue = new Decimal((invoice as any).cashAmount || 0);
+      const hasSplit = !bankDue.plus(cashDue).equals(0);
 
-      const totalPaid = new Decimal(totalConfirmed._sum.amount || 0);
-
-      // Mark invoice as PAID only if total confirmed payments >= invoice amount
-      if (totalPaid.greaterThanOrEqualTo(invoice.amount)) {
-        await tx.invoice.update({
-          where: { id: invoice.id },
-          data: { status: 'PAID' as any },
+      if (hasSplit) {
+        const confirmedBySource = await tx.payment.groupBy({
+          by: ['source'],
+          where: {
+            invoiceId: invoice.id,
+            status: PaymentStatus.CONFIRMED,
+          },
+          _sum: { amount: true },
         });
+
+        const sumFor = (sources: string[]) =>
+          confirmedBySource
+            .filter((r) => sources.includes(String((r as any).source)))
+            .reduce((sum, r) => sum.plus(new Decimal((r as any)._sum?.amount || 0)), new Decimal(0));
+
+        // Treat ONLINE payments as BANK for completeness (even though online is disabled in UI now).
+        const bankPaid = sumFor(['BANK', 'ONLINE']);
+        const cashPaid = sumFor(['CASH']);
+
+        if (bankPaid.greaterThanOrEqualTo(bankDue) && cashPaid.greaterThanOrEqualTo(cashDue)) {
+          await tx.invoice.update({
+            where: { id: invoice.id },
+            data: { status: 'PAID' as any },
+          });
+        }
+      } else {
+        // Legacy: total confirmed payments >= invoice.amount
+        const totalConfirmed = await tx.payment.aggregate({
+          where: {
+            invoiceId: invoice.id,
+            status: PaymentStatus.CONFIRMED,
+          },
+          _sum: { amount: true },
+        });
+        const totalPaid = new Decimal(totalConfirmed._sum.amount || 0);
+        if (totalPaid.greaterThanOrEqualTo(invoice.amount)) {
+          await tx.invoice.update({
+            where: { id: invoice.id },
+            data: { status: 'PAID' as any },
+          });
+        }
       }
 
       // Update tenant balance
@@ -522,7 +552,7 @@ export class PaymentsService {
       where: { id: { in: uniqueInvoiceIds } },
       include: {
         contract: { include: { tenant: true, unit: true } },
-        payments: { where: { status: PaymentStatus.CONFIRMED } },
+        payments: { where: { status: { in: [PaymentStatus.PENDING, PaymentStatus.CONFIRMED] } } },
       },
     });
 
@@ -535,22 +565,45 @@ export class PaymentsService {
       const results = [] as any[];
 
       for (const invoice of invoices) {
-        const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount.toNumber(), 0);
-        const remaining = invoice.amount.toNumber() - totalPaid;
-        if (remaining <= 0) {
-          throw new ConflictException(`Invoice ${invoice.id} allaqachon to‘liq yopilgan`);
+        const bankDue = new Decimal((invoice as any).bankAmount || 0);
+        const cashDue = new Decimal((invoice as any).cashAmount || 0);
+        const hasSplit = !bankDue.plus(cashDue).equals(0);
+
+        const sumBySource = (sources: string[]) =>
+          invoice.payments
+            .filter((p: any) => sources.includes(String(p.source)) && p.status !== PaymentStatus.CANCELLED)
+            .reduce((sum: Decimal, p: any) => sum.plus(p.amount), new Decimal(0));
+
+        const bankPaid = sumBySource(['BANK', 'ONLINE']);
+        const cashPaid = sumBySource(['CASH']);
+
+        // Remaining is computed per requested source (BANK or CASH).
+        const dueForSource = (() => {
+          if (hasSplit) return dto.source === 'BANK' ? bankDue : cashDue;
+          // Legacy invoices without split: allow collecting against full invoice amount
+          return new Decimal(invoice.amount);
+        })();
+        const paidForSource = (() => {
+          if (hasSplit) return dto.source === 'BANK' ? bankPaid : cashPaid;
+          return sumBySource(['BANK', 'ONLINE', 'CASH']);
+        })();
+        const remaining = dueForSource.minus(paidForSource);
+
+        if (remaining.lte(0)) {
+          const label = dto.source === 'BANK' ? 'bank' : 'naqd';
+          throw new ConflictException(`Invoice ${invoice.id} uchun ${label} qismi allaqachon yopilgan`);
         }
 
         const amount =
           uniqueInvoiceIds.length === 1 && dto.amount
             ? new Decimal(dto.amount)
-            : new Decimal(remaining);
+            : remaining;
 
         if (amount.lte(0)) {
           throw new ConflictException('To‘lov summasi 0 dan katta bo‘lishi kerak');
         }
-        if (amount.greaterThan(new Decimal(remaining))) {
-          throw new ConflictException(`Invoice ${invoice.id} uchun summa qolgan qarzdorlikdan oshib ketdi`);
+        if (amount.greaterThan(remaining)) {
+          throw new ConflictException(`Invoice ${invoice.id} uchun summa qolgan ${dto.source === 'BANK' ? 'bank' : 'naqd'} qarzdorlikdan oshib ketdi`);
         }
 
         results.push(
