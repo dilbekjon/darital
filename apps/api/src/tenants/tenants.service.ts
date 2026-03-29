@@ -173,10 +173,22 @@ export class TenantsService {
     // If password is provided, hash it before updating
     const updateData: Prisma.TenantUpdateInput = { ...dto };
     if (dto.phone) {
-      updateData.phone = this.normalizePhone(dto.phone);
+      const normalizedPhone = this.normalizePhone(dto.phone);
+      const existingByPhone = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
+      if (existingByPhone && existingByPhone.id !== id) {
+        throw new ConflictException({ code: 'PHONE_TAKEN', message: 'Phone number already exists' });
+      }
+      updateData.phone = normalizedPhone;
     }
     if (dto.email !== undefined) {
-      updateData.email = dto.email?.trim() ? dto.email.trim().toLowerCase() : null;
+      const normalizedEmail = dto.email?.trim() ? dto.email.trim().toLowerCase() : null;
+      if (normalizedEmail) {
+        const existingByEmail = await this.prisma.tenant.findUnique({ where: { email: normalizedEmail } });
+        if (existingByEmail && existingByEmail.id !== id) {
+          throw new ConflictException({ code: 'EMAIL_TAKEN', message: 'Email already exists' });
+        }
+      }
+      updateData.email = normalizedEmail;
     }
     if (dto.password) {
       updateData.password = await bcrypt.hash(dto.password, 10);
@@ -186,15 +198,29 @@ export class TenantsService {
       delete (updateData as any).password;
     }
     
-    const tenant = await this.prisma.tenant.update({ where: { id }, data: updateData });
+    try {
+      const tenant = await this.prisma.tenant.update({ where: { id }, data: updateData });
 
-    return {
-      id: tenant.id,
-      fullName: tenant.fullName,
-      email: tenant.email || '',
-      phone: tenant.phone,
-      createdAt: tenant.createdAt.toISOString(),
-    };
+      return {
+        id: tenant.id,
+        fullName: tenant.fullName,
+        email: tenant.email || '',
+        phone: tenant.phone,
+        createdAt: tenant.createdAt.toISOString(),
+      };
+    } catch (err: any) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        const target = Array.isArray(err.meta?.target) ? err.meta?.target : [];
+        if (target.includes('email')) {
+          throw new ConflictException({ code: 'EMAIL_TAKEN', message: 'Email already exists' });
+        }
+        if (target.includes('phone')) {
+          throw new ConflictException({ code: 'PHONE_TAKEN', message: 'Phone number already exists' });
+        }
+        throw new ConflictException({ code: 'UNIQUE_CONSTRAINT', message: 'Unique constraint failed' });
+      }
+      throw err;
+    }
   }
 
   async archive(id: string, adminId: string, reason?: string) {
