@@ -209,7 +209,7 @@ async function ensureUnit(row: PreparedRow, buildingId: string) {
     },
   });
 
-  const data = {
+  const createData = {
     name: row.xona_nomi,
     buildingId,
     area: row.ijara_maydoni_kv_m,
@@ -222,11 +222,17 @@ async function ensureUnit(row: PreparedRow, buildingId: string) {
   if (existing) {
     return prisma.unit.update({
       where: { id: existing.id },
-      data,
+      // Keep manual edits: don't overwrite price/status on re-runs.
+      data: {
+        area: existing.area ?? row.ijara_maydoni_kv_m,
+        floor: row.occupiedFloors[0] ?? null,
+        occupiedFloors: row.occupiedFloors,
+        buildingId: existing.buildingId ?? buildingId,
+      },
     });
   }
 
-  return prisma.unit.create({ data });
+  return prisma.unit.create({ data: createData });
 }
 
 async function ensureInvoices(
@@ -282,9 +288,8 @@ async function ensureContract(
   const cashAmount = new Prisma.Decimal(row.naqd ?? 0);
   const notes = buildContractNotes(row);
 
-  const existing = await prisma.contract.findFirst({
+  const existingForUnit = await prisma.contract.findFirst({
     where: {
-      tenantId,
       unitId,
       status: ContractStatus.ACTIVE,
     },
@@ -292,8 +297,8 @@ async function ensureContract(
 
   // Idempotency: if the contract already exists, do not touch invoices (to avoid re-writing
   // real billing history). This import is meant to add missing items only.
-  if (existing) {
-    return existing;
+  if (existingForUnit) {
+    return existingForUnit;
   }
 
   const data = {

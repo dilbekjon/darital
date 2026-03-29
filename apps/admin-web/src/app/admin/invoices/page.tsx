@@ -92,7 +92,18 @@ export default function AdminInvoicesPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<string | null>(null);
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const socketRef = useRef<Socket | null>(null);
+
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    // Whenever search changes, start from the first page.
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   const loadInvoices = useCallback(async () => {
     try {
@@ -108,6 +119,7 @@ export default function AdminInvoicesPage() {
       if (contractIdFilter) params.append('contractId', contractIdFilter);
       if (dueFromFilter) params.append('dueFrom', dueFromFilter);
       if (dueToFilter) params.append('dueTo', dueToFilter);
+      if (debouncedSearch) params.append('q', debouncedSearch);
 
       const data = await fetchApi<any>(`/invoices?${params.toString()}`);
       const result = normalizeListResponse<Invoice>(data);
@@ -123,7 +135,7 @@ export default function AdminInvoicesPage() {
     } finally {
       setPageLoading(false);
     }
-  }, [currentPage, limit, statusFilter, tenantIdFilter, contractIdFilter, dueFromFilter, dueToFilter, t.unexpectedError]);
+  }, [currentPage, limit, statusFilter, tenantIdFilter, contractIdFilter, dueFromFilter, dueToFilter, debouncedSearch, t.unexpectedError]);
 
   useEffect(() => {
     if (!loading) {
@@ -457,24 +469,10 @@ export default function AdminInvoicesPage() {
     }
   };
 
-  // Filter by search query (email or unit name)
-  const searchFilteredInvoices = useMemo(() => {
-    if (!searchQuery.trim()) return invoices;
-    
-    const query = searchQuery.toLowerCase();
-    return invoices.filter((invoice) => {
-      const contact = invoice.contract?.tenant?.phone?.toLowerCase() || invoice.contract?.tenant?.email?.toLowerCase() || '';
-      const unitName = invoice.contract?.unit?.name?.toLowerCase() || '';
-      const tenantName = invoice.contract?.tenant?.fullName?.toLowerCase() || '';
-      
-      return contact.includes(query) || unitName.includes(query) || tenantName.includes(query);
-    });
-  }, [invoices, searchQuery]);
-
   // Sort invoices: default by closest deadline first; optional sort by status priority
   const sortedInvoices = useMemo(() => {
     if (sortByDeadline) {
-      return [...searchFilteredInvoices].sort((a, b) => {
+      return [...invoices].sort((a, b) => {
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       });
     }
@@ -484,7 +482,7 @@ export default function AdminInvoicesPage() {
       PENDING: 2,
       PAID: 3,
     };
-    return [...searchFilteredInvoices].sort((a, b) => {
+    return [...invoices].sort((a, b) => {
       const displayA = getInvoiceDisplayStatus(a);
       const displayB = getInvoiceDisplayStatus(b);
       const priorityA = statusPriority[displayA] ?? statusPriority[a.status] ?? 4;
@@ -495,7 +493,7 @@ export default function AdminInvoicesPage() {
       }
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
-  }, [searchFilteredInvoices, sortByDeadline]);
+  }, [invoices, sortByDeadline]);
 
   const todayStart = useMemo(() => {
     const d = new Date();
@@ -1367,4 +1365,3 @@ export default function AdminInvoicesPage() {
     </div>
   );
 }
-

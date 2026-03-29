@@ -12,6 +12,7 @@ import { fetchApi, ApiError, normalizeListResponse, getSocketBaseUrl } from '../
 import { io, Socket } from 'socket.io-client';
 import { getToken } from '../../../lib/auth';
 import DaritalLoader from '../../../components/DaritalLoader';
+import { normalizeUzbekSearch } from '../../../lib/uzbekSearch';
 
 interface Tenant {
   id: string;
@@ -185,14 +186,14 @@ export default function AdminPaymentsPage() {
 
   // Filter pending invoices by search (tenant name, contract id, invoice id, unit name)
   const offlineFilteredInvoices = useMemo(() => {
-    const q = offlineInvoiceSearch.trim().toLowerCase();
+    const q = normalizeUzbekSearch(offlineInvoiceSearch);
     if (!q) return invoices;
     return invoices.filter((inv) => {
-      const tenantName = inv.contract?.tenant?.fullName?.toLowerCase() ?? '';
-      const tenantContact = inv.contract?.tenant?.phone?.toLowerCase() ?? inv.contract?.tenant?.email?.toLowerCase() ?? '';
-      const contractId = (inv.contract?.id ?? inv.contractId ?? '').toLowerCase();
-      const invoiceId = inv.id.toLowerCase();
-      const unitName = inv.contract?.unit?.name?.toLowerCase() ?? '';
+      const tenantName = normalizeUzbekSearch(inv.contract?.tenant?.fullName ?? '');
+      const tenantContact = normalizeUzbekSearch(inv.contract?.tenant?.phone ?? inv.contract?.tenant?.email ?? '');
+      const contractId = normalizeUzbekSearch(inv.contract?.id ?? inv.contractId ?? '');
+      const invoiceId = normalizeUzbekSearch(inv.id);
+      const unitName = normalizeUzbekSearch(inv.contract?.unit?.name ?? '');
       return (
         tenantName.includes(q) ||
         tenantContact.includes(q) ||
@@ -437,16 +438,16 @@ export default function AdminPaymentsPage() {
 
     // Filter by search query
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+      const query = normalizeUzbekSearch(searchQuery);
       filtered = filtered.filter(
         (payment) =>
-          payment.invoiceId.toLowerCase().includes(query) ||
+          normalizeUzbekSearch(payment.invoiceId).includes(query) ||
           payment.amount.toString().includes(query) ||
-          payment.status.toLowerCase().includes(query) ||
-          payment.method.toLowerCase().includes(query) ||
-          payment.tenant?.fullName?.toLowerCase().includes(query) ||
-          (payment.tenant?.phone || payment.tenant?.email)?.toLowerCase().includes(query) ||
-          payment.provider?.toLowerCase().includes(query)
+          normalizeUzbekSearch(payment.status).includes(query) ||
+          normalizeUzbekSearch(payment.method).includes(query) ||
+          normalizeUzbekSearch(payment.tenant?.fullName ?? '').includes(query) ||
+          normalizeUzbekSearch(payment.tenant?.phone ?? payment.tenant?.email ?? '').includes(query) ||
+          normalizeUzbekSearch(payment.provider ?? '').includes(query)
       );
     }
 

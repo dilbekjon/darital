@@ -22,6 +22,11 @@ export class ListInvoicesQueryDto {
   @IsString()
   tenantId?: string;
 
+  @ApiPropertyOptional({ description: 'Search query (tenant/unit/contact/invoice/contract)', example: 'darital' })
+  @IsOptional()
+  @IsString()
+  q?: string;
+
   @ApiPropertyOptional({ description: 'Filter by contractId' })
   @IsOptional()
   @IsString()
@@ -52,4 +57,3 @@ export class ListInvoicesQueryDto {
   @Type(() => Boolean)
   onlyArchived?: boolean;
 }
-

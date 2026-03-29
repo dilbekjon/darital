@@ -12,6 +12,134 @@ export class InvoicesService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  // Best-effort Uzbek transliteration for search. Not linguistically perfect, but helps users
+  // search across Cyrillic/Latin representations stored in the DB.
+  private readonly CYR_TO_LAT: Record<string, string> = {
+    а: 'a',
+    б: 'b',
+    в: 'v',
+    г: 'g',
+    ғ: "g'",
+    д: 'd',
+    е: 'e',
+    ё: 'yo',
+    ж: 'j',
+    з: 'z',
+    и: 'i',
+    й: 'y',
+    к: 'k',
+    қ: 'q',
+    л: 'l',
+    м: 'm',
+    н: 'n',
+    о: 'o',
+    п: 'p',
+    р: 'r',
+    с: 's',
+    т: 't',
+    у: 'u',
+    ф: 'f',
+    х: 'x',
+    ҳ: 'h',
+    ц: 'ts',
+    ч: 'ch',
+    ш: 'sh',
+    щ: 'sh',
+    ъ: '',
+    ы: 'i',
+    ь: '',
+    э: 'e',
+    ю: 'yu',
+    я: 'ya',
+    ў: "o'",
+    // some keyboards use this for "g'" / "o'"
+    ј: 'j',
+  };
+
+  private normalizeApostrophes(input: string): string {
+    return input.replace(/[ʼ’ʻ`´ʹꞌ]/g, "'");
+  }
+
+  private translitCyrToLat(input: string): string {
+    const s = this.normalizeApostrophes(input.toLowerCase())
+      .replace(/gʻ/g, "g'")
+      .replace(/oʻ/g, "o'");
+
+    let out = '';
+    for (const ch of s) out += this.CYR_TO_LAT[ch] ?? ch;
+    return out;
+  }
+
+  private translitLatToCyr(input: string): string {
+    let s = this.normalizeApostrophes(input.toLowerCase())
+      .replace(/gʻ/g, "g'")
+      .replace(/oʻ/g, "o'");
+
+    // Handle common digraphs and apostrophe letters first.
+    s = s
+      .replace(/o'/g, 'ў')
+      .replace(/g'/g, 'ғ')
+      .replace(/sh/g, 'ш')
+      .replace(/ch/g, 'ч')
+      .replace(/yo/g, 'ё')
+      .replace(/yu/g, 'ю')
+      .replace(/ya/g, 'я');
+
+    const LAT_TO_CYR: Record<string, string> = {
+      a: 'а',
+      b: 'б',
+      v: 'в',
+      g: 'г',
+      d: 'д',
+      e: 'е',
+      j: 'ж',
+      z: 'з',
+      i: 'и',
+      y: 'й',
+      k: 'к',
+      q: 'қ',
+      l: 'л',
+      m: 'м',
+      n: 'н',
+      o: 'о',
+      p: 'п',
+      r: 'р',
+      s: 'с',
+      t: 'т',
+      u: 'у',
+      f: 'ф',
+      x: 'х',
+      h: 'ҳ',
+    };
+
+    let out = '';
+    for (const ch of s) out += LAT_TO_CYR[ch] ?? ch;
+    return out;
+  }
+
+  private buildSearchVariants(raw: string): string[] {
+    const base = raw.trim();
+    if (!base) return [];
+
+    const variants = new Set<string>();
+    variants.add(base);
+
+    const lower = base.toLowerCase();
+    variants.add(lower);
+
+    const lat = this.translitCyrToLat(lower);
+    variants.add(lat);
+
+    const cyr = this.translitLatToCyr(lower);
+    variants.add(cyr);
+
+    // Also try a punctuation-stripped variant for forgiving contains() matching.
+    const stripped = lower.replace(/['"]/g, '').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+    if (stripped) variants.add(stripped);
+
+    return [...variants].filter(Boolean).slice(0, 6);
+  }
+
   private buildMonthlyDueDates(startDate: Date, endDate: Date): Date[] {
     const dueDates: Date[] = [];
     let currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
@@ -30,7 +158,7 @@ export class InvoicesService {
   }
 
   async findAll(query: ListInvoicesQueryDto) {
-    const { page, limit, tenantId, contractId, status, dueFrom, dueTo, includeArchived, onlyArchived } = query;
+    const { page, limit, tenantId, contractId, status, dueFrom, dueTo, includeArchived, onlyArchived, q } = query;
     const safePage = Math.max(1, Number(page) || 1);
     const safeLimit = Math.min(100, Math.max(1, Number(limit) || 20));
     const skip = (safePage - 1) * safeLimit;
@@ -51,6 +179,32 @@ export class InvoicesService {
     if (dueFrom) where.dueDate = { ...(where.dueDate || {}), gte: new Date(dueFrom) };
     if (dueTo) where.dueDate = { ...(where.dueDate || {}), lte: new Date(dueTo) };
 
+    const qRaw = typeof q === 'string' ? q.trim() : '';
+    if (qRaw) {
+      const variants = this.buildSearchVariants(qRaw);
+      const digitQuery = qRaw.replace(/\D/g, '');
+      const digitVariants = new Set<string>();
+      if (digitQuery.length >= 3) {
+        digitVariants.add(digitQuery);
+        if (!digitQuery.startsWith('998')) digitVariants.add(`998${digitQuery}`);
+      }
+
+      const or: any[] = [];
+      for (const v of variants) {
+        or.push({ id: { contains: v, mode: 'insensitive' } });
+        or.push({ contractId: { contains: v, mode: 'insensitive' } });
+        or.push({ status: { equals: v.toUpperCase() } });
+        or.push({ contract: { tenant: { fullName: { contains: v, mode: 'insensitive' } } } });
+        or.push({ contract: { tenant: { email: { contains: v, mode: 'insensitive' } } } });
+        or.push({ contract: { unit: { name: { contains: v, mode: 'insensitive' } } } });
+      }
+      for (const dv of digitVariants) {
+        or.push({ contract: { tenant: { phone: { contains: dv, mode: 'insensitive' } } } });
+      }
+
+      where.OR = or;
+    }
+
     const [total, invoices] = await this.prisma.$transaction([
       this.prisma.invoice.count({ where }),
       this.prisma.invoice.findMany({
@@ -64,6 +218,7 @@ export class InvoicesService {
                   id: true,
                   fullName: true,
                   email: true,
+                  phone: true,
                 },
               },
               unit: {
