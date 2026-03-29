@@ -211,7 +211,35 @@ export class ContractsService {
     if (dto.startDate !== undefined) data.startDate = new Date(dto.startDate);
     if (dto.endDate !== undefined) data.endDate = new Date(dto.endDate);
     if (pdfUrl !== undefined) data.pdfUrl = pdfUrl;
-    return this.prisma.contract.update({ where: { id }, data: data as any, include: { tenant: true, unit: true } });
+
+    const affectsInvoices =
+      dto.amount !== undefined ||
+      dto.bankAmount !== undefined ||
+      dto.cashAmount !== undefined ||
+      dto.startDate !== undefined ||
+      dto.endDate !== undefined;
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.contract.update({
+        where: { id },
+        data: data as any,
+        include: { tenant: true, unit: true },
+      });
+
+      if (affectsInvoices) {
+        await this.invoicesService.regenerateForContract(
+          updated.id,
+          updated.amount as any,
+          updated.startDate as any,
+          updated.endDate as any,
+          updated.bankAmount as any,
+          updated.cashAmount as any,
+          tx,
+        );
+      }
+
+      return updated;
+    });
   }
 
   async changeStatus(id: string, dto: UpdateContractStatusDto) {

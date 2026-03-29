@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { Decimal } from '@prisma/client/runtime/library';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { InvoiceStatus } from '@prisma/client';
+import { InvoiceStatus, Prisma } from '@prisma/client';
 import { ListInvoicesQueryDto } from './dto/list-invoices-query.dto';
 
 @Injectable()
@@ -11,6 +11,23 @@ export class InvoicesService {
   private readonly logger = new Logger(InvoicesService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  private buildMonthlyDueDates(startDate: Date, endDate: Date): Date[] {
+    const dueDates: Date[] = [];
+    let currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const contractEnd = new Date(endDate);
+
+    while (currentMonth < contractEnd) {
+      const dueDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+      if (dueDate > contractEnd) {
+        dueDate.setTime(contractEnd.getTime());
+      }
+      dueDates.push(dueDate);
+      currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+    }
+
+    return dueDates;
+  }
 
   async findAll(query: ListInvoicesQueryDto) {
     const { page, limit, tenantId, contractId, status, dueFrom, dueTo, includeArchived, onlyArchived } = query;
@@ -279,6 +296,70 @@ export class InvoicesService {
     );
     
     return invoices;
+  }
+
+  /**
+   * Regenerate invoices after contract update.
+   *
+   * Rules:
+   * - Keep immutable invoices: PAID or any payments exist (to avoid losing accounting trail).
+   * - Delete the rest (unpaid + no payments), then create new invoices based on updated dates/amount.
+   * - Never create duplicates for due dates already present in immutable invoices.
+   */
+  async regenerateForContract(
+    contractId: string,
+    amount: Decimal,
+    startDate: Date,
+    endDate: Date,
+    bankAmount: Decimal,
+    cashAmount: Decimal,
+    tx?: Prisma.TransactionClient,
+  ): Promise<{ kept: number; deleted: number; created: number }> {
+    const db = (tx ?? this.prisma) as Prisma.TransactionClient;
+
+    const existing = await db.invoice.findMany({
+      where: { contractId },
+      include: { payments: { select: { id: true, status: true } } },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    const immutable = existing.filter(
+      (inv) => inv.status === InvoiceStatus.PAID || (inv.payments && inv.payments.length > 0),
+    );
+    const mutable = existing.filter((inv) => !immutable.includes(inv));
+
+    const immutableDueDates = new Set(immutable.map((inv) => inv.dueDate.toISOString()));
+
+    const deleteIds = mutable.map((inv) => inv.id);
+    let deleted = 0;
+    if (deleteIds.length) {
+      const res = await db.invoice.deleteMany({ where: { id: { in: deleteIds } } });
+      deleted = res.count;
+    }
+
+    const targetDueDates = this.buildMonthlyDueDates(startDate, endDate);
+    const toCreate = targetDueDates.filter((d) => !immutableDueDates.has(d.toISOString()));
+
+    let created = 0;
+    if (toCreate.length) {
+      await db.invoice.createMany({
+        data: toCreate.map((dueDate) => ({
+          contractId,
+          dueDate,
+          amount,
+          bankAmount,
+          cashAmount,
+          status: InvoiceStatus.PENDING,
+        })) as any,
+      });
+      created = toCreate.length;
+    }
+
+    this.logger.log(
+      `🔁 Regenerated invoices for contract ${contractId}: kept=${immutable.length}, deleted=${deleted}, created=${created}`,
+    );
+
+    return { kept: immutable.length, deleted, created };
   }
 
   /**
