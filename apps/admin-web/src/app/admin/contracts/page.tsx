@@ -1053,52 +1053,10 @@ export default function AdminContractsPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="bankAmount" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Bank (UZS) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    id="bankAmount"
-                    required
-                    min="0"
-                    step="0.01"
-                    value={formData.bankAmount}
-                    onChange={(e) => setFormData({ ...formData, bankAmount: e.target.value })}
-                    placeholder="Masalan: 6000000"
-                    className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="cashAmount" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Naqd (UZS) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    id="cashAmount"
-                    required
-                    min="0"
-                    step="0.01"
-                    value={formData.cashAmount}
-                    onChange={(e) => setFormData({ ...formData, cashAmount: e.target.value })}
-                    placeholder="Masalan: 4000000"
-                    className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
-                    }`}
-                  />
-                </div>
-              </div>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Bank + naqd jami oylik ijara summasiga teng bo‘lishi kerak.
-              </p>
-
-              {/* Form Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  type="button"
+	              {/* Form Actions */}
+	              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+	                <button
+	                  type="button"
                   onClick={() => {
                     setIsEditModalOpen(false);
                     setEditingContract(null);
@@ -1401,29 +1359,32 @@ export default function AdminContractsPage() {
                 </div>
               )}
 
-              {/* Oylik to'lov turi */}
-              <div>
+	              {/* Oylik to'lov turi */}
+	              <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   Oylik ijara to'lovi
                 </label>
                 <div className="flex flex-wrap gap-4 mb-3">
                   <label className={`inline-flex items-center gap-2 cursor-pointer ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <input
-                      type="radio"
-                      name="rentType"
-                      checked={formData.rentType === 'PER_SQM'}
-                      onChange={() => {
-                        const u = units.find(x => x.id === formData.unitId);
-                        const area = u?.area ?? 0;
-                        const pr = parseFloat(formData.pricePerSqm) || 0;
-                        setFormData({
-                          ...formData,
-                          rentType: 'PER_SQM',
-                          amount: area && pr ? String(area * pr) : '',
-                        });
-                      }}
-                      className="rounded border-gray-400 text-blue-600 focus:ring-blue-500"
-                    />
+	                    <input
+	                      type="radio"
+	                      name="rentType"
+	                      checked={formData.rentType === 'PER_SQM'}
+	                      onChange={() => {
+	                        const u = units.find(x => x.id === formData.unitId);
+	                        const area = u?.area ?? 0;
+	                        const pr = parseFloat(formData.pricePerSqm) || 0;
+	                        const nextAmount = area && pr ? String(area * pr) : '';
+	                        setFormData({
+	                          ...formData,
+	                          rentType: 'PER_SQM',
+	                          amount: nextAmount,
+	                          bankAmount: !formData.bankAmount && !formData.cashAmount ? nextAmount : formData.bankAmount,
+	                          cashAmount: !formData.bankAmount && !formData.cashAmount ? (nextAmount ? '0' : '') : formData.cashAmount,
+	                        });
+	                      }}
+	                      className="rounded border-gray-400 text-blue-600 focus:ring-blue-500"
+	                    />
                     <span>Metr kvadrating to'lovi (narxi × m²)</span>
                   </label>
                   <label className={`inline-flex items-center gap-2 cursor-pointer ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -1449,24 +1410,27 @@ export default function AdminContractsPage() {
                           <label htmlFor="pricePerSqm" className="block text-sm font-medium text-gray-600 dark:text-gray-400">
                             Metr kvadrat narxi (UZS) <span className="text-red-500">*</span>
                           </label>
-                          <input
-                            type="number"
-                            id="pricePerSqm"
-                            min="0"
-                            step="0.01"
-                            value={formData.pricePerSqm}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              const p = parseFloat(v) || 0;
-                              setFormData({
-                                ...formData,
-                                pricePerSqm: v,
-                                amount: area && p ? String(area * p) : '',
-                              });
-                            }}
-                            placeholder="Masalan: 150000"
-                            className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 ${
-                              darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+	                          <input
+	                            type="number"
+	                            id="pricePerSqm"
+	                            min="0"
+	                            step="0.01"
+	                            value={formData.pricePerSqm}
+	                            onChange={(e) => {
+	                              const v = e.target.value;
+	                              const p = parseFloat(v) || 0;
+	                              const nextAmount = area && p ? String(area * p) : '';
+	                              setFormData({
+	                                ...formData,
+	                                pricePerSqm: v,
+	                                amount: nextAmount,
+	                                bankAmount: !formData.bankAmount && !formData.cashAmount ? nextAmount : formData.bankAmount,
+	                                cashAmount: !formData.bankAmount && !formData.cashAmount ? (nextAmount ? '0' : '') : formData.cashAmount,
+	                              });
+	                            }}
+	                            placeholder="Masalan: 150000"
+	                            className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 ${
+	                              darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                             }`}
                           />
                           <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -1487,21 +1451,29 @@ export default function AdminContractsPage() {
                     <label htmlFor="amount" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       {t.monthlyRent || 'Monthly Rent'} (UZS) <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="number"
-                      id="amount"
-                      required={formData.rentType === 'FIXED'}
-                      min="0"
-                      step="0.01"
-                      value={formData.amount}
-                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                      placeholder={t.monthlyRent || t.enterMonthlyRent || 'Oylik ijara summasini kiriting'}
-                      className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                        darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
-                      }`}
-                    />
-                  </>
-                )}
+	                    <input
+	                      type="number"
+	                      id="amount"
+	                      required={formData.rentType === 'FIXED'}
+	                      min="0"
+	                      step="0.01"
+	                      value={formData.amount}
+	                      onChange={(e) => {
+	                        const nextAmount = e.target.value;
+	                        setFormData({
+	                          ...formData,
+	                          amount: nextAmount,
+	                          bankAmount: !formData.bankAmount && !formData.cashAmount ? nextAmount : formData.bankAmount,
+	                          cashAmount: !formData.bankAmount && !formData.cashAmount ? (nextAmount ? '0' : '') : formData.cashAmount,
+	                        });
+	                      }}
+	                      placeholder={t.monthlyRent || t.enterMonthlyRent || 'Oylik ijara summasini kiriting'}
+	                      className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+	                        darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+	                      }`}
+	                    />
+	                  </>
+	                )}
                 {formData.amount && formData.startDate && formData.endDate && (
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     {t.totalContractAmount || 'Total contract amount'}: UZS {(
@@ -1509,10 +1481,52 @@ export default function AdminContractsPage() {
                       Math.max(1, Math.ceil(
                         (new Date(formData.endDate).getTime() - new Date(formData.startDate).getTime()) / (1000 * 60 * 60 * 24 * 30)
                       ))
-                    ).toLocaleString('en-US', { maximumFractionDigits: 2 })}
-                  </p>
-                )}
-              </div>
+	                    ).toLocaleString('en-US', { maximumFractionDigits: 2 })}
+	                  </p>
+	                )}
+	
+	                <div className="grid grid-cols-2 gap-4 mt-4">
+	                  <div>
+	                    <label htmlFor="bankAmount" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+	                      Bank (UZS) <span className="text-red-500">*</span>
+	                    </label>
+	                    <input
+	                      type="number"
+	                      id="bankAmount"
+	                      required
+	                      min="0"
+	                      step="0.01"
+	                      value={formData.bankAmount}
+	                      onChange={(e) => setFormData({ ...formData, bankAmount: e.target.value })}
+	                      placeholder="Masalan: 6000000"
+	                      className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+	                        darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+	                      }`}
+	                    />
+	                  </div>
+	                  <div>
+	                    <label htmlFor="cashAmount" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+	                      Naqd (UZS) <span className="text-red-500">*</span>
+	                    </label>
+	                    <input
+	                      type="number"
+	                      id="cashAmount"
+	                      required
+	                      min="0"
+	                      step="0.01"
+	                      value={formData.cashAmount}
+	                      onChange={(e) => setFormData({ ...formData, cashAmount: e.target.value })}
+	                      placeholder="Masalan: 4000000"
+	                      className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+	                        darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+	                      }`}
+	                    />
+	                  </div>
+	                </div>
+	                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+	                  Bank + naqd jami oylik ijara summasiga teng bo‘lishi kerak.
+	                </p>
+	              </div>
 
               {/* Contract Notes */}
               <div>
