@@ -41,8 +41,9 @@ type PreparedRow = RentRollRow & {
   occupiedFloors: number[];
   xona_nomi: string;
   empty: boolean;
-  hasRent: boolean;
 };
+
+type ImportJson = any;
 
 function parseOccupiedFloors(qavat: number): number[] {
   const raw = String(qavat)
@@ -55,7 +56,9 @@ function parseOccupiedFloors(qavat: number): number[] {
 
 function buildUnitName(row: RentRollRow, duplicateIndex: number): string {
   const floors = parseOccupiedFloors(row.qavat);
-  const suffix = row.magazin_tartib_raqami ?? 'X';
+  const suffix = row.magazin_tartib_raqami === null || row.magazin_tartib_raqami === undefined
+    ? 'X'
+    : String(row.magazin_tartib_raqami);
   const base = `${row.bino}-${floors.join(',')}-${suffix}`;
   return duplicateIndex > 1 ? `${base}-${duplicateIndex}` : base;
 }
@@ -88,7 +91,10 @@ function prepareRows(rows: RentRollRow[]): PreparedRow[] {
 
   return rows.map((row) => {
     const occupiedFloors = parseOccupiedFloors(row.qavat);
-    const naturalKey = `${row.bino}::${occupiedFloors.join(',')}::${row.magazin_tartib_raqami ?? 'X'}`;
+    const magazinKey = row.magazin_tartib_raqami === null || row.magazin_tartib_raqami === undefined
+      ? 'X'
+      : String(row.magazin_tartib_raqami);
+    const naturalKey = `${row.bino}::${occupiedFloors.join(',')}::${magazinKey}`;
     const duplicateIndex = (counters.get(naturalKey) ?? 0) + 1;
     counters.set(naturalKey, duplicateIndex);
 
@@ -97,9 +103,48 @@ function prepareRows(rows: RentRollRow[]): PreparedRow[] {
       occupiedFloors,
       xona_nomi: buildUnitName(row, duplicateIndex),
       empty: isEmptyUnit(row),
-      hasRent: row.jami_ijara_summasi !== null,
     };
   });
+}
+
+async function loadRowsFromJsonFile(path: string): Promise<RentRollRow[]> {
+  const raw = await readFile(path, 'utf8');
+  const parsed: ImportJson = JSON.parse(raw);
+
+  const recordsCandidate =
+    parsed?.ijaradagi_objektlar?.records ??
+    parsed?.records ??
+    parsed;
+
+  if (!Array.isArray(recordsCandidate)) {
+    throw new Error('Unsupported JSON format: expected an array or { ijaradagi_objektlar: { records: [] } }');
+  }
+
+  const rows: RentRollRow[] = [];
+  for (const r of recordsCandidate) {
+    const bino = r?.bino;
+    const qavat = r?.qavat;
+    const ijarachi_nomi = r?.ijarachi_nomi;
+
+    if (typeof bino !== 'string' || !bino.trim()) continue;
+    if (typeof qavat !== 'number' || !Number.isFinite(qavat)) continue;
+    if (typeof ijarachi_nomi !== 'string' || !ijarachi_nomi.trim()) continue;
+
+    rows.push({
+      bino: bino.trim(),
+      qavat,
+      magazin_tartib_raqami: r?.magazin_tartib_raqami ?? null,
+      ijarachi_nomi: ijarachi_nomi.trim(),
+      izoh: r?.izoh ?? null,
+      ijara_maydoni_kv_m: r?.ijara_maydoni_kv_m ?? null,
+      ijara_stavkasi_1_kv_m: r?.ijara_stavkasi_1_kv_m ?? null,
+      jami_ijara_summasi: r?.jami_ijara_summasi ?? null,
+      naqd: r?.naqd ?? null,
+      perechislenie: r?.perechislenie ?? null,
+    });
+  }
+
+  return rows;
 }
 
 async function uploadPlaceholderPdf(): Promise<string> {
@@ -245,6 +290,12 @@ async function ensureContract(
     },
   });
 
+  // Idempotency: if the contract already exists, do not touch invoices (to avoid re-writing
+  // real billing history). This import is meant to add missing items only.
+  if (existing) {
+    return existing;
+  }
+
   const data = {
     tenantId,
     unitId,
@@ -258,16 +309,13 @@ async function ensureContract(
     status: ContractStatus.ACTIVE,
   };
 
-  const contract = existing
-    ? await prisma.contract.update({ where: { id: existing.id }, data })
-    : await prisma.contract.create({ data });
+  const contract = await prisma.contract.create({ data });
 
   await prisma.unit.update({
     where: { id: unitId },
     data: { status: UnitStatus.BUSY },
   });
 
-  await prisma.invoice.deleteMany({ where: { contractId: contract.id } });
   await ensureInvoices(contract.id, amount, bankAmount, cashAmount, startDate, endDate);
 
   return contract;
@@ -292,7 +340,9 @@ async function syncBuildingTotals() {
 }
 
 async function main() {
-  const preparedRows = prepareRows(rentRollRows);
+  const jsonPath = process.argv[2] || process.env.DARITAL_IMPORT_DATA_PATH;
+  const baseRows = jsonPath ? await loadRowsFromJsonFile(jsonPath) : rentRollRows;
+  const preparedRows = prepareRows(baseRows);
   const hashedPassword = await bcrypt.hash('imported-tenant-123', 10);
   const startDate = new Date();
   startDate.setHours(0, 0, 0, 0);

@@ -1,7 +1,7 @@
 export type RentRollRow = {
   bino: string;
   qavat: number;
-  magazin_tartib_raqami: number | null;
+  magazin_tartib_raqami: number | string | null;
   ijarachi_nomi: string;
   izoh: string | null;
   ijara_maydoni_kv_m: number | null;
