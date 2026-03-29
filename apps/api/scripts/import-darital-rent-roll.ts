@@ -1,13 +1,38 @@
-import 'dotenv/config';
+import * as dotenv from 'dotenv';
 
 import { PrismaClient, ContractStatus, InvoiceStatus, Prisma, UnitStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
+import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { resolve } from 'path';
 
 import { MinioService } from '../src/minio/minio.service';
 import { rentRollRows, type RentRollRow } from './data/darital-rent-roll.data';
+
+function loadEnv(): void {
+  // pnpm runs workspace package scripts with cwd at the package dir (apps/api),
+  // while prod deployments often keep `.env` at the repo root. Try a few levels up.
+  const candidates = [
+    resolve(process.cwd(), '.env'),
+    resolve(process.cwd(), '.env.production'),
+    resolve(process.cwd(), '../.env'),
+    resolve(process.cwd(), '../.env.production'),
+    resolve(process.cwd(), '../../.env'),
+    resolve(process.cwd(), '../../.env.production'),
+    resolve(process.cwd(), '../../../.env'),
+    resolve(process.cwd(), '../../../.env.production'),
+  ];
+
+  for (const path of candidates) {
+    if (existsSync(path)) {
+      dotenv.config({ path });
+      break;
+    }
+  }
+}
+
+loadEnv();
 
 const prisma = new PrismaClient();
 const minio = new MinioService();
