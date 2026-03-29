@@ -78,10 +78,21 @@ function prepareRows(rows: RentRollRow[]): PreparedRow[] {
 }
 
 async function uploadPlaceholderPdf(): Promise<string> {
+  if (process.env.DARITAL_IMPORT_PDF_URL) {
+    return process.env.DARITAL_IMPORT_PDF_URL;
+  }
+
   const pdfPath = resolve(process.cwd(), 'scripts/assets/test-contract.pdf');
   const buffer = await readFile(pdfPath);
-  const uploaded = await minio.upload(buffer, `imports/darital-test-contract.pdf`, 'application/pdf');
-  return uploaded.url;
+  try {
+    const uploaded = await minio.upload(buffer, `imports/darital-test-contract.pdf`, 'application/pdf');
+    return uploaded.url;
+  } catch (error: any) {
+    const fallbackUrl = 'https://example.com/darital-test-contract.pdf';
+    console.warn(`MinIO upload failed, using fallback PDF URL: ${fallbackUrl}`);
+    console.warn(error?.message || error);
+    return fallbackUrl;
+  }
 }
 
 async function ensureBuilding(name: string, floorsCount: number) {
