@@ -11,6 +11,7 @@ import { EmptyState } from '../../../components/EmptyState';
 import { fetchApi, ApiError } from '../../../lib/api';
 import { getToken } from '../../../lib/auth';
 import DaritalLoader from '../../../components/DaritalLoader';
+import { normalizeUzbekSearch } from '../../../lib/uzbekSearch';
 
 interface Contract {
   id: string;
@@ -96,18 +97,19 @@ export default function AdminContractsPage() {
       filtered = filtered.filter(c => c.status === statusFilter);
     }
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (contract) =>
-          contract.tenant.fullName.toLowerCase().includes(query) ||
-          (contract.tenant.email?.toLowerCase().includes(query) || contract.tenant.phone?.toLowerCase().includes(query)) ||
-          contract.unit.name.toLowerCase().includes(query) ||
-          contract.status.toLowerCase().includes(query) ||
-          contract.amount.toString().includes(query)
-      );
-    }
+	    // Filter by search query
+	    if (searchQuery.trim()) {
+	      const query = normalizeUzbekSearch(searchQuery);
+	      filtered = filtered.filter(
+	        (contract) =>
+	          normalizeUzbekSearch(contract.tenant.fullName).includes(query) ||
+	          normalizeUzbekSearch(contract.tenant.email || '').includes(query) ||
+	          normalizeUzbekSearch(contract.tenant.phone || '').includes(query) ||
+	          normalizeUzbekSearch(contract.unit.name).includes(query) ||
+	          normalizeUzbekSearch(contract.status).includes(query) ||
+	          normalizeUzbekSearch(String(contract.amount)).includes(query)
+	      );
+	    }
 
     return filtered;
   }, [contracts, searchQuery, statusFilter]);

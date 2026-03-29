@@ -8,6 +8,7 @@ import { NoAccess } from '../../../components/common/NoAccess';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { EmptyState } from '../../../components/EmptyState';
 import { fetchApi, ApiError } from '../../../lib/api';
+import { normalizeUzbekSearch } from '../../../lib/uzbekSearch';
 
 interface Building {
   id: string;
@@ -93,18 +94,18 @@ export default function AdminUnitsPage() {
       filtered = filtered.filter(u => u.status === statusFilter);
     }
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (unit) =>
-          unit.name.toLowerCase().includes(query) ||
-          (unit.area && unit.area.toString().includes(query)) ||
-          (unit.occupiedFloors && unit.occupiedFloors.join(',').includes(query)) ||
-          (unit.floor && unit.floor.toString().includes(query)) ||
-          unit.status.toLowerCase().includes(query)
-      );
-    }
+	    // Filter by search query
+	    if (searchQuery.trim()) {
+	      const query = normalizeUzbekSearch(searchQuery);
+	      filtered = filtered.filter(
+	        (unit) =>
+	          normalizeUzbekSearch(unit.name).includes(query) ||
+	          (unit.area && normalizeUzbekSearch(unit.area.toString()).includes(query)) ||
+	          (unit.occupiedFloors && normalizeUzbekSearch(unit.occupiedFloors.join(',')).includes(query)) ||
+	          (unit.floor && normalizeUzbekSearch(unit.floor.toString()).includes(query)) ||
+	          normalizeUzbekSearch(unit.status).includes(query)
+	      );
+	    }
 
     return filtered;
   }, [units, searchQuery, statusFilter]);

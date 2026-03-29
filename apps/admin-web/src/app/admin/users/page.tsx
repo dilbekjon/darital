@@ -9,6 +9,7 @@ import { NoAccess } from '../../../components/common/NoAccess';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { EmptyState } from '../../../components/EmptyState';
 import { fetchApi, ApiError } from '../../../lib/api';
+import { normalizeUzbekSearch } from '../../../lib/uzbekSearch';
 
 enum AdminRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
@@ -60,16 +61,16 @@ export default function AdminUsersPage() {
       filtered = filtered.filter(u => u.role === roleFilter);
     }
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (user) =>
-          user.fullName.toLowerCase().includes(query) ||
-          user.email.toLowerCase().includes(query) ||
-          user.role.toLowerCase().includes(query)
-      );
-    }
+	    // Filter by search query
+	    if (searchQuery.trim()) {
+	      const query = normalizeUzbekSearch(searchQuery);
+	      filtered = filtered.filter(
+	        (user) =>
+	          normalizeUzbekSearch(user.fullName).includes(query) ||
+	          normalizeUzbekSearch(user.email).includes(query) ||
+	          normalizeUzbekSearch(user.role).includes(query)
+	      );
+	    }
 
     return filtered;
   }, [users, searchQuery, roleFilter]);

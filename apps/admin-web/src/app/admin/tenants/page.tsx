@@ -10,6 +10,7 @@ import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { EmptyState } from '../../../components/EmptyState';
 import { fetchApi, ApiError } from '../../../lib/api';
 import DaritalLoader from '../../../components/DaritalLoader';
+import { normalizeUzbekSearch } from '../../../lib/uzbekSearch';
 
 interface Tenant {
   id: string;
@@ -49,12 +50,12 @@ export default function AdminTenantsPage() {
   // Filter tenants based on search query
   const filteredTenants = useMemo(() => {
     if (!searchQuery.trim()) return tenants;
-    const query = searchQuery.toLowerCase();
+    const query = normalizeUzbekSearch(searchQuery);
     return tenants.filter(
       (tenant) =>
-        tenant.fullName.toLowerCase().includes(query) ||
-        tenant.phone.toLowerCase().includes(query) ||
-        (tenant.email || '').toLowerCase().includes(query)
+        normalizeUzbekSearch(tenant.fullName).includes(query) ||
+        normalizeUzbekSearch(tenant.phone).includes(query) ||
+        normalizeUzbekSearch(tenant.email || '').includes(query)
     );
   }, [tenants, searchQuery]);
 

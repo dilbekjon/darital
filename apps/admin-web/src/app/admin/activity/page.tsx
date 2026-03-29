@@ -9,6 +9,7 @@ import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { EmptyState } from '../../../components/EmptyState';
 import { fetchApi, ApiError } from '../../../lib/api';
 import DaritalLoader from '../../../components/DaritalLoader';
+import { normalizeUzbekSearch } from '../../../lib/uzbekSearch';
 
 interface AuditLog {
   id: string;
@@ -108,12 +109,12 @@ export default function ActivityLogsPage() {
     return logs.filter((log) => {
       // Search filter
       if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
+        const query = normalizeUzbekSearch(searchQuery);
         const matchesSearch =
-          log.actor?.fullName?.toLowerCase().includes(query) ||
-          log.actor?.email?.toLowerCase().includes(query) ||
-          log.action?.toLowerCase().includes(query) ||
-          log.subject?.toLowerCase().includes(query);
+          normalizeUzbekSearch(log.actor?.fullName || '').includes(query) ||
+          normalizeUzbekSearch(log.actor?.email || '').includes(query) ||
+          normalizeUzbekSearch(log.action || '').includes(query) ||
+          normalizeUzbekSearch(log.subject || '').includes(query);
         if (!matchesSearch) return false;
       }
 
