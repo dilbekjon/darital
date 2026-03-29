@@ -1,0 +1,12 @@
+ALTER TABLE "Tenant"
+ADD COLUMN "passwordSetAt" TIMESTAMP(3);
+
+ALTER TABLE "TelegramUser"
+ADD COLUMN "isAuthenticated" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "authStep" TEXT,
+ADD COLUMN "pendingTenantId" TEXT,
+ADD COLUMN "pendingPhone" TEXT,
+ADD COLUMN "otpHash" TEXT,
+ADD COLUMN "otpExpiresAt" TIMESTAMP(3),
+ADD COLUMN "otpAttempts" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "language" TEXT;

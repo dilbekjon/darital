@@ -132,4 +132,11 @@ export class SmsService {
     const text = `Assalomu alaykum ${fullName}! Darital ijara portalingizga kirish uchun parol o'rnating: ${setupUrl}`;
     return this.sendSms(phone, text);
   }
+
+  async sendTelegramLoginCode(phone: string, fullName: string, code: string): Promise<SmsSendResult> {
+    const text =
+      `Assalomu alaykum ${fullName}! Darital Telegram botiga kirish kodi: ${code}. ` +
+      `Kod 10 daqiqa davomida amal qiladi.`;
+    return this.sendSms(phone, text);
+  }
 }

@@ -89,12 +89,14 @@ export class AuthService {
     }
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await this.prisma.$transaction([
-      this.prisma.tenant.update({ where: { id: tenant.id }, data: { password: hashedPassword } }),
+      this.prisma.tenant.update({
+        where: { id: tenant.id },
+        data: { password: hashedPassword, passwordSetAt: new Date() },
+      }),
       this.prisma.tenantSetupToken.update({ where: { id: setupToken.id }, data: { usedAt: new Date() } }),
     ]);
     this.logger.log(`Tenant ${normalizedPhone} set password successfully`);
     return { success: true };
   }
 }
-
 

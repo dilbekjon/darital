@@ -182,6 +182,7 @@ model Tenant {
   companyId     String?
   company       Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
   password      String
+  passwordSetAt DateTime?
   setupTokens   TenantSetupToken[]
   contracts     Contract[]
   documents     Document[]
@@ -342,11 +343,19 @@ model Balance {
 
 
 model TelegramUser {
-  id        String   @id @default(cuid())
-  tenantId  String?
-  chatId    String   @unique
-  role      Role     @default(TENANT)
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  tenantId         String?
+  chatId           String   @unique
+  role             Role     @default(TENANT)
+  isAuthenticated  Boolean  @default(false)
+  authStep         String?
+  pendingTenantId  String?
+  pendingPhone     String?
+  otpHash          String?
+  otpExpiresAt     DateTime?
+  otpAttempts      Int      @default(0)
+  language         String?
+  createdAt        DateTime @default(now())
 }
 
 model TenantDevice {

@@ -100,6 +100,7 @@ export class TenantsService {
           phone: normalizedPhone,
           email: normalizedEmail,
           password: hashedPassword,
+          passwordSetAt: null,
         },
       });
 
@@ -179,6 +180,7 @@ export class TenantsService {
     }
     if (dto.password) {
       updateData.password = await bcrypt.hash(dto.password, 10);
+      updateData.passwordSetAt = new Date();
     } else {
       // Remove password from updateData if not provided
       delete (updateData as any).password;
