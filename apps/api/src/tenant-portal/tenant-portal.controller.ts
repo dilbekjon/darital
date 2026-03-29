@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Req, Param, UseGuards, Logger, NotFoundException, UsePipes, ValidationPipe, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Req, Param, UseGuards, Logger, NotFoundException, UsePipes, ValidationPipe, ForbiddenException, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Corrected import path
@@ -58,8 +58,9 @@ export class TenantPortalController {
   }
 
   @Post('payments/intent')
+  @HttpCode(403)
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  @ApiOperation({ summary: 'Create payment intent for an invoice' })
+  @ApiOperation({ summary: 'Disabled: tenant payment intent is not available' })
   async createPaymentIntent(@Req() req, @Body() dto: PaymentIntentDto) {
     this.ensureTenantAccess(req.user);
     return this.tenantPortalService.createPaymentIntent(req.user, dto);
@@ -223,4 +224,3 @@ export class TenantPortalController {
     return this.tenantPortalService.getDocuments(req.user);
   }
 }
-

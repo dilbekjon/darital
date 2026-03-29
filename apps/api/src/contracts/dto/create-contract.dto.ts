@@ -22,10 +22,17 @@ export class CreateContractDto {
   @IsNumberString()
   amount!: string;
 
+  @ApiProperty({ description: 'Monthly bank amount as string, e.g., 600.00' })
+  @IsNumberString()
+  bankAmount!: string;
+
+  @ApiProperty({ description: 'Monthly cash amount as string, e.g., 400.00' })
+  @IsNumberString()
+  cashAmount!: string;
+
   @ApiPropertyOptional({ description: 'Additional contract notes or description' })
   @IsOptional()
   @IsString()
   notes?: string;
 }
-
 

@@ -77,16 +77,19 @@ export class TenantPortalService {
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
 
-    return sortedInvoices.map((invoice) => ({
+    return sortedInvoices.map((invoice: any) => ({
       id: invoice.id,
       unitName: invoice.contract.unit.name,
-      amount: invoice.amount,
-      dueDate: invoice.dueDate,
+      amount: invoice.amount.toNumber(),
+      bankAmount: invoice.bankAmount.toNumber(),
+      cashAmount: invoice.cashAmount.toNumber(),
+      dueDate: invoice.dueDate.toISOString(),
       status: invoice.status,
       latestPayment: invoice.payments && invoice.payments.length > 0 ? {
         id: invoice.payments[0].id,
         status: invoice.payments[0].status,
         method: invoice.payments[0].method,
+        source: (invoice.payments[0] as any).source,
         provider: (invoice.payments[0] as any).provider,
         providerPaymentId: (invoice.payments[0] as any).providerPaymentId,
         rawPayload: (invoice.payments[0] as any).rawPayload,
@@ -139,10 +142,11 @@ export class TenantPortalService {
       id: payment.id,
       invoiceId: payment.invoiceId,
       method: payment.method,
+      source: (payment as any).source,
       provider: (payment as any).provider,
       providerPaymentId: (payment as any).providerPaymentId || null,
       rawPayload: (payment as any).rawPayload || null,
-      amount: payment.amount,
+      amount: payment.amount.toNumber(),
       status: payment.status,
       paidAt: payment.paidAt ? payment.paidAt.toISOString() : null,
       createdAt: payment.createdAt.toISOString(),
@@ -187,15 +191,16 @@ export class TenantPortalService {
 
     return {
       id: payment.id,
-      amount: payment.amount,
+      amount: payment.amount.toNumber(),
       method: payment.method,
+      source: (payment as any).source,
       provider: (payment as any).provider,
       status: payment.status,
       createdAt: payment.createdAt,
       paidAt: payment.paidAt,
       invoice: {
         id: payment.invoice.id,
-        amount: payment.invoice.amount,
+        amount: payment.invoice.amount.toNumber(),
         dueDate: payment.invoice.dueDate,
         status: payment.invoice.status,
         unitName: payment.invoice.contract.unit.name,
@@ -279,240 +284,7 @@ export class TenantPortalService {
   }
 
   async createPaymentIntent(user: any, dto: PaymentIntentDto) {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: user.id },
-    });
-    if (!tenant) throw new NotFoundException('Tenant not found');
-
-    const invoice = await this.prisma.invoice.findFirst({
-      where: { id: dto.invoiceId, contract: { tenantId: tenant.id } },
-      include: { contract: true },
-    });
-    if (!invoice) throw new ForbiddenException('Invoice not found or access denied');
-    if (invoice.status === 'PAID') {
-      return {
-        paymentId: '',
-        invoiceId: invoice.id,
-        amount: 0,
-        provider: dto.provider ?? 'UZUM',
-        checkoutUrl: null,
-        alreadyPaid: true,
-      };
-    }
-
-    // Check if there's already a pending payment for this invoice to prevent duplicates
-    const existingPayment = await this.prisma.payment.findFirst({
-      where: {
-        invoiceId: invoice.id,
-        status: PaymentStatus.PENDING,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    // If there's an existing pending payment, reuse it instead of creating a new one
-    let payment = existingPayment;
-    if (!payment) {
-      payment = await this.prisma.payment.create({
-        data: {
-          invoiceId: invoice.id,
-          method: PaymentMethod.ONLINE,
-          provider: dto.provider ?? PaymentProviderEnum.NONE,
-          status: PaymentStatus.PENDING,
-          amount: invoice.amount,
-          externalRef: invoice.id,
-        } as any,
-      });
-    } else {
-      // If payment already exists and provider matches, use it
-      // If provider differs, update it
-      if (dto.provider && (payment as any).provider !== dto.provider) {
-        payment = await this.prisma.payment.update({
-          where: { id: payment.id },
-          data: {
-            provider: dto.provider ?? PaymentProviderEnum.NONE,
-          } as any,
-        });
-      }
-    }
-
-    const providerStr = String(dto.provider || '').toUpperCase();
-    const amountNum = typeof payment.amount === 'object' && 'toNumber' in payment.amount ? payment.amount.toNumber() : Number(payment.amount);
-
-    // Direct Click: use Click.uz API when CLICK_* env is set (no Checkout.uz)
-    if (providerStr === 'CLICK' && this.clickService.isConfigured()) {
-      if ((payment as any).provider === PaymentProvider.CLICK && (payment as any).rawPayload?.pay_url) {
-        return {
-          paymentId: payment.id,
-          invoiceId: invoice.id,
-          amount: amountNum,
-          provider: PaymentProviderEnum.CLICK,
-          providerPaymentId: String((payment as any).providerPaymentId ?? payment.id),
-          checkoutUrl: (payment as any).rawPayload.pay_url,
-        };
-      }
-      const returnUrl = process.env.TENANT_PORTAL_URL || process.env.FRONTEND_URL || '';
-      const payUrl = this.clickService.buildPayUrl({
-        amount: amountNum,
-        merchantTransId: payment.id,
-        returnUrl: returnUrl ? `${returnUrl.replace(/\/$/, '')}/payments/return` : undefined,
-      });
-      await this.prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          provider: PaymentProvider.CLICK,
-          providerPaymentId: payment.id,
-          rawPayload: { pay_url: payUrl, directClick: true },
-        } as any,
-      });
-      this.logger.log(`Direct Click pay URL created for payment ${payment.id}`);
-      return {
-        paymentId: payment.id,
-        invoiceId: invoice.id,
-        amount: amountNum,
-        provider: PaymentProviderEnum.CLICK,
-        providerPaymentId: payment.id,
-        checkoutUrl: payUrl,
-      };
-    }
-
-    // Checkout.uz for UZUM or CLICK (when direct Click not configured)
-    const useCheckoutUz = providerStr === 'CLICK' || providerStr === 'UZUM';
-    if (useCheckoutUz) {
-      const targetProvider = providerStr === 'UZUM' ? PaymentProviderEnum.UZUM : PaymentProviderEnum.CLICK;
-
-      if (!this.checkoutUzService.isConfigured()) {
-        return {
-          paymentId: payment.id,
-          invoiceId: invoice.id,
-          amount: amountNum,
-          provider: targetProvider,
-          checkoutUrl: null,
-          alreadyPaid: false,
-          error: 'PAYMENT_NOT_CONFIGURED',
-        };
-      }
-
-      if ((payment as any).providerPaymentId && (payment as any).rawPayload?.pay_url) {
-        return {
-          paymentId: payment.id,
-          invoiceId: invoice.id,
-          amount: payment.amount,
-          provider: targetProvider,
-          providerPaymentId: String((payment as any).providerPaymentId),
-          checkoutUrl: (payment as any).rawPayload.pay_url,
-        };
-      }
-
-      const failPayload = (message: string) => ({
-        paymentId: payment.id,
-        invoiceId: invoice.id,
-        amount: typeof payment.amount === 'object' && 'toNumber' in payment.amount ? payment.amount.toNumber() : Number(payment.amount),
-        provider: targetProvider,
-        checkoutUrl: null,
-        alreadyPaid: false,
-        error: 'CHECKOUT_ERROR',
-        message,
-      });
-
-      try {
-        this.logger.log(`Creating CheckoutUz invoice for payment ${payment.id}, amount: ${invoice.amount}`);
-        const checkoutResponse = await this.checkoutUzService.createInvoice(invoice.amount);
-
-        this.logger.log(`CheckoutUz response:`, JSON.stringify(checkoutResponse));
-
-        if (!checkoutResponse || typeof checkoutResponse !== 'object') {
-          this.logger.error(`Invalid CheckoutUz response type: ${typeof checkoutResponse}`);
-          await this.prisma.payment.update({
-            where: { id: payment.id },
-            data: {
-              status: PaymentStatus.CANCELLED,
-              rawPayload: { error: 'Invalid response from CheckoutUz', response: checkoutResponse },
-            } as any,
-          });
-          return failPayload('To\'lov tizimi javob bermadi. Keyinroq urinib ko\'ring.');
-        }
-
-        if (checkoutResponse.error) {
-          this.logger.error(`CheckoutUz API error: ${checkoutResponse.error.message || JSON.stringify(checkoutResponse.error)}`);
-          await this.prisma.payment.update({
-            where: { id: payment.id },
-            data: { status: PaymentStatus.CANCELLED, rawPayload: checkoutResponse } as any,
-          });
-          return failPayload(checkoutResponse.error?.message || 'To\'lov tizimi xato qaytardi. Keyinroq urinib ko\'ring.');
-        }
-
-        if (!checkoutResponse.ok) {
-          this.logger.error(`CheckoutUz response not ok:`, JSON.stringify(checkoutResponse));
-          await this.prisma.payment.update({
-            where: { id: payment.id },
-            data: { status: PaymentStatus.CANCELLED, rawPayload: checkoutResponse } as any,
-          });
-          return failPayload('To\'lov tizimi muvaffaqiyatsiz javob qaytardi. Keyinroq urinib ko\'ring.');
-        }
-
-        const payUrl = checkoutResponse.pay_url != null ? String(checkoutResponse.pay_url).trim() : '';
-        if (!checkoutResponse.order_id || !payUrl || !payUrl.startsWith('http')) {
-          this.logger.error(`CheckoutUz response missing required fields or invalid pay_url:`, JSON.stringify(checkoutResponse));
-          await this.prisma.payment.update({
-            where: { id: payment.id },
-            data: {
-              status: PaymentStatus.CANCELLED,
-              rawPayload: { ...checkoutResponse, error: 'Missing order_id or pay_url' } as any,
-            },
-          });
-          return failPayload('To\'lov havolasi olinmadi. Keyinroq urinib ko\'ring.');
-        }
-
-        await this.prisma.payment.update({
-          where: { id: payment.id },
-          data: {
-            provider: PaymentProvider.UZUM,
-            providerPaymentId: String(checkoutResponse.order_id),
-            rawPayload: checkoutResponse,
-          } as any,
-        });
-
-        this.logger.log(`CheckoutUz invoice created successfully: order_id=${checkoutResponse.order_id}, pay_url=${checkoutResponse.pay_url}`);
-
-        return {
-          paymentId: payment.id,
-          invoiceId: invoice.id,
-          amount: typeof payment.amount === 'object' && 'toNumber' in payment.amount
-            ? payment.amount.toNumber()
-            : Number(payment.amount),
-          provider: targetProvider,
-          providerPaymentId: String(checkoutResponse.order_id),
-          checkoutUrl: payUrl,
-        };
-      } catch (error: any) {
-        this.logger.error(`CheckoutUz create invoice failed for payment ${payment.id}:`, error?.message || error);
-        try {
-          await this.prisma.payment.update({
-            where: { id: payment.id },
-            data: {
-              status: PaymentStatus.CANCELLED,
-              rawPayload: { error: error?.message || 'Unknown error' } as any,
-            },
-          });
-        } catch (_) {}
-        const errorMessage = error?.message || 'Unknown error occurred';
-        return failPayload(
-          errorMessage.includes('CHECKOUTUZ_API_KEY') || errorMessage.includes('not configured')
-            ? 'To\'lov tizimi hozircha sozlanmagan. Administrator bilan bog\'laning.'
-            : 'To\'lovni boshlash amalga oshmadi. Keyinroq urinib ko\'ring.'
-        );
-      }
-    }
-
-    return {
-      paymentId: payment.id,
-      invoiceId: invoice.id,
-      amount: payment.amount,
-      provider: (payment as any).provider,
-      checkoutUrl: null,
-    };
+    throw new ForbiddenException('Tenant portal orqali to‘lov qilish o‘chirildi. To‘lov kassir tomonidan bank yoki naqd orqali kiritiladi.');
   }
 
   async refreshPaymentStatus(user: any, paymentId: string) {

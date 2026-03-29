@@ -23,6 +23,8 @@ interface Tenant {
 interface Invoice {
   id: string;
   amount: number;
+  bankAmount?: number;
+  cashAmount?: number;
   status: string;
   dueDate?: string;
   contractId?: string;
@@ -44,6 +46,7 @@ interface Payment {
   id: string;
   invoiceId: string;
   method: 'ONLINE' | 'OFFLINE';
+  source?: 'ONLINE' | 'BANK' | 'CASH';
   amount: number;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
   paidAt: string | null;
@@ -103,8 +106,9 @@ export default function AdminPaymentsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [offlineInvoiceSearch, setOfflineInvoiceSearch] = useState('');
   const [offlineForm, setOfflineForm] = useState({
-    invoiceId: '',
+    invoiceIds: [] as string[],
     amount: '',
+    source: 'CASH' as 'BANK' | 'CASH',
     collectorNote: '',
   });
 
@@ -141,8 +145,8 @@ export default function AdminPaymentsPage() {
 
   // Record offline payment
   const handleRecordOfflinePayment = async () => {
-    if (!offlineForm.invoiceId || !offlineForm.amount) {
-      setError('Hisob-faktura va miqdorni tanlang');
+    if (offlineForm.invoiceIds.length === 0) {
+      setError('Kamida bitta hisob-fakturani tanlang');
       return;
     }
 
@@ -153,14 +157,15 @@ export default function AdminPaymentsPage() {
       await fetchApi<any>('/payments/offline', {
         method: 'POST',
         body: JSON.stringify({
-          invoiceId: offlineForm.invoiceId,
-          amount: offlineForm.amount,
+          invoiceIds: offlineForm.invoiceIds,
+          amount: offlineForm.invoiceIds.length === 1 && offlineForm.amount ? offlineForm.amount : undefined,
+          source: offlineForm.source,
           collectorNote: offlineForm.collectorNote || undefined,
         }),
       });
 
       // Reset form and close modal
-      setOfflineForm({ invoiceId: '', amount: '', collectorNote: '' });
+      setOfflineForm({ invoiceIds: [], amount: '', source: 'CASH', collectorNote: '' });
       setOfflineInvoiceSearch('');
       setRecordOfflineModalOpen(false);
       
@@ -201,6 +206,7 @@ export default function AdminPaymentsPage() {
   // Open record offline payment modal
   const openRecordOfflineModal = async () => {
     setOfflineInvoiceSearch('');
+    setOfflineForm({ invoiceIds: [], amount: '', source: user?.role === 'PAYMENT_COLLECTOR' ? 'CASH' : 'CASH', collectorNote: '' });
     await loadPendingInvoices();
     setRecordOfflineModalOpen(true);
   };
@@ -813,7 +819,7 @@ export default function AdminPaymentsPage() {
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
-                    Method / Provider
+                    Manba
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -891,21 +897,27 @@ export default function AdminPaymentsPage() {
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}>
                         <div className="flex items-center gap-1">
-                          {payment.method === 'ONLINE' ? (
+                          {payment.source === 'BANK' ? (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              darkMode ? 'bg-indigo-900/30 text-indigo-300' : 'bg-indigo-100 text-indigo-800'
+                            }`}>
+                              Bank
+                            </span>
+                          ) : payment.source === 'CASH' ? (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                              darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-800'
+                            }`}>
+                              Naqd
+                            </span>
+                          ) : (
                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                               darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-800'
                             }`}>
                               Online
                             </span>
-                          ) : (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                              darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-800'
-                            }`}>
-                              Naqd pul
-                            </span>
                           )}
                         </div>
-                        {payment.method === 'ONLINE' && payment.status === 'CONFIRMED' && payment.provider && payment.provider !== 'NONE' && (
+                        {payment.source === 'ONLINE' && payment.status === 'CONFIRMED' && payment.provider && payment.provider !== 'NONE' && (
                           <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                             {payment.provider}
                           </div>
@@ -1363,7 +1375,7 @@ export default function AdminPaymentsPage() {
                   </button>
                 </div>
                 <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Ijara oluvchidan naqd pul qabul qilinganini yozib qo'ying
+                  Kassir bank yoki naqd to‘lovni, to‘lov yig‘uvchi esa faqat naqd to‘lovni yozadi
                 </p>
               </div>
 
@@ -1377,12 +1389,33 @@ export default function AdminPaymentsPage() {
                   </div>
                 )}
 
-                {/* Invoice Selection: search + dropdown with tenant/contract/unit */}
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    Hisob-faktura *
+                    To‘lov manbasi *
+                  </label>
+                  <select
+                    value={offlineForm.source}
+                    onChange={(e) => setOfflineForm({ ...offlineForm, source: e.target.value as 'BANK' | 'CASH' })}
+                    disabled={recordingOffline || user?.role === 'PAYMENT_COLLECTOR'}
+                    className={`w-full px-3 py-2 border rounded-lg ${
+                      darkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  >
+                    {user?.role !== 'PAYMENT_COLLECTOR' && <option value="BANK">Bank</option>}
+                    <option value="CASH">Naqd</option>
+                  </select>
+                </div>
+
+                {/* Invoice Selection: search + multi select */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Hisob-fakturalar *
                   </label>
                   <input
                     type="text"
@@ -1396,38 +1429,50 @@ export default function AdminPaymentsPage() {
                         : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
                     } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   />
-                  <select
-                    value={offlineForm.invoiceId}
-                    onChange={(e) => {
-                      const selectedInvoice = invoices.find(inv => inv.id === e.target.value);
-                      setOfflineForm({
-                        ...offlineForm,
-                        invoiceId: e.target.value,
-                        amount: selectedInvoice ? selectedInvoice.amount.toString() : '',
-                      });
-                    }}
-                    disabled={recordingOffline}
-                    className={`w-full px-3 py-2 border rounded-lg ${
-                      darkMode
-                        ? 'bg-gray-800 border-gray-700 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  >
-                    <option value="">Hisob-fakturani tanlang...</option>
+                  <div className={`max-h-56 overflow-y-auto border rounded-lg ${
+                    darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-white'
+                  }`}>
                     {offlineFilteredInvoices.map((invoice) => {
+                      const selected = offlineForm.invoiceIds.includes(invoice.id);
                       const tenantName = invoice.contract?.tenant?.fullName || '—';
                       const contractShort = invoice.contract?.id ? `${invoice.contract.id.slice(0, 8)}…` : '—';
                       const unitName = invoice.contract?.unit?.name || '—';
                       const dueStr = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'N/A';
-                      const amountStr = Number(invoice.amount).toLocaleString();
-                      const label = `${tenantName} • Shartnoma ${contractShort} • ${unitName} • ${dueStr} • ${amountStr} UZS`;
+                      const label = `${tenantName} • Shartnoma ${contractShort} • ${unitName}`;
                       return (
-                        <option key={invoice.id} value={invoice.id} title={label}>
-                          {label}
-                        </option>
+                        <label
+                          key={invoice.id}
+                          className={`flex items-start gap-3 px-3 py-2 border-b last:border-b-0 cursor-pointer ${
+                            darkMode ? 'border-gray-700 hover:bg-gray-700/40' : 'border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            disabled={recordingOffline}
+                            onChange={(e) => {
+                              const invoiceIds = e.target.checked
+                                ? [...offlineForm.invoiceIds, invoice.id]
+                                : offlineForm.invoiceIds.filter((id) => id !== invoice.id);
+                              setOfflineForm({
+                                ...offlineForm,
+                                invoiceIds,
+                                amount: invoiceIds.length === 1
+                                  ? (offlineForm.amount || Number(invoice.amount).toString())
+                                  : '',
+                              });
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{label}</div>
+                            <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              Muddat: {dueStr} | Jami: {Number(invoice.amount).toLocaleString()} UZS | Bank: {Number(invoice.bankAmount || 0).toLocaleString()} | Naqd: {Number(invoice.cashAmount || 0).toLocaleString()}
+                            </div>
+                          </div>
+                        </label>
                       );
                     })}
-                  </select>
+                  </div>
                   {invoices.length === 0 && (
                     <p className={`text-xs mt-1 ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
                       To'lanmagan hisob-fakturalar topilmadi
@@ -1445,14 +1490,14 @@ export default function AdminPaymentsPage() {
                   <label className={`block text-sm font-medium mb-2 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    Miqdor (UZS) *
+                    Miqdor (UZS) {offlineForm.invoiceIds.length <= 1 ? '*' : ''}
                   </label>
                   <input
                     type="number"
                     value={offlineForm.amount}
                     onChange={(e) => setOfflineForm({ ...offlineForm, amount: e.target.value })}
-                    disabled={recordingOffline}
-                    placeholder="100000"
+                    disabled={recordingOffline || offlineForm.invoiceIds.length > 1}
+                    placeholder={offlineForm.invoiceIds.length > 1 ? "Bir nechta invoice tanlanganda har biri qolgan summasi bilan yoziladi" : "100000"}
                     className={`w-full px-3 py-2 border rounded-lg ${
                       darkMode
                         ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
@@ -1487,7 +1532,7 @@ export default function AdminPaymentsPage() {
                   darkMode ? 'bg-blue-900/20 border-blue-600/30 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-800'
                 }`}>
                   <p className="text-sm">
-                    ℹ️ Oflayn to'lov darhol tasdiqlangan holda saqlanadi. Hisob-faktura "To'langan" deb belgilanadi.
+                    ℹ️ To‘lov avval `kutilmoqda` holatida yoziladi. Kassir keyin tasdiqlaydi. Bir nechta invoice tanlansa, har biri qolgan summasi bilan alohida yaratiladi.
                   </p>
                 </div>
 
@@ -1511,7 +1556,7 @@ export default function AdminPaymentsPage() {
                   </button>
                   <button
                     onClick={handleRecordOfflinePayment}
-                    disabled={recordingOffline || !offlineForm.invoiceId || !offlineForm.amount}
+                    disabled={recordingOffline || offlineForm.invoiceIds.length === 0 || (offlineForm.invoiceIds.length === 1 && !offlineForm.amount)}
                     className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
                       darkMode
                         ? 'bg-green-600 hover:bg-green-700 text-white disabled:opacity-50'

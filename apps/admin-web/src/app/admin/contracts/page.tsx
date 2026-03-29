@@ -19,6 +19,8 @@ interface Contract {
   startDate: string;
   endDate: string;
   amount: number;
+  bankAmount: number;
+  cashAmount: number;
   status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
   pdfUrl: string;
   tenant: { fullName: string; email?: string; phone?: string };
@@ -63,6 +65,8 @@ export default function AdminContractsPage() {
     startDate: '',
     endDate: '',
     amount: '',
+    bankAmount: '',
+    cashAmount: '',
     notes: '',
     rentType: 'FIXED' as 'FIXED' | 'PER_SQM',
     pricePerSqm: '',
@@ -71,6 +75,8 @@ export default function AdminContractsPage() {
     startDate: '',
     endDate: '',
     amount: '',
+    bankAmount: '',
+    cashAmount: '',
     notes: '',
   });
   const [editFile, setEditFile] = useState<File | null>(null);
@@ -194,6 +200,8 @@ export default function AdminContractsPage() {
       startDate: contract.startDate.split('T')[0],
       endDate: contract.endDate.split('T')[0],
       amount: contract.amount.toString(),
+      bankAmount: contract.bankAmount.toString(),
+      cashAmount: contract.cashAmount.toString(),
       notes: (contract as any).notes || '',
     });
     setEditFile(null);
@@ -204,6 +212,14 @@ export default function AdminContractsPage() {
   const handleUpdateContract = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canUpdateContracts || !editingContract) return;
+
+    const totalAmount = parseFloat(editFormData.amount) || 0;
+    const bankAmount = parseFloat(editFormData.bankAmount) || 0;
+    const cashAmount = parseFloat(editFormData.cashAmount) || 0;
+    if (Math.abs(bankAmount + cashAmount - totalAmount) > 0.01) {
+      setError("Bank va naqd summalari jami umumiy oylik summaga teng bo'lishi kerak");
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -220,6 +236,8 @@ export default function AdminContractsPage() {
       formDataToSend.append('startDate', new Date(editFormData.startDate).toISOString());
       formDataToSend.append('endDate', new Date(editFormData.endDate).toISOString());
       formDataToSend.append('amount', editFormData.amount);
+      formDataToSend.append('bankAmount', editFormData.bankAmount);
+      formDataToSend.append('cashAmount', editFormData.cashAmount);
       
       if (editFormData.notes.trim()) {
         formDataToSend.append('notes', editFormData.notes.trim());
@@ -251,7 +269,7 @@ export default function AdminContractsPage() {
 
       setIsEditModalOpen(false);
       setEditingContract(null);
-      setEditFormData({ startDate: '', endDate: '', amount: '', notes: '' });
+      setEditFormData({ startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', notes: '' });
       setEditFile(null);
     } catch (err) {
       console.error('Failed to update contract:', err);
@@ -338,6 +356,14 @@ export default function AdminContractsPage() {
       return;
     }
     
+    const totalAmount = parseFloat(formData.amount) || 0;
+    const bankAmount = parseFloat(formData.bankAmount) || 0;
+    const cashAmount = parseFloat(formData.cashAmount) || 0;
+    if (Math.abs(bankAmount + cashAmount - totalAmount) > 0.01) {
+      setError("Bank va naqd summalari jami umumiy oylik summaga teng bo'lishi kerak");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     
@@ -348,6 +374,8 @@ export default function AdminContractsPage() {
       formDataToSend.append('startDate', new Date(formData.startDate).toISOString());
       formDataToSend.append('endDate', new Date(formData.endDate).toISOString());
       formDataToSend.append('amount', formData.amount);
+      formDataToSend.append('bankAmount', formData.bankAmount);
+      formDataToSend.append('cashAmount', formData.cashAmount);
       if (formData.notes.trim()) {
         formDataToSend.append('notes', formData.notes.trim());
       }
@@ -380,7 +408,7 @@ export default function AdminContractsPage() {
       setContracts(contractsData);
       
       setIsModalOpen(false);
-      setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', notes: '', rentType: 'FIXED', pricePerSqm: '' });
+      setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', notes: '', rentType: 'FIXED', pricePerSqm: '' });
       setFile(null);
       setError(null);
     } catch (err) {
@@ -678,7 +706,10 @@ export default function AdminContractsPage() {
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
-                        UZS {contract.amount.toLocaleString()}<span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>/mo</span>
+                        <div>UZS {contract.amount.toLocaleString()}<span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>/mo</span></div>
+                        <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Bank: {contract.bankAmount.toLocaleString()} | Naqd: {contract.cashAmount.toLocaleString()}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(contract.status)}`}>
@@ -913,6 +944,50 @@ export default function AdminContractsPage() {
                 )}
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="editBankAmount" className={`block text-sm font-semibold mb-2 ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Bank (UZS) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    id="editBankAmount"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={editFormData.bankAmount}
+                    onChange={(e) => setEditFormData({ ...editFormData, bankAmount: e.target.value })}
+                    className={`w-full rounded-md shadow-sm px-3 py-2 border ${
+                      darkMode ? 'bg-gray-900 border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                    } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="editCashAmount" className={`block text-sm font-semibold mb-2 ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Naqd (UZS) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    id="editCashAmount"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={editFormData.cashAmount}
+                    onChange={(e) => setEditFormData({ ...editFormData, cashAmount: e.target.value })}
+                    className={`w-full rounded-md shadow-sm px-3 py-2 border ${
+                      darkMode ? 'bg-gray-900 border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                    } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+                  />
+                </div>
+              </div>
+              <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Bank + naqd jami oylik ijara summasiga teng bo‘lishi kerak.
+              </p>
+
               {/* Contract Notes */}
               <div>
                 <label htmlFor="editNotes" className={`block text-sm font-semibold mb-2 ${
@@ -978,6 +1053,48 @@ export default function AdminContractsPage() {
                 )}
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="bankAmount" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Bank (UZS) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    id="bankAmount"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={formData.bankAmount}
+                    onChange={(e) => setFormData({ ...formData, bankAmount: e.target.value })}
+                    placeholder="Masalan: 6000000"
+                    className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="cashAmount" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Naqd (UZS) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    id="cashAmount"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={formData.cashAmount}
+                    onChange={(e) => setFormData({ ...formData, cashAmount: e.target.value })}
+                    placeholder="Masalan: 4000000"
+                    className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  />
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Bank + naqd jami oylik ijara summasiga teng bo‘lishi kerak.
+              </p>
+
               {/* Form Actions */}
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
@@ -985,7 +1102,7 @@ export default function AdminContractsPage() {
                   onClick={() => {
                     setIsEditModalOpen(false);
                     setEditingContract(null);
-                    setEditFormData({ startDate: '', endDate: '', amount: '', notes: '' });
+                    setEditFormData({ startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', notes: '' });
                     setEditFile(null);
                     setError(null);
                   }}
@@ -1447,7 +1564,7 @@ export default function AdminContractsPage() {
                   type="button"
                   onClick={() => {
                     setIsModalOpen(false);
-                    setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', notes: '', rentType: 'FIXED', pricePerSqm: '' });
+                    setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', notes: '', rentType: 'FIXED', pricePerSqm: '' });
                     setFile(null);
                     setError(null);
                   }}

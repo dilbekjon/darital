@@ -4,13 +4,14 @@ import { PrismaService } from '../prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { Decimal } from '@prisma/client/runtime/library';
-import { PaymentMethod, PaymentStatus, PaymentProvider, Prisma, InvoiceStatus } from '@prisma/client';
+import { PaymentMethod, PaymentStatus, PaymentProvider, Prisma, InvoiceStatus, AdminRole } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
 import { PaymentWebhookDto } from './dto/payment-webhook.dto';
 import { PaymentProviderEnum } from './dto/payment-intent.dto';
 import { CheckoutUzService } from './checkout-uz.service';
 import { ChatGateway } from '../chat/chat.gateway';
+import { OfflinePaymentSource } from './dto/record-offline-payment.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -430,6 +431,7 @@ export class PaymentsService {
       id: payment.id,
       invoiceId: payment.invoiceId,
       method: payment.method,
+      source: (payment as any).source || null,
       amount: payment.amount.toNumber(),
       status: payment.status,
       paidAt: payment.paidAt ? payment.paidAt.toISOString() : null,
@@ -480,6 +482,7 @@ export class PaymentsService {
       data: {
         invoiceId: dto.invoiceId,
         method: dto.method,
+        source: dto.method === PaymentMethod.ONLINE ? 'ONLINE' : 'CASH',
         amount: new Decimal(dto.amount),
         status: PaymentStatus.PENDING,
       },
@@ -506,56 +509,87 @@ export class PaymentsService {
    * Creates a PENDING payment. Cashier must approve via verify/accept to confirm.
    */
   async recordOfflinePayment(
-    dto: { invoiceId: string; amount: string; collectorNote?: string; collectedAt?: string },
-    collectorId: string,
+    dto: { invoiceIds: string[]; amount?: string; source: OfflinePaymentSource; collectorNote?: string; collectedAt?: string },
+    actor: { id: string; role?: string },
   ) {
-    const invoice = await this.prisma.invoice.findUnique({
-      where: { id: dto.invoiceId },
+    const role = actor.role;
+    if (role === AdminRole.PAYMENT_COLLECTOR && dto.source !== 'CASH') {
+      throw new ConflictException('Payment collector faqat naqd to‘lov qo‘sha oladi');
+    }
+
+    const uniqueInvoiceIds = [...new Set(dto.invoiceIds)];
+    const invoices = await this.prisma.invoice.findMany({
+      where: { id: { in: uniqueInvoiceIds } },
       include: {
-        contract: { include: { tenant: true } },
+        contract: { include: { tenant: true, unit: true } },
         payments: { where: { status: PaymentStatus.CONFIRMED } },
       },
     });
 
-    if (!invoice) throw new NotFoundException('Invoice not found');
-
-    const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount.toNumber(), 0);
-    if (totalPaid >= invoice.amount.toNumber()) {
-      throw new ConflictException('This invoice is already fully paid');
+    if (invoices.length !== uniqueInvoiceIds.length) {
+      throw new NotFoundException('Ba’zi hisob-fakturalar topilmadi');
     }
 
     const collectedAt = dto.collectedAt ? new Date(dto.collectedAt) : new Date();
-    const amount = new Decimal(dto.amount);
+    const createdPayments = await this.prisma.$transaction(async (tx) => {
+      const results = [] as any[];
 
-    const payment = await this.prisma.payment.create({
-      data: {
-        invoiceId: dto.invoiceId,
-        method: PaymentMethod.OFFLINE,
-        amount,
-        status: PaymentStatus.PENDING,
-        collectedBy: collectorId,
-        collectedAt,
-        collectorNote: dto.collectorNote,
-      },
-      include: {
-        invoice: {
-          include: {
-            contract: {
-              include: {
-                tenant: { select: { id: true, fullName: true, email: true } },
-                unit: { select: { id: true, name: true } },
+      for (const invoice of invoices) {
+        const totalPaid = invoice.payments.reduce((sum, p) => sum + p.amount.toNumber(), 0);
+        const remaining = invoice.amount.toNumber() - totalPaid;
+        if (remaining <= 0) {
+          throw new ConflictException(`Invoice ${invoice.id} allaqachon to‘liq yopilgan`);
+        }
+
+        const amount =
+          uniqueInvoiceIds.length === 1 && dto.amount
+            ? new Decimal(dto.amount)
+            : new Decimal(remaining);
+
+        if (amount.lte(0)) {
+          throw new ConflictException('To‘lov summasi 0 dan katta bo‘lishi kerak');
+        }
+        if (amount.greaterThan(new Decimal(remaining))) {
+          throw new ConflictException(`Invoice ${invoice.id} uchun summa qolgan qarzdorlikdan oshib ketdi`);
+        }
+
+        results.push(
+          await tx.payment.create({
+            data: {
+              invoiceId: invoice.id,
+              method: PaymentMethod.OFFLINE,
+              source: dto.source,
+              provider: PaymentProvider.NONE,
+              amount,
+              status: PaymentStatus.PENDING,
+              collectedBy: actor.id,
+              collectedAt,
+              collectorNote: dto.collectorNote,
+            } as any,
+            include: {
+              invoice: {
+                include: {
+                  contract: {
+                    include: {
+                      tenant: { select: { id: true, fullName: true, email: true } },
+                      unit: { select: { id: true, name: true } },
+                    },
+                  },
+                },
               },
             },
-          },
-        },
-      },
+          }),
+        );
+      }
+
+      return results;
     });
 
     const gateway = this.getChatGateway();
     if (gateway) {
       setImmediate(async () => {
         try {
-          await gateway.emitPaymentUpdated(payment);
+          await Promise.all(createdPayments.map((payment) => gateway.emitPaymentUpdated(payment)));
         } catch (error) {
           console.error('[PaymentsService] Failed to emit payment_updated event:', error);
         }
@@ -563,8 +597,12 @@ export class PaymentsService {
     }
 
     return {
-      ...payment,
-      message: 'Offline payment recorded. Kassir tasdiqlashi kerak.',
+      items: createdPayments,
+      count: createdPayments.length,
+      message:
+        role === AdminRole.PAYMENT_COLLECTOR
+          ? 'Naqd to‘lovlar yozildi. Kassir tasdiqlashi kerak.'
+          : 'To‘lovlar yozildi. Tasdiqlash uchun tayyor.',
     };
   }
 
@@ -1071,4 +1109,3 @@ export class PaymentsService {
     return { message: 'Payment deleted successfully', id: paymentId };
   }
 }
-

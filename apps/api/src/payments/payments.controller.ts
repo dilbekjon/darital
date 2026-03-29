@@ -63,7 +63,7 @@ export class PaymentsController {
     @Req() req: Request,
   ) {
     const user = req.user as any;
-    return this.paymentsService.recordOfflinePayment(dto, user.id);
+    return this.paymentsService.recordOfflinePayment(dto, { id: user.id, role: user.role });
   }
 
   @Patch(':id')
@@ -265,5 +265,4 @@ Or use the test script:
     return this.paymentsService.handleWebhook(normalized, webhookDto);
   }
 }
-
 

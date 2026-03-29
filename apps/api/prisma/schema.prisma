@@ -54,6 +54,12 @@ enum PaymentProvider {
   NONE
 }
 
+enum PaymentSource {
+  ONLINE
+  BANK
+  CASH
+}
+
 enum ConversationStatus {
   OPEN
   PENDING
@@ -241,6 +247,8 @@ model Contract {
   endDate     DateTime
   pdfUrl      String
   amount      Decimal
+  bankAmount  Decimal         @default(0)
+  cashAmount  Decimal         @default(0)
   status      ContractStatus  @default(ACTIVE)
   notes       String?         // Additional contract notes/description
   createdAt   DateTime        @default(now())
@@ -268,6 +276,8 @@ model Invoice {
   contract    Contract      @relation(fields: [contractId], references: [id])
   dueDate     DateTime
   amount      Decimal
+  bankAmount  Decimal       @default(0)
+  cashAmount  Decimal       @default(0)
   status      InvoiceStatus @default(PENDING)
   payments    Payment[]
   createdAt   DateTime      @default(now())
@@ -291,6 +301,7 @@ model Payment {
   invoiceId   String
   invoice     Invoice        @relation(fields: [invoiceId], references: [id])
   method      PaymentMethod
+  source      PaymentSource  @default(ONLINE)
   provider    PaymentProvider @default(NONE)
   providerPaymentId String?   @unique
   externalRef String?

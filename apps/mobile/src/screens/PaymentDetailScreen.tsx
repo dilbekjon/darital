@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { apiGet } from '../api/client';
-import { refreshTenantPayment, getReceiptForPayment } from '../api/tenantApi';
+import { getReceiptForPayment } from '../api/tenantApi';
 import { t } from '../lib/i18n';
 import { useTheme } from '../contexts/ThemeContext';
 import { Navbar } from '../components/Navbar';
@@ -29,7 +29,6 @@ export default function PaymentDetailScreen({ route, navigation }: PaymentDetail
   const [loading, setLoading] = useState(true);
   const [payment, setPayment] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [loadingReceipt, setLoadingReceipt] = useState(false);
   const { darkMode } = useTheme();
 
@@ -68,18 +67,6 @@ export default function PaymentDetailScreen({ route, navigation }: PaymentDetail
       setError(e?.message || 'Failed to load payment details');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleRefreshStatus = async () => {
-    setRefreshing(true);
-    try {
-      await refreshTenantPayment(paymentId);
-      await loadPaymentDetail();
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || 'Failed to refresh');
-    } finally {
-      setRefreshing(false);
     }
   };
 
@@ -336,15 +323,16 @@ export default function PaymentDetailScreen({ route, navigation }: PaymentDetail
             </TouchableOpacity>
 
             {payment.status === 'PENDING' && (
-              <TouchableOpacity
-                style={[styles.viewInvoiceButton, { backgroundColor: darkMode ? '#6B7280' : '#9CA3AF', marginTop: 8 }]}
-                onPress={handleRefreshStatus}
-                disabled={refreshing}
+              <View
+                style={[
+                  styles.viewInvoiceButton,
+                  { backgroundColor: darkMode ? '#6B7280' : '#9CA3AF', marginTop: 8 },
+                ]}
               >
                 <Text style={styles.viewInvoiceText}>
-                  {refreshing ? '...' : '🔄 Refresh status'}
+                  ⏳ Kassir tasdiqlashini kutmoqda
                 </Text>
-              </TouchableOpacity>
+              </View>
             )}
             {payment.status === 'CONFIRMED' && (
               <TouchableOpacity
@@ -574,4 +562,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-

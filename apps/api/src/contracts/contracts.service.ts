@@ -20,6 +20,20 @@ export class ContractsService {
     private readonly minioService: MinioService,
   ) {}
 
+  private validatePaymentSplit(amount: Decimal, bankAmount: Decimal, cashAmount: Decimal) {
+    if (!bankAmount.plus(cashAmount).equals(amount)) {
+      throw new BadRequestException({
+        code: 'INVALID_PAYMENT_SPLIT',
+        message: 'Bank va naqd summalari jami umumiy oylik summaga teng bo‘lishi kerak',
+        details: {
+          amount: amount.toString(),
+          bankAmount: bankAmount.toString(),
+          cashAmount: cashAmount.toString(),
+        },
+      });
+    }
+  }
+
   async findAll(includeArchived = false) {
     const contracts = await this.prisma.contract.findMany({
       where: includeArchived ? {} : { isArchived: false },
@@ -32,13 +46,15 @@ export class ContractsService {
       orderBy: { createdAt: 'desc' },
     });
     
-    return contracts.map((contract) => ({
+    return contracts.map((contract: any) => ({
       id: contract.id,
       tenantId: contract.tenantId,
       unitId: contract.unitId,
       startDate: contract.startDate.toISOString(),
       endDate: contract.endDate.toISOString(),
       amount: contract.amount.toNumber(),
+      bankAmount: contract.bankAmount.toNumber(),
+      cashAmount: contract.cashAmount.toNumber(),
       status: contract.status,
       pdfUrl: contract.pdfUrl ? this.minioService.transformToPublicUrl(contract.pdfUrl) : contract.pdfUrl,
       notes: contract.notes || null,
@@ -80,13 +96,15 @@ export class ContractsService {
       orderBy: { archivedAt: 'desc' },
     });
 
-    return contracts.map((contract) => ({
+    return contracts.map((contract: any) => ({
       id: contract.id,
       tenantId: contract.tenantId,
       unitId: contract.unitId,
       startDate: contract.startDate.toISOString(),
       endDate: contract.endDate.toISOString(),
       amount: contract.amount.toNumber(),
+      bankAmount: contract.bankAmount.toNumber(),
+      cashAmount: contract.cashAmount.toNumber(),
       status: contract.status,
       pdfUrl: contract.pdfUrl ? this.minioService.transformToPublicUrl(contract.pdfUrl) : contract.pdfUrl,
       notes: contract.notes || null,
@@ -124,6 +142,11 @@ export class ContractsService {
       });
     }
 
+    const amount = new Decimal(dto.amount);
+    const bankAmount = new Decimal(dto.bankAmount);
+    const cashAmount = new Decimal(dto.cashAmount);
+    this.validatePaymentSplit(amount, bankAmount, cashAmount);
+
     // Create contract and mark unit as BUSY in a transaction
     const contract = await this.prisma.$transaction(async (tx) => {
       const newContract = await tx.contract.create({
@@ -133,10 +156,12 @@ export class ContractsService {
         startDate: new Date(dto.startDate),
         endDate: new Date(dto.endDate),
         pdfUrl,
-        amount: new Decimal(dto.amount),
-          notes: dto.notes || null,
-          status: ContractStatus.ACTIVE,
-      },
+        amount,
+        bankAmount,
+        cashAmount,
+        notes: dto.notes || null,
+        status: ContractStatus.ACTIVE,
+      } as any,
       include: { tenant: true, unit: true },
       });
 
@@ -147,7 +172,7 @@ export class ContractsService {
       });
 
       return newContract;
-    });
+    }) as any;
 
     // Send admin notification (Email + Telegram)
     await this.notifications.notifyAdminNewContract(
@@ -157,17 +182,36 @@ export class ContractsService {
       contract.amount.toNumber(),
     );
 
+    try {
+      await this.invoicesService.createForContract(
+        contract.id,
+        contract.amount,
+        contract.startDate,
+        contract.endDate,
+        contract.bankAmount,
+        contract.cashAmount,
+      );
+    } catch (error: any) {
+      this.logger.error(`Failed to auto-create invoices for new contract ${contract.id}:`, error?.message || error);
+    }
+
     return contract;
   }
 
   async update(id: string, dto: UpdateContractDto, pdfUrl?: string) {
-    await this.findOne(id);
+    const existing = await this.findOne(id) as any;
     const data: any = { ...dto };
-    if (dto.amount !== undefined) data.amount = new Decimal(dto.amount);
+    const amount = dto.amount !== undefined ? new Decimal(dto.amount) : existing.amount;
+    const bankAmount = dto.bankAmount !== undefined ? new Decimal(dto.bankAmount) : existing.bankAmount;
+    const cashAmount = dto.cashAmount !== undefined ? new Decimal(dto.cashAmount) : existing.cashAmount;
+    this.validatePaymentSplit(amount, bankAmount, cashAmount);
+    if (dto.amount !== undefined) data.amount = amount;
+    if (dto.bankAmount !== undefined) data.bankAmount = bankAmount;
+    if (dto.cashAmount !== undefined) data.cashAmount = cashAmount;
     if (dto.startDate !== undefined) data.startDate = new Date(dto.startDate);
     if (dto.endDate !== undefined) data.endDate = new Date(dto.endDate);
     if (pdfUrl !== undefined) data.pdfUrl = pdfUrl;
-    return this.prisma.contract.update({ where: { id }, data, include: { tenant: true, unit: true } });
+    return this.prisma.contract.update({ where: { id }, data: data as any, include: { tenant: true, unit: true } });
   }
 
   async changeStatus(id: string, dto: UpdateContractStatusDto) {
@@ -230,7 +274,7 @@ export class ContractsService {
       }
 
       return updated;
-    });
+    }) as any;
 
     // Automatically create monthly invoices when contract is activated
     if (currentStatus === ContractStatus.DRAFT && newStatus === ContractStatus.ACTIVE) {
@@ -247,7 +291,9 @@ export class ContractsService {
             id,
             updatedContract.amount,
             updatedContract.startDate,
-            updatedContract.endDate
+            updatedContract.endDate,
+            updatedContract.bankAmount,
+            updatedContract.cashAmount,
           );
 
           this.logger.log(

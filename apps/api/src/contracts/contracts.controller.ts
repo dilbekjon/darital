@@ -71,10 +71,12 @@ export class ContractsController {
         startDate: { type: 'string', format: 'date-time' },
         endDate: { type: 'string', format: 'date-time' },
         amount: { type: 'string', example: '1000.50' },
+        bankAmount: { type: 'string', example: '700.50' },
+        cashAmount: { type: 'string', example: '300.00' },
         notes: { type: 'string', description: 'Additional contract notes or description' },
         file: { type: 'string', format: 'binary' },
       },
-      required: ['tenantId', 'unitId', 'startDate', 'endDate', 'amount', 'file'],
+      required: ['tenantId', 'unitId', 'startDate', 'endDate', 'amount', 'bankAmount', 'cashAmount', 'file'],
     },
   })
   @ApiResponse({ status: 201, description: 'Contract created and file uploaded' })
@@ -82,7 +84,7 @@ export class ContractsController {
     @Body() body: any,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    const { tenantId, unitId, startDate, endDate, amount, notes } = body;
+    const { tenantId, unitId, startDate, endDate, amount, bankAmount, cashAmount, notes } = body;
     if (!file) {
       // Let the global filter map this properly
       throw new Error('File is required');
@@ -90,7 +92,7 @@ export class ContractsController {
     const bucket = process.env.MINIO_BUCKET || 'contracts';
     const url = await this.minio.uploadFile(file, bucket);
     return this.contractsService.create(
-      { tenantId, unitId, startDate, endDate, amount, notes },
+      { tenantId, unitId, startDate, endDate, amount, bankAmount, cashAmount, notes },
       url,
     );
   }
@@ -110,6 +112,8 @@ export class ContractsController {
         startDate: { type: 'string', format: 'date-time' },
         endDate: { type: 'string', format: 'date-time' },
         amount: { type: 'string', example: '1000.50' },
+        bankAmount: { type: 'string', example: '700.50' },
+        cashAmount: { type: 'string', example: '300.00' },
         notes: { type: 'string', description: 'Additional contract notes or description' },
         file: { type: 'string', format: 'binary', description: 'Optional PDF file to replace existing contract PDF' },
       },
@@ -120,13 +124,15 @@ export class ContractsController {
     @Body() body: any,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    const { tenantId, unitId, startDate, endDate, amount, notes } = body;
+    const { tenantId, unitId, startDate, endDate, amount, bankAmount, cashAmount, notes } = body;
     const dto: UpdateContractDto = {};
     if (tenantId !== undefined) dto.tenantId = tenantId;
     if (unitId !== undefined) dto.unitId = unitId;
     if (startDate !== undefined) dto.startDate = startDate;
     if (endDate !== undefined) dto.endDate = endDate;
     if (amount !== undefined) dto.amount = amount;
+    if (bankAmount !== undefined) dto.bankAmount = bankAmount;
+    if (cashAmount !== undefined) dto.cashAmount = cashAmount;
     if (notes !== undefined) dto.notes = notes;
     
     let pdfUrl: string | undefined;
@@ -229,5 +235,4 @@ export class ContractsController {
     return this.contractsService.remove(id);
   }
 }
-
 

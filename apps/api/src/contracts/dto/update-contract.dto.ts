@@ -28,6 +28,16 @@ export class UpdateContractDto {
   @IsNumberString()
   amount?: string;
 
+  @ApiPropertyOptional({ description: 'Monthly bank amount as string' })
+  @IsOptional()
+  @IsNumberString()
+  bankAmount?: string;
+
+  @ApiPropertyOptional({ description: 'Monthly cash amount as string' })
+  @IsOptional()
+  @IsNumberString()
+  cashAmount?: string;
+
   @ApiPropertyOptional({ enum: ContractStatus })
   @IsOptional()
   @IsEnum(ContractStatus)
@@ -38,5 +48,4 @@ export class UpdateContractDto {
   @IsString()
   notes?: string;
 }
-
 

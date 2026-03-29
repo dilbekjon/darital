@@ -81,11 +81,13 @@ export class InvoicesService {
     });
 
     // Transform the response to ensure all data is properly serialized
-    const data = sortedInvoices.map((invoice) => ({
+    const data = sortedInvoices.map((invoice: any) => ({
       id: invoice.id,
       contractId: invoice.contractId,
       dueDate: invoice.dueDate.toISOString(),
       amount: invoice.amount.toNumber(),
+      bankAmount: invoice.bankAmount.toNumber(),
+      cashAmount: invoice.cashAmount.toNumber(),
       status: invoice.status,
       createdAt: invoice.createdAt.toISOString(),
       updatedAt: invoice.updatedAt.toISOString(),
@@ -145,7 +147,9 @@ export class InvoicesService {
         contractId: dto.contractId,
         dueDate: new Date(dto.dueDate),
         amount: new Decimal(dto.amount),
-      },
+        bankAmount: new Decimal((dto as any).bankAmount ?? dto.amount),
+        cashAmount: new Decimal((dto as any).cashAmount ?? 0),
+      } as any,
       include: { payments: true, contract: true },
     });
   }
@@ -209,9 +213,18 @@ export class InvoicesService {
    * Used when contract is activated
    * Generates one invoice per month for the entire contract duration
    */
-  async createForContract(contractId: string, contractAmount: Decimal, startDate: Date, endDate: Date): Promise<any[]> {
+  async createForContract(
+    contractId: string,
+    contractAmount: Decimal,
+    startDate: Date,
+    endDate: Date,
+    contractBankAmount?: Decimal,
+    contractCashAmount?: Decimal,
+  ): Promise<any[]> {
     const invoices = [];
     const monthlyAmount = contractAmount;
+    const monthlyBankAmount = contractBankAmount ?? contractAmount;
+    const monthlyCashAmount = contractCashAmount ?? new Decimal(0);
     
     // Start from the first day of the contract start month
     let currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
@@ -245,8 +258,10 @@ export class InvoicesService {
             contractId,
             dueDate,
             amount: monthlyAmount,
+            bankAmount: monthlyBankAmount,
+            cashAmount: monthlyCashAmount,
             status: InvoiceStatus.PENDING,
-          },
+          } as any,
           include: { payments: true, contract: true },
         });
         invoices.push(invoice);
@@ -446,4 +461,3 @@ export class InvoicesService {
     return { message: 'Invoice deleted successfully', id };
   }
 }
-

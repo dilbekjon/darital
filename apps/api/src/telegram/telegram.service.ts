@@ -1125,7 +1125,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const list = payments.slice(0, 10);
     let text = title;
     for (const p of list) {
-      const amount = typeof p.amount === 'object' && 'toNumber' in p.amount ? (p.amount as any).toNumber() : Number(p.amount);
+      const rawAmount: any = p.amount ?? 0;
+      const amount = typeof rawAmount === 'object' && rawAmount && 'toNumber' in rawAmount ? rawAmount.toNumber() : Number(rawAmount);
       const date = p.paidAt ? new Date(p.paidAt).toLocaleDateString() : new Date(p.createdAt).toLocaleDateString();
       const status = p.status;
       const unitName = p.unitName || '—';
@@ -2037,4 +2038,3 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     }
   }
 }
-
