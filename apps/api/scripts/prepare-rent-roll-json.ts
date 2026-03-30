@@ -1,6 +1,9 @@
 import { readFile, writeFile } from 'fs/promises';
+import { resolve } from 'path';
 
-type CleanRow = {
+type AnyRecord = Record<string, unknown>;
+
+type RentRollRow = {
   bino: string;
   qavat: number;
   magazin_tartib_raqami: number | string | null;
@@ -17,98 +20,95 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function cleanNullableNumber(value: unknown): number | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value === 'string' && value.trim()) {
-    const n = Number(value.replace(/,/g, '').trim());
-    return Number.isFinite(n) ? n : null;
-  }
-  return null;
-}
-
-function cleanNullableString(value: unknown): string | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
-}
-
-function cleanMagazinId(value: unknown): number | string | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+function toNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (isFiniteNumber(value)) return value;
   if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed ? trimmed : null;
+    const normalized = value.replace(/\s+/g, '').replace(',', '.');
+    const num = Number(normalized);
+    return Number.isFinite(num) ? num : null;
   }
   return null;
 }
 
-function extractRecords(parsed: any): any[] {
-  const records =
-    parsed?.ijaradagi_objektlar?.records ??
-    parsed?.records ??
-    (Array.isArray(parsed) ? parsed : null);
-
-  if (!Array.isArray(records)) {
-    throw new Error('Unsupported JSON format: expected { ijaradagi_objektlar: { records: [] } } or records: []');
-  }
-  return records;
+function toNullableString(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const str = String(value).trim();
+  return str.length ? str : null;
 }
 
-function normalize(records: any[]): CleanRow[] {
-  const out: CleanRow[] = [];
-  for (const r of records) {
-    const bino = cleanNullableString(r?.bino);
-    const qavat = r?.qavat;
-    const ijarachi = cleanNullableString(r?.ijarachi_nomi);
-    if (!bino) continue;
-    if (!isFiniteNumber(qavat)) continue;
-    if (!ijarachi) continue;
+function toMagazin(value: unknown): number | string | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const str = String(value).trim();
+  if (!str) return null;
+  const asNum = Number(str);
+  if (Number.isFinite(asNum) && String(asNum) === str) return asNum;
+  return str;
+}
 
-    out.push({
-      bino,
-      qavat,
-      magazin_tartib_raqami: cleanMagazinId(r?.magazin_tartib_raqami),
-      ijarachi_nomi: ijarachi,
-      izoh: cleanNullableString(r?.izoh),
-      ijara_maydoni_kv_m: cleanNullableNumber(r?.ijara_maydoni_kv_m),
-      ijara_stavkasi_1_kv_m: cleanNullableNumber(r?.ijara_stavkasi_1_kv_m),
-      jami_ijara_summasi: cleanNullableNumber(r?.jami_ijara_summasi),
-      naqd: cleanNullableNumber(r?.naqd),
-      perechislenie: cleanNullableNumber(r?.perechislenie),
-    });
-  }
-  return out;
+function normalizeRow(raw: AnyRecord): RentRollRow | null {
+  const bino = typeof raw.bino === 'string' ? raw.bino.trim() : '';
+  const qavat = raw.qavat;
+  const ijarachi = typeof raw.ijarachi_nomi === 'string' ? raw.ijarachi_nomi.trim() : '';
+
+  if (!bino) return null;
+  if (!isFiniteNumber(qavat)) return null;
+  if (!ijarachi) return null;
+
+  return {
+    bino,
+    qavat,
+    magazin_tartib_raqami: toMagazin(raw.magazin_tartib_raqami),
+    ijarachi_nomi: ijarachi,
+    izoh: toNullableString(raw.izoh),
+    ijara_maydoni_kv_m: toNullableNumber(raw.ijara_maydoni_kv_m),
+    ijara_stavkasi_1_kv_m: toNullableNumber(raw.ijara_stavkasi_1_kv_m),
+    jami_ijara_summasi: toNullableNumber(raw.jami_ijara_summasi),
+    naqd: toNullableNumber(raw.naqd),
+    perechislenie: toNullableNumber(raw.perechislenie),
+  };
 }
 
 async function main() {
   const inputPath = process.argv[2];
   const outputPath = process.argv[3];
 
-  if (!inputPath) {
-    throw new Error('Usage: tsx scripts/prepare-rent-roll-json.ts <input.json> [output.json]');
+  if (!inputPath || !outputPath) {
+    console.error('Usage: tsx scripts/prepare-rent-roll-json.ts <input.json> <output.json>');
+    process.exit(1);
   }
 
-  const raw = await readFile(inputPath, 'utf8');
-  const parsed = JSON.parse(raw);
-  const records = extractRecords(parsed);
-  const cleaned = normalize(records);
+  const absInput = resolve(process.cwd(), inputPath);
+  const absOutput = resolve(process.cwd(), outputPath);
+  const raw = await readFile(absInput, 'utf8');
+  const parsed = JSON.parse(raw) as any;
 
-  const outJson = JSON.stringify({ records: cleaned }, null, 2);
-  if (outputPath) {
-    await writeFile(outputPath, outJson, 'utf8');
-  } else {
-    process.stdout.write(outJson);
+  const recordsCandidate: unknown =
+    parsed?.ijaradagi_objektlar?.records ??
+    parsed?.records ??
+    parsed;
+
+  if (!Array.isArray(recordsCandidate)) {
+    throw new Error('Unsupported JSON format: expected an array or { ijaradagi_objektlar: { records: [] } }');
   }
 
-  // eslint-disable-next-line no-console
-  console.log(`\nPrepared records: ${cleaned.length}`);
+  const cleaned: RentRollRow[] = [];
+  for (const rec of recordsCandidate) {
+    if (!rec || typeof rec !== 'object') continue;
+    const normalized = normalizeRow(rec as AnyRecord);
+    if (!normalized) continue;
+    cleaned.push(normalized);
+  }
+
+  await writeFile(absOutput, JSON.stringify({ records: cleaned }, null, 2) + '\n', 'utf8');
+  console.log(`Input records: ${recordsCandidate.length}`);
+  console.log(`Cleaned records: ${cleaned.length}`);
+  console.log(`Wrote: ${absOutput}`);
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error(err);
-  process.exitCode = 1;
+  process.exit(1);
 });
 
