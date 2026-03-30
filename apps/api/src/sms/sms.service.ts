@@ -13,6 +13,12 @@ export class SmsService {
   private readonly devSmsBaseUrl = 'https://devsms.uz/api';
   private eskizToken: string | null = null;
 
+  private getBearerAuthHeaderValue(token: string): string {
+    const trimmed = token.trim();
+    if (/^bearer\s+/i.test(trimmed)) return trimmed;
+    return `Bearer ${trimmed}`;
+  }
+
   private getConfiguredProvider(): 'devsms' | 'eskiz' | null {
     const explicitProvider = (process.env.SMS_PROVIDER || '').trim().toLowerCase();
     if (explicitProvider === 'devsms') return 'devsms';
@@ -41,7 +47,7 @@ export class SmsService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as any;
       this.eskizToken = data?.data?.token || null;
       return this.eskizToken;
     } catch (e) {
@@ -61,7 +67,7 @@ export class SmsService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: this.getBearerAuthHeaderValue(token),
         },
         body: JSON.stringify({
           phone: uzbPhone,
@@ -69,7 +75,7 @@ export class SmsService {
           from: process.env.DEVSMS_FROM || '4546',
         }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as any;
       if (res.ok && (data?.success === true || data?.status === 'sent' || data?.id)) {
         this.logger.log(`SMS sent via DevSMS to ${uzbPhone}`);
         return { success: true, messageId: String(data?.id || '') || undefined };
@@ -101,10 +107,20 @@ export class SmsService {
           from: process.env.ESKIZ_FROM || '4546',
         }),
       });
-      const data = await res.json();
-      if (data?.status === 'success' || res.ok) {
+      const data = (await res.json()) as any;
+      const isSuccess =
+        res.ok &&
+        (data?.status === 'success' ||
+          data?.data?.id ||
+          data?.id ||
+          data?.message_id ||
+          data?.data?.message_id);
+
+      if (isSuccess) {
         this.logger.log(`SMS sent via Eskiz to ${uzbPhone}`);
-        return { success: true, messageId: data?.id };
+        const messageId =
+          data?.id ?? data?.data?.id ?? data?.message_id ?? data?.data?.message_id ?? undefined;
+        return { success: true, messageId: messageId ? String(messageId) : undefined };
       }
       this.logger.warn(`Eskiz failed: ${JSON.stringify(data)}`);
       return { success: false, error: data?.message || 'Unknown error' };
