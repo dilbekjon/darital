@@ -108,9 +108,34 @@ export async function login(loginId: string, password: string): Promise<LoginRes
   });
 }
 
+export interface TenantLoginStatusResponse {
+  exists: boolean;
+  passwordSet: boolean;
+}
+
+export async function tenantLoginStatus(phone: string): Promise<TenantLoginStatusResponse> {
+  return fetchApi<TenantLoginStatusResponse>('/auth/tenant-login-status', {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export async function tenantLoginRequestCode(phone: string): Promise<{ success: boolean }> {
+  return fetchApi<{ success: boolean }>('/auth/tenant-login-request-code', {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export async function tenantLoginSetPassword(phone: string, code: string, password: string): Promise<{ success: boolean }> {
+  return fetchApi<{ success: boolean }>('/auth/tenant-login-set-password', {
+    method: 'POST',
+    body: JSON.stringify({ phone, code, password }),
+  });
+}
+
 export async function getMe(): Promise<UserResponse> {
   return fetchApi<UserResponse>('/auth/me'); // Endpoint changed from /me to /auth/me for consistency
 }
 
 export { ApiError }
-

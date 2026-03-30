@@ -184,6 +184,7 @@ model Tenant {
   password      String
   passwordSetAt DateTime?
   setupTokens   TenantSetupToken[]
+  otps          TenantOtp[]
   contracts     Contract[]
   documents     Document[]
   createdAt     DateTime       @default(now())
@@ -216,6 +217,22 @@ model TenantSetupToken {
   @@index([token])
   @@index([expiresAt])
   @@map("tenant_setup_tokens")
+}
+
+model TenantOtp {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([expiresAt])
+  @@index([usedAt])
+  @@map("tenant_otps")
 }
 
 model Document {

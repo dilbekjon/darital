@@ -4,6 +4,8 @@ import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma.service';
 import { AdminRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { SmsService } from '../sms/sms.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +15,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly smsService: SmsService,
   ) {}
 
   async validateUser(login: string, password: string) {
@@ -98,5 +101,117 @@ export class AuthService {
     this.logger.log(`Tenant ${normalizedPhone} set password successfully`);
     return { success: true };
   }
-}
 
+  private normalizePhone(rawPhone: string): string {
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    return cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
+  }
+
+  async tenantLoginStatus(phone: string): Promise<{ exists: boolean; passwordSet: boolean }> {
+    const normalizedPhone = this.normalizePhone(phone);
+    const tenant = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
+    if (!tenant) return { exists: false, passwordSet: false };
+    return { exists: true, passwordSet: Boolean(tenant.passwordSetAt) };
+  }
+
+  private generateOtpCode(): string {
+    return crypto.randomInt(10_000_000, 100_000_000).toString();
+  }
+
+  async requestTenantFirstLoginCode(phone: string): Promise<{ success: boolean }> {
+    const normalizedPhone = this.normalizePhone(phone);
+    const tenant = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
+    if (!tenant) {
+      const err: any = new UnauthorizedException({ code: 'TENANT_NOT_FOUND', message: 'Tenant not found' });
+      throw err;
+    }
+    if (tenant.passwordSetAt) {
+      const err: any = new UnauthorizedException({ code: 'PASSWORD_ALREADY_SET', message: 'Password already set' });
+      throw err;
+    }
+
+    // Cleanup expired/used codes to keep the table small
+    await this.prisma.tenantOtp.deleteMany({
+      where: {
+        tenantId: tenant.id,
+        OR: [{ usedAt: { not: null } }, { expiresAt: { lt: new Date() } }],
+      },
+    });
+
+    const code = this.generateOtpCode();
+    const codeHash = await bcrypt.hash(code, 10);
+    const otp = await this.prisma.tenantOtp.create({
+      data: {
+        tenantId: tenant.id,
+        codeHash,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+
+    const smsResult = await this.smsService.sendTenantLoginCode(tenant.phone, tenant.fullName, code);
+    if (!smsResult.success) {
+      // Avoid leaving unusable OTPs in DB when SMS delivery fails
+      await this.prisma.tenantOtp.delete({ where: { id: otp.id } }).catch(() => undefined);
+      const err: any = new UnauthorizedException({ code: 'SMS_FAILED', message: smsResult.error || 'SMS failed' });
+      throw err;
+    }
+
+    return { success: true };
+  }
+
+  async confirmTenantFirstLoginAndSetPassword(
+    phone: string,
+    code: string,
+    newPassword: string,
+  ): Promise<{ success: boolean }> {
+    const normalizedPhone = this.normalizePhone(phone);
+    const tenant = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
+    if (!tenant) {
+      const err: any = new UnauthorizedException({ code: 'TENANT_NOT_FOUND', message: 'Tenant not found' });
+      throw err;
+    }
+    if (tenant.passwordSetAt) {
+      const err: any = new UnauthorizedException({ code: 'PASSWORD_ALREADY_SET', message: 'Password already set' });
+      throw err;
+    }
+
+    const otp = await this.prisma.tenantOtp.findFirst({
+      where: { tenantId: tenant.id, usedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!otp || otp.expiresAt < new Date()) {
+      const err: any = new UnauthorizedException({ code: 'OTP_EXPIRED', message: 'Code expired' });
+      throw err;
+    }
+
+    if (otp.attempts >= 5) {
+      const err: any = new UnauthorizedException({ code: 'TOO_MANY_ATTEMPTS', message: 'Too many attempts' });
+      throw err;
+    }
+
+    const isValid = await bcrypt.compare(code.trim(), otp.codeHash);
+    if (!isValid) {
+      await this.prisma.tenantOtp.update({
+        where: { id: otp.id },
+        data: { attempts: otp.attempts + 1 },
+      });
+      const err: any = new UnauthorizedException({ code: 'INVALID_OTP', message: 'Invalid code' });
+      throw err;
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.$transaction([
+      this.prisma.tenant.update({
+        where: { id: tenant.id },
+        data: { password: hashedPassword, passwordSetAt: new Date() },
+      }),
+      this.prisma.tenantOtp.update({
+        where: { id: otp.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    return { success: true };
+  }
+}

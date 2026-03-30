@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { login, getMe, ApiError } from '@/lib/api'
+import { login, getMe, ApiError, tenantLoginRequestCode, tenantLoginSetPassword, tenantLoginStatus } from '@/lib/api'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useUntypedTranslations } from '../../i18n/useUntypedTranslations'
 import { useTheme } from '../../contexts/ThemeContext'
@@ -12,6 +12,10 @@ export default function LoginPage() {
   const router = useRouter()
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [step, setStep] = useState<'phone' | 'password' | 'code' | 'set_password'>('phone')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -20,53 +24,109 @@ export default function LoginPage() {
   const t = useUntypedTranslations()
   const { darkMode, toggleTheme } = useTheme()
 
+  const resetFlow = () => {
+    setStep('phone')
+    setPassword('')
+    setCode('')
+    setNewPassword('')
+    setConfirmNewPassword('')
+    setShowPassword(false)
+    setError('')
+  }
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
     setIsLoading(true)
 
     try {
-      // Trim email and password to avoid whitespace issues
       const trimmedPhone = phone.trim()
-      const trimmedPassword = password.trim()
       
-      if (!trimmedPhone || !trimmedPassword) {
-        setError(t.phoneAndPasswordRequired || 'Telefon raqam va parol kiritilishi shart')
+      if (!trimmedPhone) {
+        setError('Telefon raqam kiritilishi shart')
         setIsLoading(false)
         return
       }
-      
-      const data = await login(trimmedPhone, trimmedPassword)
-      console.log('Login successful, token received')
-      
-      // Save token to localStorage
-      localStorage.setItem('accessToken', data.accessToken)
 
-      // Get user info to determine role
-      try {
-        console.log('Fetching user info...')
+      if (step === 'phone') {
+        const status = await tenantLoginStatus(trimmedPhone)
+        if (!status.exists) {
+          setError('Bu telefon raqam bo‘yicha tenant topilmadi')
+          setIsLoading(false)
+          return
+        }
+
+        if (status.passwordSet) {
+          setStep('password')
+          setIsLoading(false)
+          return
+        }
+
+        await tenantLoginRequestCode(trimmedPhone)
+        setStep('code')
+        setError('Tasdiqlash kodi SMS orqali yuborildi. 8 xonali kodni kiriting.')
+        setIsLoading(false)
+        return
+      }
+
+      if (step === 'password') {
+        const trimmedPassword = password.trim()
+        if (!trimmedPassword) {
+          setError('Parol kiritilishi shart')
+          setIsLoading(false)
+          return
+        }
+
+        const data = await login(trimmedPhone, trimmedPassword)
+        localStorage.setItem('accessToken', data.accessToken)
         const user = await getMe()
-        console.log('User info received:', user)
-        
-        // Redirect based on role
-        // Check for tenant role (can be 'TENANT_USER' enum or 'TENANT' string for backward compatibility)
         if (user.role === 'TENANT_USER' || user.role === 'TENANT') {
           router.push('/tenant')
         } else {
           router.push('/dashboard')
         }
-      } catch (meError) {
-        console.error('Error fetching user info:', meError)
-        // If getMe fails, still try to redirect (token is valid)
-        // But show a warning
-        if (meError instanceof ApiError) {
-          setError(`Login successful but failed to fetch user info: ${meError.message}. Redirecting anyway...`)
-          setTimeout(() => router.push('/dashboard'), 2000)
-        } else {
-          setError('Login successful but failed to fetch user info. Redirecting...')
-          setTimeout(() => router.push('/dashboard'), 2000)
+        return
+      }
+
+      if (step === 'code') {
+        const trimmedCode = code.trim()
+        if (!/^\d{8}$/.test(trimmedCode)) {
+          setError('Kod 8 xonali raqam bo‘lishi kerak')
+          setIsLoading(false)
+          return
         }
+        setStep('set_password')
         setIsLoading(false)
+        return
+      }
+
+      if (step === 'set_password') {
+        const trimmedCode = code.trim()
+        const trimmedNewPassword = newPassword.trim()
+        const trimmedConfirm = confirmNewPassword.trim()
+
+        if (!/^\d{8}$/.test(trimmedCode)) {
+          setError('Kod 8 xonali raqam bo‘lishi kerak')
+          setIsLoading(false)
+          return
+        }
+        if (trimmedNewPassword.length < 6) {
+          setError('Yangi parol kamida 6 ta belgidan iborat bo‘lishi kerak')
+          setIsLoading(false)
+          return
+        }
+        if (trimmedNewPassword !== trimmedConfirm) {
+          setError('Parollar mos emas')
+          setIsLoading(false)
+          return
+        }
+
+        await tenantLoginSetPassword(trimmedPhone, trimmedCode, trimmedNewPassword)
+
+        const data = await login(trimmedPhone, trimmedNewPassword)
+        localStorage.setItem('accessToken', data.accessToken)
+        router.push('/tenant')
+        return
       }
     } catch (err) {
       console.error('Login error:', err)
@@ -148,11 +208,24 @@ export default function LoginPage() {
                   darkMode ? 'focus:ring-yellow-500' : 'focus:ring-blue-500'
                 }`}
                 placeholder="998901234567"
-                disabled={isLoading}
+                disabled={isLoading || step !== 'phone'}
               />
+              {step !== 'phone' && (
+                <button
+                  type="button"
+                  onClick={resetFlow}
+                  disabled={isLoading}
+                  className={`mt-2 text-sm font-medium underline transition-colors ${
+                    darkMode ? 'text-gray-300 hover:text-yellow-400' : 'text-gray-600 hover:text-blue-700'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Telefon raqamni o‘zgartirish
+                </button>
+              )}
             </div>
 
-            <div>
+            {step === 'password' && (
+              <div>
               <label htmlFor="password" className={`block text-sm font-semibold mb-2 ${
                 darkMode ? 'text-yellow-400' : 'text-gray-700'
               }`}>
@@ -164,7 +237,7 @@ export default function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
+                  required={step === 'password'}
                   minLength={6}
                   className={`w-full px-4 py-3 pr-12 rounded-xl border-2 transition-all duration-300 ${
                     darkMode
@@ -197,7 +270,87 @@ export default function LoginPage() {
                   )}
                 </button>
               </div>
-            </div>
+              </div>
+            )}
+
+            {step === 'code' && (
+              <div>
+                <label htmlFor="code" className={`block text-sm font-semibold mb-2 ${
+                  darkMode ? 'text-yellow-400' : 'text-gray-700'
+                }`}>
+                  Tasdiqlash kodi
+                </label>
+                <input
+                  id="code"
+                  type="tel"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  required
+                  className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 ${
+                    darkMode
+                      ? 'bg-gray-800/50 border-yellow-500/40 text-white placeholder-gray-500 focus:border-yellow-400'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                  } focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    darkMode ? 'focus:ring-yellow-500' : 'focus:ring-blue-500'
+                  }`}
+                  placeholder="12345678"
+                  disabled={isLoading}
+                />
+              </div>
+            )}
+
+            {step === 'set_password' && (
+              <>
+                <div>
+                  <label htmlFor="newPassword" className={`block text-sm font-semibold mb-2 ${
+                    darkMode ? 'text-yellow-400' : 'text-gray-700'
+                  }`}>
+                    Yangi parol
+                  </label>
+                  <input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 ${
+                      darkMode
+                        ? 'bg-gray-800/50 border-yellow-500/40 text-white placeholder-gray-500 focus:border-yellow-400'
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                      darkMode ? 'focus:ring-yellow-500' : 'focus:ring-blue-500'
+                    }`}
+                    placeholder="••••••••"
+                    disabled={isLoading}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="confirmNewPassword" className={`block text-sm font-semibold mb-2 ${
+                    darkMode ? 'text-yellow-400' : 'text-gray-700'
+                  }`}>
+                    Yangi parolni tasdiqlang
+                  </label>
+                  <input
+                    id="confirmNewPassword"
+                    type="password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 ${
+                      darkMode
+                        ? 'bg-gray-800/50 border-yellow-500/40 text-white placeholder-gray-500 focus:border-yellow-400'
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                    } focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                      darkMode ? 'focus:ring-yellow-500' : 'focus:ring-blue-500'
+                    }`}
+                    placeholder="••••••••"
+                    disabled={isLoading}
+                  />
+                </div>
+              </>
+            )}
 
             <button
               type="submit"
@@ -208,7 +361,15 @@ export default function LoginPage() {
                   : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white focus:ring-blue-500 shadow-lg'
               } disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95`}
             >
-              {isLoading ? t.loading : t.login}
+              {isLoading
+                ? t.loading
+                : step === 'phone'
+                  ? 'Davom etish'
+                  : step === 'password'
+                    ? t.login
+                    : step === 'code'
+                      ? 'Kod tekshirish'
+                      : 'Parolni o‘rnatish'}
             </button>
           </form>
         </div>

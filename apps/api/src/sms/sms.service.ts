@@ -139,4 +139,11 @@ export class SmsService {
       `Kod 10 daqiqa davomida amal qiladi.`;
     return this.sendSms(phone, text);
   }
+
+  async sendTenantLoginCode(phone: string, fullName: string, code: string): Promise<SmsSendResult> {
+    const text =
+      `Assalomu alaykum ${fullName}! Darital tizimiga kirish uchun tasdiqlash kodi: ${code}. ` +
+      `Kod 10 daqiqa davomida amal qiladi.`;
+    return this.sendSms(phone, text);
+  }
 }

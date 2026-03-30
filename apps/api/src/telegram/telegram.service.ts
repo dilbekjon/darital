@@ -22,12 +22,14 @@ interface ConversationState {
     | 'waiting_phone'
     | 'waiting_code'
     | 'waiting_new_password'
+    | 'waiting_confirm_new_password'
     | 'waiting_password'
     | 'completed'
     | 'choosing_language'
     | 'main_menu'
     | 'writing_chat';
   language?: 'uz' | 'ru' | 'en';
+  pendingNewPassword?: string;
 }
 
 @Update()
@@ -1294,7 +1296,15 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     // Check if user is in registration flow (only ignore during registration steps)
     const state = this.conversationStates.get(chatId);
-    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
+    if (
+      state &&
+      (state.step === 'waiting_phone' ||
+        state.step === 'waiting_code' ||
+        state.step === 'waiting_new_password' ||
+        state.step === 'waiting_confirm_new_password' ||
+        state.step === 'waiting_password' ||
+        state.step === 'choosing_language')
+    ) {
       return; // Ignore photos during registration
     }
 
@@ -1351,7 +1361,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     // Check if user is in registration flow (only ignore during registration steps)
     const state = this.conversationStates.get(chatId);
-    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
+    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
       this.logger.debug(`Ignoring voice message during registration for chatId=${chatId}`);
       return; // Ignore voice messages during registration
     }
@@ -1410,7 +1420,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     // Check if user is in registration flow (only ignore during registration steps)
     const state = this.conversationStates.get(chatId);
-    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
+    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
       return; // Ignore video notes during registration
     }
 
@@ -1458,7 +1468,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     // Check if user is in registration flow (only ignore during registration steps)
     const state = this.conversationStates.get(chatId);
-    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
+    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
       return; // Ignore videos during registration
     }
 
@@ -1510,7 +1520,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     // Check if user is in registration flow (only ignore during registration steps)
     const state = this.conversationStates.get(chatId);
-    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
+    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
       return; // Ignore documents during registration
     }
 
@@ -1714,6 +1724,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         state.step === 'waiting_phone' ||
         state.step === 'waiting_code' ||
         state.step === 'waiting_new_password' ||
+        state.step === 'waiting_confirm_new_password' ||
         state.step === 'waiting_password'
       ) {
     try {
@@ -1725,12 +1736,13 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           await this.handleOtpInput(ctx, chatId, message, state);
           break;
         case 'waiting_new_password':
+          await this.handleNewPasswordInput(ctx, chatId, message, state);
+          break;
+        case 'waiting_confirm_new_password':
+          await this.handleConfirmNewPasswordInput(ctx, chatId, message, state);
+          break;
         case 'waiting_password':
-          if (state.step === 'waiting_new_password') {
-            await this.handleNewPasswordInput(ctx, chatId, message, state);
-          } else {
-            await this.handleExistingPasswordInput(ctx, chatId, message, state);
-          }
+          await this.handleExistingPasswordInput(ctx, chatId, message, state);
           break;
       }
     } catch (error) {
@@ -2122,6 +2134,49 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    state.pendingNewPassword = password.trim();
+    state.step = 'waiting_confirm_new_password';
+    this.conversationStates.set(chatId, state);
+
+    await ctx.reply(
+      lang === 'ru'
+        ? 'Повторите новый пароль.'
+        : lang === 'en'
+          ? 'Repeat the new password.'
+          : 'Yangi parolni qayta kiriting.',
+    );
+  }
+
+  private async handleConfirmNewPasswordInput(ctx: Context, chatId: string, confirmPassword: string, state: ConversationState) {
+    const lang = state.language || 'uz';
+    const pending = state.pendingNewPassword;
+    if (!pending) {
+      state.step = 'waiting_new_password';
+      this.conversationStates.set(chatId, state);
+      await ctx.reply(
+        lang === 'ru'
+          ? 'Введите новый пароль.'
+          : lang === 'en'
+            ? 'Enter a new password.'
+            : 'Yangi parol kiriting.',
+      );
+      return;
+    }
+
+    if (pending !== confirmPassword.trim()) {
+      state.pendingNewPassword = undefined;
+      state.step = 'waiting_new_password';
+      this.conversationStates.set(chatId, state);
+      await ctx.reply(
+        lang === 'ru'
+          ? '❌ Пароли не совпадают. Введите новый пароль ещё раз.'
+          : lang === 'en'
+            ? '❌ Passwords do not match. Enter a new password again.'
+            : '❌ Parollar mos emas. Yangi parolni qaytadan kiriting.',
+      );
+      return;
+    }
+
     const telegramUser = await this.prisma.telegramUser.findUnique({ where: { chatId } });
     if (!telegramUser?.pendingTenantId) {
       await this.promptForPhone(ctx, chatId, lang);
@@ -2137,7 +2192,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.tenant.update({
       where: { id: tenant.id },
       data: {
-        password: await bcrypt.hash(password.trim(), 10),
+        password: await bcrypt.hash(pending, 10),
         passwordSetAt: new Date(),
       },
     });

@@ -26,7 +26,7 @@ html, body {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: var(--font-outfit, "Outfit"), sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   min-height: 100vh;
 }
 

@@ -3,6 +3,9 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { TenantLoginRequestCodeDto } from './dto/tenant-login-request-code.dto';
+import { TenantLoginSetPasswordDto } from './dto/tenant-login-set-password.dto';
+import { TenantLoginStatusDto } from './dto/tenant-login-status.dto';
 import { TenantSetupPasswordDto } from './dto/tenant-setup-password.dto';
 import { Public } from './decorators/public.decorator';
 
@@ -31,6 +34,33 @@ export class AuthController {
     return this.authService.tenantSetupPassword(body.phone, body.token, body.password);
   }
 
+  @Post('tenant-login-status')
+  @Public()
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: 'Tenant login status by phone (password set or first time)' })
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async tenantLoginStatus(@Body() body: TenantLoginStatusDto) {
+    return this.authService.tenantLoginStatus(body.phone);
+  }
+
+  @Post('tenant-login-request-code')
+  @Public()
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  @ApiOperation({ summary: 'Request first-time tenant login SMS code (8 digits)' })
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async tenantLoginRequestCode(@Body() body: TenantLoginRequestCodeDto) {
+    return this.authService.requestTenantFirstLoginCode(body.phone);
+  }
+
+  @Post('tenant-login-set-password')
+  @Public()
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @ApiOperation({ summary: 'Confirm first-time SMS code and set tenant password' })
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async tenantLoginSetPassword(@Body() body: TenantLoginSetPasswordDto) {
+    return this.authService.confirmTenantFirstLoginAndSetPassword(body.phone, body.code, body.password);
+  }
+
   // The /me endpoint is now handled by MeController. Removing from AuthController.
   // @Get('me')
   // @ApiBearerAuth()
@@ -41,5 +71,4 @@ export class AuthController {
   //   return { id: sub, email, fullName: name, role };
   // }
 }
-
 

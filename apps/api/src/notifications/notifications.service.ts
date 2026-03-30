@@ -86,6 +86,10 @@ export class NotificationsService {
 
     // 3. SMS (if phone number available and enabled)
     if (isChannelEnabled('SMS')) {
+      const smsRemindersEnabled = process.env.SMS_REMINDERS_ENABLE === 'true';
+      if (!smsRemindersEnabled) {
+        this.logger.debug(`📱 SMS reminders disabled by env (set SMS_REMINDERS_ENABLE=true)`);
+      } else
       if (recipient.phone) {
         const smsMessage = `${title}: ${body}`;
         notificationPromises.push(this.sendSMS(recipient.phone, smsMessage));
@@ -737,4 +741,3 @@ Darital Jamoasi
     }
   }
 }
-
