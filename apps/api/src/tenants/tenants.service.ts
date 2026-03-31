@@ -24,6 +24,10 @@ export class TenantsService {
     return cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
   }
 
+  private generateOtpCode(): string {
+    return crypto.randomInt(10_000_000, 100_000_000).toString();
+  }
+
   async findAll(includeArchived = false) {
     const tenants = await this.prisma.tenant.findMany({
       where: includeArchived ? {} : { isArchived: false },
@@ -143,25 +147,35 @@ export class TenantsService {
 
   async sendResetPasswordSms(tenantId: string) {
     const tenant = await this.findOne(tenantId);
-    const token = crypto.randomBytes(32).toString('hex');
-    const baseUrl = process.env.TENANT_SETUP_BASE_URL || 'https://darital-arenda.uz';
-    const setupUrl = `${baseUrl}/setup?phone=${encodeURIComponent(tenant.phone)}&token=${token}`;
-    await this.prisma.tenantSetupToken.create({
-      data: {
+
+    // Cleanup expired/used codes to keep the table small
+    await this.prisma.tenantOtp.deleteMany({
+      where: {
         tenantId: tenant.id,
-        token,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        OR: [{ usedAt: { not: null } }, { expiresAt: { lt: new Date() } }],
       },
     });
-    const smsResult = await this.smsService.sendTenantSetupLink(tenant.phone, tenant.fullName, setupUrl);
+
+    const code = this.generateOtpCode();
+    const codeHash = await bcrypt.hash(code, 10);
+
+    const otp = await this.prisma.tenantOtp.create({
+      data: {
+        tenantId: tenant.id,
+        codeHash,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+
+    const smsResult = await this.smsService.sendTenantPasswordResetCode(tenant.phone, tenant.fullName, code);
     if (!smsResult.success) {
-      this.logger.warn(`SMS not sent to ${tenant.phone}: ${smsResult.error}. Setup link (send to tenant manually): ${setupUrl}`);
+      await this.prisma.tenantOtp.delete({ where: { id: otp.id } }).catch(() => undefined);
+      this.logger.warn(`Reset SMS not sent to ${tenant.phone}: ${smsResult.error}`);
       return {
         success: false,
         message: smsResult.error === 'SMS not configured'
           ? 'SMS not configured (set SMS_PROVIDER and provider credentials such as DEVSMS_TOKEN)'
           : 'SMS failed',
-        setupLink: setupUrl,
       };
     }
     return { success: true, message: 'SMS sent' };

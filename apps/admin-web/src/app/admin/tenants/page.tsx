@@ -29,6 +29,12 @@ export default function AdminTenantsPage() {
   const t = useUntypedTranslations();
   const { darkMode } = useTheme();
   const router = useRouter();
+  const displayPhone = (phone?: string) => {
+    if (!phone) return '';
+    const trimmed = phone.trim();
+    if (!trimmed) return '';
+    return trimmed.startsWith('+') ? trimmed : `+${trimmed}`;
+  };
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +51,6 @@ export default function AdminTenantsPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [resettingPassword, setResettingPassword] = useState<string | null>(null);
-  const [setupLinkFromReset, setSetupLinkFromReset] = useState<string | null>(null);
 
   // Filter tenants based on search query
   const filteredTenants = useMemo(() => {
@@ -206,18 +211,15 @@ export default function AdminTenantsPage() {
     if (!canEditTenants) return;
     setResettingPassword(tenantId);
     setError(null);
-    setSetupLinkFromReset(null);
     try {
-      const res = await fetchApi<{ success: boolean; message?: string; setupLink?: string }>(`/tenants/${tenantId}/reset-password`, { method: 'PUT' });
+      const res = await fetchApi<{ success: boolean; message?: string }>(`/tenants/${tenantId}/reset-password`, { method: 'PUT' });
       if (res.success) {
-        setSuccess(t.resetPasswordSmsSent || 'Sozlash havolasi bilan SMS ijarachiga yuborildi');
+        setSuccess(t.resetPasswordSmsSent || 'Parolni tiklash kodi SMS orqali ijarachiga yuborildi');
       } else {
         setSuccess(res.message || 'SMS yuborilmadi');
-        if (res.setupLink) setSetupLinkFromReset(res.setupLink);
       }
       setTimeout(() => {
         setSuccess(null);
-        setSetupLinkFromReset(null);
       }, 15000);
     } catch (err) {
       if (err instanceof ApiError) setError(err.data?.message || err.message);
@@ -262,7 +264,6 @@ export default function AdminTenantsPage() {
     resetForm();
     setError(null);
     setSuccess(null);
-    setSetupLinkFromReset(null);
     setIsModalOpen(true);
   };
 
@@ -270,14 +271,13 @@ export default function AdminTenantsPage() {
     setEditingTenant(tenant);
     setFormData({
       fullName: tenant.fullName,
-      phone: tenant.phone,
+      phone: displayPhone(tenant.phone),
       email: tenant.email || '',
       password: '',
       confirmPassword: '',
     });
     setError(null);
     setSuccess(null);
-    setSetupLinkFromReset(null);
     setIsModalOpen(true);
   };
 
@@ -397,24 +397,9 @@ export default function AdminTenantsPage() {
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
               {success}
-              {setupLinkFromReset && (
-                <div className="mt-2 p-2 rounded bg-green-200/50 dark:bg-green-800/30 break-all text-sm">
-                  <span className="font-medium">Bu havolani ijarachiga yuboring: </span>
-                  <a href={setupLinkFromReset} target="_blank" rel="noopener noreferrer" className="underline ml-1">{setupLinkFromReset}</a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(setupLinkFromReset);
-                    }}
-                    className="ml-2 px-2 py-1 rounded bg-green-600 text-white text-xs font-medium"
-                  >
-                    Nusxalash
-                  </button>
-                </div>
-              )}
             </div>
             <button
-              onClick={() => { setSuccess(null); setSetupLinkFromReset(null); }}
+              onClick={() => { setSuccess(null); }}
               className="shrink-0 font-bold"
             >
               ×
@@ -501,7 +486,7 @@ export default function AdminTenantsPage() {
                         )}
                       </div>
                       <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {tenant.phone}
+                        {displayPhone(tenant.phone)}
                       </p>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
@@ -630,7 +615,7 @@ export default function AdminTenantsPage() {
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
-                        {tenant.phone}
+                        {displayPhone(tenant.phone)}
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -724,21 +709,8 @@ export default function AdminTenantsPage() {
             {success && (
               <div className="bg-green-100 dark:bg-green-900/20 border border-green-400 dark:border-green-800 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg mb-4" role="alert">
                 {success}
-                {setupLinkFromReset && (
-                  <div className="mt-2 p-2 rounded bg-green-200/50 dark:bg-green-800/30 break-all text-sm">
-                    <span className="font-medium">Bu havolani ijarachiga yuboring: </span>
-                    <a href={setupLinkFromReset} target="_blank" rel="noopener noreferrer" className="underline ml-1">{setupLinkFromReset}</a>
-                    <button
-                      type="button"
-                      onClick={() => navigator.clipboard.writeText(setupLinkFromReset)}
-                      className="ml-2 px-2 py-1 rounded bg-green-600 text-white text-xs font-medium"
-                    >
-                      Nusxalash
-                    </button>
-                  </div>
-                )}
                 <button
-                  onClick={() => { setSuccess(null); setSetupLinkFromReset(null); }}
+                  onClick={() => { setSuccess(null); }}
                   className="float-right ml-4 font-bold"
                 >
                   ×

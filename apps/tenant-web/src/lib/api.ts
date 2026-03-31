@@ -134,6 +134,20 @@ export async function tenantLoginSetPassword(phone: string, code: string, passwo
   });
 }
 
+export async function tenantResetRequestCode(phone: string): Promise<{ success: boolean }> {
+  return fetchApi<{ success: boolean }>('/auth/tenant-reset-request-code', {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export async function tenantResetSetPassword(phone: string, code: string, password: string): Promise<{ success: boolean }> {
+  return fetchApi<{ success: boolean }>('/auth/tenant-reset-set-password', {
+    method: 'POST',
+    body: JSON.stringify({ phone, code, password }),
+  });
+}
+
 export async function getMe(): Promise<UserResponse> {
   return fetchApi<UserResponse>('/auth/me'); // Endpoint changed from /me to /auth/me for consistency
 }

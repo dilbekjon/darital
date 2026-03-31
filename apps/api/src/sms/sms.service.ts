@@ -162,4 +162,11 @@ export class SmsService {
       `Kod 10 daqiqa davomida amal qiladi.`;
     return this.sendSms(phone, text);
   }
+
+  async sendTenantPasswordResetCode(phone: string, fullName: string, code: string): Promise<SmsSendResult> {
+    const text =
+      `Assalomu alaykum ${fullName}! Darital hisobingiz parolini tiklash kodi: ${code}. ` +
+      `Kod 10 daqiqa davomida amal qiladi.`;
+    return this.sendSms(phone, text);
+  }
 }

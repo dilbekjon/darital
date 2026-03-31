@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { login, getMe, ApiError, tenantLoginRequestCode, tenantLoginSetPassword, tenantLoginStatus } from '@/lib/api'
+import { login, getMe, ApiError, tenantLoginRequestCode, tenantLoginSetPassword, tenantLoginStatus, tenantResetRequestCode, tenantResetSetPassword } from '@/lib/api'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useUntypedTranslations } from '../../i18n/useUntypedTranslations'
 import { useTheme } from '../../contexts/ThemeContext'
@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [step, setStep] = useState<'phone' | 'password' | 'code' | 'set_password'>('phone')
+  const [codePurpose, setCodePurpose] = useState<'first_login' | 'reset'>('first_login')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -31,7 +32,44 @@ export default function LoginPage() {
     setNewPassword('')
     setConfirmNewPassword('')
     setShowPassword(false)
+    setCodePurpose('first_login')
     setError('')
+  }
+
+  const startPasswordReset = async () => {
+    const trimmedPhone = phone.trim()
+    if (!trimmedPhone) {
+      setError('Telefon raqam kiritilishi shart')
+      return
+    }
+    setCodePurpose('reset')
+    setStep('code')
+    setError('Parolni tiklash kodi SMS orqali yuborildi. 8 xonali kodni kiriting.')
+  }
+
+  const resendCode = async () => {
+    const trimmedPhone = phone.trim()
+    if (!trimmedPhone) {
+      setError('Telefon raqam kiritilishi shart')
+      return
+    }
+    setIsLoading(true)
+    setError('')
+    try {
+      if (codePurpose === 'reset') {
+        await tenantResetRequestCode(trimmedPhone)
+        setError('Parolni tiklash kodi SMS orqali qayta yuborildi. 8 xonali kodni kiriting.')
+      } else {
+        await tenantLoginRequestCode(trimmedPhone)
+        setError('Tasdiqlash kodi SMS orqali qayta yuborildi. 8 xonali kodni kiriting.')
+      }
+    } catch (err) {
+      console.error('Resend code error:', err)
+      if (err instanceof ApiError) setError(err.data?.message || err.message)
+      else setError('Kod yuborishda xatolik')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -63,6 +101,7 @@ export default function LoginPage() {
         }
 
         await tenantLoginRequestCode(trimmedPhone)
+        setCodePurpose('first_login')
         setStep('code')
         setError('Tasdiqlash kodi SMS orqali yuborildi. 8 xonali kodni kiriting.')
         setIsLoading(false)
@@ -121,7 +160,11 @@ export default function LoginPage() {
           return
         }
 
-        await tenantLoginSetPassword(trimmedPhone, trimmedCode, trimmedNewPassword)
+        if (codePurpose === 'reset') {
+          await tenantResetSetPassword(trimmedPhone, trimmedCode, trimmedNewPassword)
+        } else {
+          await tenantLoginSetPassword(trimmedPhone, trimmedCode, trimmedNewPassword)
+        }
 
         const data = await login(trimmedPhone, trimmedNewPassword)
         localStorage.setItem('accessToken', data.accessToken)
@@ -270,6 +313,18 @@ export default function LoginPage() {
                   )}
                 </button>
               </div>
+              <div className="mt-3 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={startPasswordReset}
+                  disabled={isLoading}
+                  className={`text-sm font-medium underline transition-colors ${
+                    darkMode ? 'text-gray-300 hover:text-yellow-400' : 'text-gray-600 hover:text-blue-700'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Parolni tiklash (kod bilan)
+                </button>
+              </div>
               </div>
             )}
 
@@ -278,7 +333,7 @@ export default function LoginPage() {
                 <label htmlFor="code" className={`block text-sm font-semibold mb-2 ${
                   darkMode ? 'text-yellow-400' : 'text-gray-700'
                 }`}>
-                  Tasdiqlash kodi
+                  {codePurpose === 'reset' ? 'Parolni tiklash kodi' : 'Tasdiqlash kodi'}
                 </label>
                 <input
                   id="code"
@@ -296,6 +351,18 @@ export default function LoginPage() {
                   placeholder="12345678"
                   disabled={isLoading}
                 />
+                <div className="mt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={resendCode}
+                    disabled={isLoading}
+                    className={`text-sm font-medium underline transition-colors ${
+                      darkMode ? 'text-gray-300 hover:text-yellow-400' : 'text-gray-600 hover:text-blue-700'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    Kodni qayta yuborish
+                  </button>
+                </div>
               </div>
             )}
 

@@ -2005,6 +2005,40 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     await this.ensureTelegramUser(chatId, lang);
 
+    // If there is an existing (admin-sent / web-sent) OTP for this tenant, let them continue with code flow
+    // even if password is already set.
+    const existingOtp = await this.prisma.tenantOtp.findFirst({
+      where: {
+        tenantId: tenant.id,
+        usedAt: null,
+        expiresAt: { gte: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existingOtp) {
+      await this.prisma.telegramUser.update({
+        where: { chatId },
+        data: {
+          pendingTenantId: tenant.id,
+          pendingPhone: tenant.phone,
+          authStep: 'waiting_code',
+          otpHash: existingOtp.codeHash,
+          otpExpiresAt: existingOtp.expiresAt,
+          otpAttempts: 0,
+        },
+      });
+      this.conversationStates.set(chatId, { step: 'waiting_code', language: lang });
+
+      await ctx.reply(
+        lang === 'ru'
+          ? 'SMS-код уже отправлен. Введите 8-значный код.'
+          : lang === 'en'
+            ? 'SMS code already sent. Enter the 8-digit code.'
+            : 'SMS kod yuborilgan. 8 xonali kodni kiriting.',
+      );
+      return;
+    }
+
     if (!tenant.passwordSetAt) {
       try {
         await this.sendFirstLoginCode(chatId, tenant.id, tenant.phone, tenant.fullName, lang);
@@ -2099,6 +2133,25 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
             : '❌ Kod noto‘g‘ri. Yana urinib ko‘ring.',
       );
       return;
+    }
+
+    // Mark the latest tenant OTP as used if it exists (admin/web code flow).
+    // (If this OTP came from Telegram-only flow, there will be no matching tenant OTP.)
+    if (telegramUser.pendingTenantId) {
+      const latestOtp = await this.prisma.tenantOtp.findFirst({
+        where: {
+          tenantId: telegramUser.pendingTenantId,
+          usedAt: null,
+          expiresAt: { gte: new Date() },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (latestOtp) {
+        await this.prisma.tenantOtp.update({
+          where: { id: latestOtp.id },
+          data: { usedAt: new Date() },
+        });
+      }
     }
 
     await this.prisma.telegramUser.update({

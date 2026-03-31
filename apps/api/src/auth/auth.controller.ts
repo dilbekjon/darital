@@ -61,6 +61,24 @@ export class AuthController {
     return this.authService.confirmTenantFirstLoginAndSetPassword(body.phone, body.code, body.password);
   }
 
+  @Post('tenant-reset-request-code')
+  @Public()
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
+  @ApiOperation({ summary: 'Request tenant password reset SMS code (8 digits)' })
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async tenantResetRequestCode(@Body() body: TenantLoginRequestCodeDto) {
+    return this.authService.requestTenantPasswordResetCode(body.phone);
+  }
+
+  @Post('tenant-reset-set-password')
+  @Public()
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @ApiOperation({ summary: 'Confirm reset SMS code and set tenant password' })
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async tenantResetSetPassword(@Body() body: TenantLoginSetPasswordDto) {
+    return this.authService.confirmTenantPasswordResetAndSetPassword(body.phone, body.code, body.password);
+  }
+
   // The /me endpoint is now handled by MeController. Removing from AuthController.
   // @Get('me')
   // @ApiBearerAuth()
@@ -71,4 +89,3 @@ export class AuthController {
   //   return { id: sub, email, fullName: name, role };
   // }
 }
-
