@@ -150,6 +150,8 @@ Install `rclone`, configure a remote, then run:
 BACKUP_RCLONE_REMOTE=myremote:darital-backups ./scripts/backup-vps.sh
 ```
 
+Important: make sure the cron job runs under the same user that has the `rclone` remote configured. If cron runs as `root` but you configured `rclone` as `darital`, either move the cron entry to the `darital` crontab or set `BACKUP_RCLONE_CONFIG=/home/darital/.config/rclone/rclone.conf`.
+
 Recommended remote targets:
 
 - Cloudflare R2

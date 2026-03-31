@@ -13,6 +13,9 @@ BACKUP_BASE_DIR="${BACKUP_BASE_DIR:-/opt/darital-backups}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 TIMESTAMP="$(date +"%Y-%m-%d_%H-%M-%S")"
 RUN_DIR="$BACKUP_BASE_DIR/$TIMESTAMP"
+OFFSITE_LOG_FILE=""
+OFFSITE_ERROR_TAIL=""
+RCLONE_CONFIG_PATH=""
 
 DOCKER_COMPOSE=(docker-compose "${COMPOSE_FILES[@]}" --env-file "$ENV_FILE")
 BACKUP_FAILED=0
@@ -23,10 +26,22 @@ log() {
 
 load_env_file() {
   if [[ -f "$ENV_FILE" ]]; then
+    # Preserve explicitly provided values (e.g. from root crontab entry) so the env file
+    # doesn't accidentally override them.
+    local pre_backup_rclone_remote="${BACKUP_RCLONE_REMOTE-}"
+    local pre_backup_rclone_config="${BACKUP_RCLONE_CONFIG-}"
+
     set -a
     # shellcheck disable=SC1090
     source "$ENV_FILE"
     set +a
+
+    if [[ -n "${pre_backup_rclone_remote:-}" ]]; then
+      BACKUP_RCLONE_REMOTE="$pre_backup_rclone_remote"
+    fi
+    if [[ -n "${pre_backup_rclone_config:-}" ]]; then
+      BACKUP_RCLONE_CONFIG="$pre_backup_rclone_config"
+    fi
   fi
 }
 
@@ -69,15 +84,23 @@ EOF
 notify_failure() {
   local exit_code="${1:-1}"
   local message
+  local rclone_config_msg="default"
+  if [[ -n "${RCLONE_CONFIG_PATH:-}" ]]; then
+    rclone_config_msg="$RCLONE_CONFIG_PATH"
+  fi
   message=$(
     cat <<EOF
 Darital backup failed
 Host: $(hostname)
+User: $(whoami)
+Home: ${HOME:-unknown}
 Time: $TIMESTAMP
 Step: ${CURRENT_STEP:-unknown}
 Exit code: $exit_code
 Local dir: $RUN_DIR
 Off-site: ${BACKUP_RCLONE_REMOTE:-not configured}
+Rclone config: $rclone_config_msg
+${OFFSITE_ERROR_TAIL:+Rclone log tail:\n$OFFSITE_ERROR_TAIL}
 EOF
   )
   send_telegram_message "$message"
@@ -175,7 +198,34 @@ offsite_sync() {
   fi
 
   log "syncing backup to off-site remote"
-  rclone copy "$RUN_DIR" "${BACKUP_RCLONE_REMOTE%/}/$TIMESTAMP" --create-empty-src-dirs
+  OFFSITE_LOG_FILE="$RUN_DIR/logs/rclone-copy.log"
+
+  RCLONE_CONFIG_PATH="${BACKUP_RCLONE_CONFIG:-${RCLONE_CONFIG:-}}"
+  local rclone_args=(
+    copy
+    "$RUN_DIR"
+    "${BACKUP_RCLONE_REMOTE%/}/$TIMESTAMP"
+    --create-empty-src-dirs
+    --log-file "$OFFSITE_LOG_FILE"
+    --log-level INFO
+  )
+  if [[ -n "${RCLONE_CONFIG_PATH:-}" ]]; then
+    rclone_args+=(--config "$RCLONE_CONFIG_PATH")
+  fi
+
+  local attempt
+  for attempt in 1 2 3; do
+    log "rclone copy attempt $attempt/3"
+    if rclone "${rclone_args[@]}"; then
+      return
+    fi
+    sleep $((attempt * 5))
+  done
+
+  if [[ -f "$OFFSITE_LOG_FILE" ]]; then
+    OFFSITE_ERROR_TAIL="$(tail -n 25 "$OFFSITE_LOG_FILE" 2>/dev/null || true)"
+  fi
+  exit 1
 }
 
 prune_old_backups() {
