@@ -34,8 +34,11 @@ export class SmsService {
   }
 
   private normalizeSmsText(text: string): string {
+    // docker-compose env_file values can't be multi-line. Users often encode newlines as "\n".
+    // Expand common escapes so the final SMS text matches pre-approved templates.
+    const expanded = text.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t');
     // Keep content intact but normalize line endings to avoid subtle template mismatches
-    return text.replace(/\r\n/g, '\n').trim();
+    return expanded.replace(/\r\n/g, '\n').trim();
   }
 
   private getConfiguredProvider(): 'devsms' | 'eskiz' | null {

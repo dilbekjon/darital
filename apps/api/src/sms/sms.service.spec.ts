@@ -78,12 +78,13 @@ describe('SmsService', () => {
     process.env.SMS_PROVIDER = 'devsms';
     process.env.DEVSMS_TOKEN = 'abc123';
     process.env.SMS_TENANT_RESET_TEMPLATE =
-      'Sizning Darital Arenda tizimiga kirish parolingiz: {{CODE}}\n\nIltimos, tizimga kirgandan so‘ng parolingizni o‘zgartiring.';
+      'Sizning Darital Arenda tizimiga kirish parolingiz: {{CODE}}\\n\\nIltimos, tizimga kirgandan so‘ng parolingizni o‘zgartiring.';
 
     const fetchMock = jest.fn(async (_url: string, init?: any) => {
       const body = JSON.parse(init?.body || '{}');
       expect(body.message).toContain('12345678');
       expect(body.message).toContain('parolingiz');
+      expect(body.message).toContain('\n\n');
       return {
         ok: true,
         async json() {
