@@ -8,6 +8,7 @@ import { TenantLoginSetPasswordDto } from './dto/tenant-login-set-password.dto';
 import { TenantLoginStatusDto } from './dto/tenant-login-status.dto';
 import { TenantSetupPasswordDto } from './dto/tenant-setup-password.dto';
 import { Public } from './decorators/public.decorator';
+import { TelegramExchangeDto } from './dto/telegram-exchange.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -77,6 +78,15 @@ export class AuthController {
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async tenantResetSetPassword(@Body() body: TenantLoginSetPasswordDto) {
     return this.authService.confirmTenantPasswordResetAndSetPassword(body.phone, body.code, body.password);
+  }
+
+  @Post('telegram-exchange')
+  @Public()
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  @ApiOperation({ summary: 'Exchange Telegram app token for an API access token' })
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async telegramExchange(@Body() body: TelegramExchangeDto) {
+    return this.authService.exchangeTelegramAppToken(body.token);
   }
 
   // The /me endpoint is now handled by MeController. Removing from AuthController.

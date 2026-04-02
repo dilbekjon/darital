@@ -6,6 +6,7 @@ import { MinioModule } from '../minio/minio.module';
 import { ChatModule } from '../chat/chat.module';
 import { TenantPortalModule } from '../tenant-portal/tenant-portal.module';
 import { SmsModule } from '../sms/sms.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { SmsModule } from '../sms/sms.module';
     ChatModule, // Import ChatModule to access ChatGateway
     TenantPortalModule,
     SmsModule,
+    AuthModule,
     TelegrafModule.forRootAsync({
       useFactory: async () => {
         const logger = new Logger('TelegramModule');

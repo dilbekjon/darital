@@ -79,6 +79,49 @@ export class AuthService {
     return { accessToken };
   }
 
+  async createTelegramAppToken(chatId: string, tenantId: string): Promise<string> {
+    return this.jwtService.signAsync(
+      { sub: tenantId, chatId, typ: 'tg_app' },
+      { expiresIn: '10m' },
+    );
+  }
+
+  async exchangeTelegramAppToken(token: string): Promise<{ accessToken: string }> {
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(token);
+    } catch (e: any) {
+      const err: any = new UnauthorizedException({ code: 'INVALID_TOKEN', message: 'Invalid or expired token' });
+      throw err;
+    }
+
+    if (!payload?.sub || payload?.typ !== 'tg_app' || !payload?.chatId) {
+      const err: any = new UnauthorizedException({ code: 'INVALID_TOKEN', message: 'Invalid token payload' });
+      throw err;
+    }
+
+    const telegramUser = await this.prisma.telegramUser.findUnique({ where: { chatId: String(payload.chatId) } });
+    if (!telegramUser?.isAuthenticated || telegramUser.tenantId !== String(payload.sub)) {
+      const err: any = new UnauthorizedException({ code: 'NOT_AUTHENTICATED', message: 'Telegram session not authenticated' });
+      throw err;
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: String(payload.sub) } });
+    if (!tenant) {
+      const err: any = new UnauthorizedException({ code: 'TENANT_NOT_FOUND', message: 'Tenant not found' });
+      throw err;
+    }
+
+    const accessToken = await this.jwtService.signAsync({
+      sub: tenant.id,
+      role: AdminRole.TENANT_USER,
+      email: tenant.phone,
+      name: tenant.fullName,
+    });
+
+    return { accessToken };
+  }
+
   async tenantSetupPassword(phone: string, token: string, newPassword: string): Promise<{ success: boolean }> {
     const cleanPhone = phone.replace(/\D/g, '');
     const normalizedPhone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;

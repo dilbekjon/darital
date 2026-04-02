@@ -10,6 +10,7 @@ import { ChatGateway } from '../chat/chat.gateway';
 import { TenantPortalService } from '../tenant-portal/tenant-portal.service';
 import { PaymentProviderEnum } from '../payments/dto/payment-intent.dto';
 import { SmsService } from '../sms/sms.service';
+import { AuthService } from '../auth/auth.service';
 import * as bcrypt from 'bcryptjs';
 import { Role, TelegramUser } from '@prisma/client';
 import { mkdirSync, existsSync, writeFileSync } from 'fs';
@@ -46,6 +47,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     private readonly moduleRef?: ModuleRef,
     @Optional() private readonly tenantPortalService?: TenantPortalService,
     private readonly smsService?: SmsService,
+    @Optional() private readonly authService?: AuthService,
   ) {
     // Add error handler to catch polling conflicts
     this.bot.catch((err: any) => {
@@ -65,6 +67,24 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
   private isTenantAuthorized(telegramUser: TelegramUser | null | undefined): boolean {
     return Boolean(telegramUser?.tenantId && telegramUser?.isAuthenticated);
+  }
+
+  private getTenantWebBaseUrl(): string | null {
+    const webAppUrl =
+      process.env.TELEGRAM_WEBAPP_URL ||
+      process.env.TELEGRAM_TENANT_WEBAPP_URL ||
+      process.env.TENANT_WEBAPP_URL ||
+      process.env.TENANT_SETUP_BASE_URL;
+    if (!webAppUrl) return null;
+    const trimmed = webAppUrl.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  private buildTelegramAppLoginUrl(baseUrl: string, token: string): string {
+    const url = new URL(baseUrl);
+    url.pathname = '/tg-login';
+    url.searchParams.set('token', token);
+    return url.toString();
   }
 
   private generateOtpCode(): string {
@@ -287,16 +307,34 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   private async showMainMenu(ctx: Context, chatId: string, lang: 'uz' | 'ru' | 'en' = 'uz') {
     const texts = this.getMenuTexts(lang);
 
-    const keyboard = Markup.inlineKeyboard([
-      [
-        Markup.button.callback(texts.payInvoice, 'menu_pay'),
-        Markup.button.callback(texts.myInfo, 'menu_my_info'),
-      ],
-      [
-        Markup.button.callback(texts.writeChat, 'menu_write_chat'),
-        Markup.button.callback(texts.more, 'menu_more'),
-      ],
-    ]);
+    const telegramUser = await this.prisma.telegramUser.findUnique({ where: { chatId } });
+    const isAuthed = this.isTenantAuthorized(telegramUser);
+
+    const keyboard = isAuthed
+      ? await (async () => {
+          const baseUrl = this.getTenantWebBaseUrl();
+          let appButton;
+          if (baseUrl && this.authService && telegramUser?.tenantId) {
+            const tgToken = await this.authService.createTelegramAppToken(chatId, telegramUser.tenantId);
+            const loginUrl = this.buildTelegramAppLoginUrl(baseUrl, tgToken);
+            appButton = Markup.button.webApp(texts.app, loginUrl);
+          } else if (baseUrl) {
+            appButton = Markup.button.url(texts.app, baseUrl);
+          } else {
+            appButton = Markup.button.callback(texts.app, 'menu_app_missing');
+          }
+          return Markup.inlineKeyboard([[appButton], [Markup.button.callback(texts.logout, 'menu_logout')]]);
+        })()
+      : Markup.inlineKeyboard([
+          [
+            Markup.button.callback(texts.payInvoice, 'menu_pay'),
+            Markup.button.callback(texts.myInfo, 'menu_my_info'),
+          ],
+          [
+            Markup.button.callback(texts.writeChat, 'menu_write_chat'),
+            Markup.button.callback(texts.more, 'menu_more'),
+          ],
+        ]);
 
     const state = this.conversationStates.get(chatId) || { step: 'main_menu' as const, language: lang };
     state.step = 'main_menu';
@@ -312,7 +350,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     } catch {
       // ignore if no keyboard to remove or delete fails
     }
-    await ctx.reply(texts.mainMenuTitle, keyboard);
+    await ctx.reply(isAuthed ? texts.mainMenuAuthedTitle : texts.mainMenuTitle, keyboard);
   }
 
   /**
@@ -322,6 +360,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     if (lang === 'ru') {
       return {
         mainMenuTitle: '🏠 Darital\n\nВыберите действие:',
+        mainMenuAuthedTitle: '🏠 Darital\n\nОткройте приложение или выйдите:',
         myInfo: '📋 Мой обзор',
         more: '⋯ Ещё',
         writeChat: '💬 Чат',
@@ -334,11 +373,13 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         changeLanguage: '🌐 Язык',
         help: '❓ Помощь',
         back: '⬅️ Назад',
+        app: '📱 App',
         logout: '🚪 Выйти',
       };
     } else if (lang === 'en') {
       return {
         mainMenuTitle: '🏠 Darital\n\nChoose an action:',
+        mainMenuAuthedTitle: '🏠 Darital\n\nOpen the app or log out:',
         myInfo: '📋 My overview',
         more: '⋯ More',
         writeChat: '💬 Chat',
@@ -351,11 +392,13 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         changeLanguage: '🌐 Language',
         help: '❓ Help',
         back: '⬅️ Back',
+        app: '📱 App',
         logout: '🚪 Log out',
       };
     } else {
       return {
         mainMenuTitle: '🏠 Darital\n\nAmalni tanlang:',
+        mainMenuAuthedTitle: '🏠 Darital\n\nIlovani oching yoki chiqing:',
         myInfo: '📋 Mening ma\'lumotim',
         more: '⋯ Boshqa',
         writeChat: '💬 Chat',
@@ -368,6 +411,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         changeLanguage: '🌐 Til',
         help: '❓ Yordam',
         back: '⬅️ Orqaga',
+        app: '📱 App',
         logout: '🚪 Chiqish',
       };
     }
@@ -764,6 +808,16 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
             : '❌ Chiqish amalga oshmadi. Keyinroq urinib ko\'ring.';
       await ctx.reply(err);
     }
+  }
+
+  @Action('menu_app_missing')
+  async onAppMissing(@Ctx() ctx: Context) {
+    const chatId = ctx.chat?.id.toString();
+    if (!chatId) return;
+    await ctx.answerCbQuery();
+    const msg =
+      '❌ Web app URL is not configured. Set TELEGRAM_WEBAPP_URL (or TENANT_WEBAPP_URL) on the server.';
+    await ctx.reply(msg);
   }
 
   /**
