@@ -19,6 +19,25 @@ export class SmsService {
     return `Bearer ${trimmed}`;
   }
 
+  private renderSmsTemplate(template: string, vars: Record<string, string>): string {
+    let out = template;
+    for (const [key, value] of Object.entries(vars)) {
+      const patterns = [
+        new RegExp(`{{\\s*${key}\\s*}}`, 'g'),
+        new RegExp(`{\\s*${key}\\s*}`, 'g'),
+        new RegExp(`__${key}__`, 'g'),
+        new RegExp(`%${key}%`, 'g'),
+      ];
+      for (const re of patterns) out = out.replace(re, value);
+    }
+    return out;
+  }
+
+  private normalizeSmsText(text: string): string {
+    // Keep content intact but normalize line endings to avoid subtle template mismatches
+    return text.replace(/\r\n/g, '\n').trim();
+  }
+
   private getConfiguredProvider(): 'devsms' | 'eskiz' | null {
     const explicitProvider = (process.env.SMS_PROVIDER || '').trim().toLowerCase();
     if (explicitProvider === 'devsms') return 'devsms';
@@ -81,7 +100,7 @@ export class SmsService {
         return { success: true, messageId: String(data?.id || '') || undefined };
       }
       this.logger.warn(`DevSMS failed: ${JSON.stringify(data)}`);
-      return { success: false, error: data?.message || 'Unknown error' };
+      return { success: false, error: data?.error || data?.message || 'Unknown error' };
     } catch (e: any) {
       this.logger.error('DevSMS send error', e);
       return { success: false, error: e?.message };
@@ -123,7 +142,7 @@ export class SmsService {
         return { success: true, messageId: messageId ? String(messageId) : undefined };
       }
       this.logger.warn(`Eskiz failed: ${JSON.stringify(data)}`);
-      return { success: false, error: data?.message || 'Unknown error' };
+      return { success: false, error: data?.error || data?.message || 'Unknown error' };
     } catch (e: any) {
       this.logger.error('Eskiz send error', e);
       return { success: false, error: e?.message };
@@ -150,23 +169,29 @@ export class SmsService {
   }
 
   async sendTelegramLoginCode(phone: string, fullName: string, code: string): Promise<SmsSendResult> {
-    const text =
-      `Assalomu alaykum ${fullName}! Darital Telegram botiga kirish kodi: ${code}. ` +
-      `Kod 10 daqiqa davomida amal qiladi.`;
+    const template = process.env.SMS_TENANT_OTP_TEMPLATE;
+    const text = template
+      ? this.renderSmsTemplate(this.normalizeSmsText(template), { CODE: code, FULL_NAME: fullName })
+      : `Assalomu alaykum ${fullName}! Darital Telegram botiga kirish kodi: ${code}. Kod 10 daqiqa davomida amal qiladi.`;
     return this.sendSms(phone, text);
   }
 
   async sendTenantLoginCode(phone: string, fullName: string, code: string): Promise<SmsSendResult> {
-    const text =
-      `Assalomu alaykum ${fullName}! Darital tizimiga kirish uchun tasdiqlash kodi: ${code}. ` +
-      `Kod 10 daqiqa davomida amal qiladi.`;
+    const template = process.env.SMS_TENANT_OTP_TEMPLATE;
+    const text = template
+      ? this.renderSmsTemplate(this.normalizeSmsText(template), { CODE: code, FULL_NAME: fullName })
+      : `Assalomu alaykum ${fullName}! Darital tizimiga kirish uchun tasdiqlash kodi: ${code}. Kod 10 daqiqa davomida amal qiladi.`;
     return this.sendSms(phone, text);
   }
 
   async sendTenantPasswordResetCode(phone: string, fullName: string, code: string): Promise<SmsSendResult> {
-    const text =
-      `Assalomu alaykum ${fullName}! Darital hisobingiz parolini tiklash kodi: ${code}. ` +
-      `Kod 10 daqiqa davomida amal qiladi.`;
-    return this.sendSms(phone, text);
+    // IMPORTANT: Some providers require every SMS text to be pre-moderated/approved.
+    // If you have an approved template, set SMS_TENANT_RESET_TEMPLATE with a CODE placeholder.
+    const template = process.env.SMS_TENANT_RESET_TEMPLATE;
+    if (template) {
+      const text = this.renderSmsTemplate(this.normalizeSmsText(template), { CODE: code, FULL_NAME: fullName });
+      return this.sendSms(phone, text);
+    }
+    return this.sendTenantLoginCode(phone, fullName, code);
   }
 }

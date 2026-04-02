@@ -175,7 +175,7 @@ export class TenantsService {
         success: false,
         message: smsResult.error === 'SMS not configured'
           ? 'SMS not configured (set SMS_PROVIDER and provider credentials such as DEVSMS_TOKEN)'
-          : 'SMS failed',
+          : (smsResult.error || 'SMS failed'),
       };
     }
     return { success: true, message: 'SMS sent' };

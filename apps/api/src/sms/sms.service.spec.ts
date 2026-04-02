@@ -73,4 +73,30 @@ describe('SmsService', () => {
     expect(result.error).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it('uses reset template when SMS_TENANT_RESET_TEMPLATE is set', async () => {
+    process.env.SMS_PROVIDER = 'devsms';
+    process.env.DEVSMS_TOKEN = 'abc123';
+    process.env.SMS_TENANT_RESET_TEMPLATE =
+      'Sizning Darital Arenda tizimiga kirish parolingiz: {{CODE}}\n\nIltimos, tizimga kirgandan so‘ng parolingizni o‘zgartiring.';
+
+    const fetchMock = jest.fn(async (_url: string, init?: any) => {
+      const body = JSON.parse(init?.body || '{}');
+      expect(body.message).toContain('12345678');
+      expect(body.message).toContain('parolingiz');
+      return {
+        ok: true,
+        async json() {
+          return { success: true, id: 'msg-2' };
+        },
+      } as any;
+    });
+
+    (global as any).fetch = fetchMock;
+
+    const service = new SmsService();
+    const result = await service.sendTenantPasswordResetCode('998901234567', 'Test User', '12345678');
+    expect(result.success).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
