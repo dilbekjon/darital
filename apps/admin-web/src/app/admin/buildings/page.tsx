@@ -398,7 +398,7 @@ export default function BuildingsPage() {
                             : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
                         }`}
                       >
-                        Xonalar / Batafsil
+                        Xonalar
                       </button>
                       <Link
                         href={`/admin/buildings/${building.id}/3d`}
@@ -408,7 +408,7 @@ export default function BuildingsPage() {
                             : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                         }`}
                       >
-                        2D ko\'rinish
+                        2D
                       </Link>
                       <button
                         onClick={() => openEditModal(building)}

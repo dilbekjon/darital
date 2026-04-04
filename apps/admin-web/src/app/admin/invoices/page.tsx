@@ -19,6 +19,8 @@ interface Invoice {
   contractId: string;
   dueDate: string;
   amount: number | { toNumber?: () => number };
+  bankAmount?: number;
+  cashAmount?: number;
   status: 'PENDING' | 'PAID' | 'OVERDUE';
   contract?: {
     id: string;
@@ -38,6 +40,7 @@ interface Invoice {
     status: string;
     amount?: number | { toNumber?: () => number };
     method?: 'ONLINE' | 'OFFLINE';
+    source?: 'BANK' | 'CASH' | 'ONLINE' | null;
     providerPaymentId?: string | null;
     rawPayload?: any;
     createdAt?: string;
@@ -386,6 +389,30 @@ export default function AdminInvoicesPage() {
       })[0];
   };
 
+  const getConfirmedBySource = (invoice: Invoice, source: 'BANK' | 'CASH') => {
+    const payments = invoice.payments || [];
+    const normalizedSource = source === 'BANK' ? ['BANK', 'ONLINE'] : ['CASH'];
+    return payments
+      .filter((payment) => payment.status === 'CONFIRMED' && normalizedSource.includes(String(payment.source || payment.method || '').toUpperCase()))
+      .reduce((sum, payment) => sum + getAmount(payment.amount ?? 0), 0);
+  };
+
+  const getSplitStatus = (invoice: Invoice) => {
+    const totalAmount = getAmount(invoice.amount);
+    const bankDue = Number(invoice.bankAmount ?? totalAmount);
+    const cashDue = Number(invoice.cashAmount ?? 0);
+    const bankPaid = getConfirmedBySource(invoice, 'BANK');
+    const cashPaid = getConfirmedBySource(invoice, 'CASH');
+    return {
+      bankDue,
+      cashDue,
+      bankPaid,
+      cashPaid,
+      bankDone: bankDue <= 0 || bankPaid >= bankDue,
+      cashDone: cashDue <= 0 || cashPaid >= cashDue,
+    };
+  };
+
   // Latest PENDING payment (online or offline) for Accept/Decline
   const getLatestPendingPayment = (invoice: Invoice) => {
     const payments = invoice.payments || [];
@@ -724,6 +751,7 @@ export default function AdminInvoicesPage() {
               }`}>
                 {sortedInvoices.map((invoice, index) => {
                   const displayStatus = getInvoiceDisplayStatus(invoice);
+                  const splitStatus = getSplitStatus(invoice);
                   const pendingPayment = getLatestPendingPayment(invoice);
                   const paymentReceived = pendingPayment ? isPaymentReceived(pendingPayment) : false;
                   const showVerifyButtons =
@@ -773,12 +801,34 @@ export default function AdminInvoicesPage() {
                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
                     }`}>
-                      UZS {getAmount(invoice.amount).toLocaleString()}
+                      <div>UZS {getAmount(invoice.amount).toLocaleString()}</div>
+                      <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Bank: {splitStatus.bankPaid.toLocaleString()} / {splitStatus.bankDue.toLocaleString()}
+                      </div>
+                      <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Naqd: {splitStatus.cashPaid.toLocaleString()} / {splitStatus.cashDue.toLocaleString()}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getInvoiceStatusColor(displayStatus)}`}>
-                        {getInvoiceStatusText(displayStatus)}
-                      </span>
+                      <div className="flex flex-col items-start gap-1">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getInvoiceStatusColor(displayStatus)}`}>
+                          {getInvoiceStatusText(displayStatus)}
+                        </span>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          splitStatus.bankDone
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : (darkMode ? 'bg-yellow-900/30 text-yellow-300' : 'bg-yellow-100 text-yellow-800')
+                        }`}>
+                          Bank: {splitStatus.bankDone ? 'To‘langan' : 'To‘lanmagan'}
+                        </span>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          splitStatus.cashDone
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : (darkMode ? 'bg-yellow-900/30 text-yellow-300' : 'bg-yellow-100 text-yellow-800')
+                        }`}>
+                          Naqd: {splitStatus.cashDone ? 'To‘langan' : 'To‘lanmagan'}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex flex-wrap items-center justify-end gap-1">

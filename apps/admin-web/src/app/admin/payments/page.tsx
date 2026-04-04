@@ -217,9 +217,14 @@ export default function AdminPaymentsPage() {
   }, [invoices, offlineInvoiceSearch]);
 
   // Open record offline payment modal
-  const openRecordOfflineModal = async () => {
+  const openRecordOfflineModal = async (source: 'BANK' | 'CASH') => {
     setOfflineInvoiceSearch('');
-    setOfflineForm({ invoiceIds: [], amount: '', source: user?.role === 'PAYMENT_COLLECTOR' ? 'CASH' : 'CASH', collectorNote: '' });
+    setOfflineForm({
+      invoiceIds: [],
+      amount: '',
+      source: user?.role === 'PAYMENT_COLLECTOR' ? 'CASH' : source,
+      collectorNote: '',
+    });
     await loadPendingInvoices();
     setRecordOfflineModalOpen(true);
   };
@@ -623,9 +628,24 @@ export default function AdminPaymentsPage() {
       </div>
 
       {hasPermission('payments.record_offline') && (
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex justify-end gap-2">
+          {user?.role !== 'PAYMENT_COLLECTOR' && (
+            <button
+              onClick={() => openRecordOfflineModal('BANK')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                darkMode
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-9 4h10m-11 4h12M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
+              </svg>
+              Bank to'lov qo'shish
+            </button>
+          )}
           <button
-            onClick={openRecordOfflineModal}
+            onClick={() => openRecordOfflineModal('CASH')}
             className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
               darkMode
                 ? 'bg-green-600 hover:bg-green-500 text-white'
@@ -635,7 +655,7 @@ export default function AdminPaymentsPage() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
-            Oflayn to'lov yozish
+            Naqd to'lov qo'shish
           </button>
         </div>
       )}
@@ -1370,7 +1390,7 @@ export default function AdminPaymentsPage() {
               <div className={`px-6 py-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                 <div className="flex items-center justify-between">
                   <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                    Oflayn to'lovni yozish
+                    {offlineForm.source === 'BANK' ? "Bank to'lovini qo'shish" : "Naqd to'lovni qo'shish"}
                   </h3>
                   <button
                     onClick={() => {
@@ -1410,19 +1430,13 @@ export default function AdminPaymentsPage() {
                   }`}>
                     To‘lov manbasi *
                   </label>
-                  <select
-                    value={offlineForm.source}
-                    onChange={(e) => setOfflineForm({ ...offlineForm, source: e.target.value as 'BANK' | 'CASH' })}
-                    disabled={recordingOffline || user?.role === 'PAYMENT_COLLECTOR'}
-                    className={`w-full px-3 py-2 border rounded-lg ${
+                  <div className={`w-full px-3 py-2 border rounded-lg ${
                       darkMode
                         ? 'bg-gray-800 border-gray-700 text-white'
-                        : 'bg-white border-gray-300 text-gray-900'
-                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  >
-                    {user?.role !== 'PAYMENT_COLLECTOR' && <option value="BANK">Bank</option>}
-                    <option value="CASH">Naqd</option>
-                  </select>
+                        : 'bg-gray-100 border-gray-300 text-gray-900'
+                    }`}>
+                    {offlineForm.source === 'BANK' ? 'Bank' : 'Naqd'}
+                  </div>
                 </div>
 
                 {/* Invoice Selection: search + multi select */}

@@ -284,6 +284,7 @@ export class InvoicesService {
         status: payment.status,
         amount: payment.amount.toNumber(),
         method: payment.method,
+        source: (payment as any).source || null,
         provider: (payment as any).provider || null,
         providerPaymentId: (payment as any).providerPaymentId || null,
         rawPayload: (payment as any).rawPayload || null,
