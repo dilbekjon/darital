@@ -136,9 +136,10 @@ export default function AdminPaymentsPage() {
   // Load pending invoices for offline payment recording
   const loadPendingInvoices = useCallback(async () => {
     try {
-      const data = await fetchApi<any>('/invoices?status=PENDING&limit=1000');
+      const data = await fetchApi<any>('/invoices?includeArchived=false&limit=1000');
       const result = normalizeListResponse<Invoice>(data);
-      setInvoices(result.items || []);
+      const unpaidInvoices = (result.items || []).filter((invoice) => invoice.status !== 'PAID');
+      setInvoices(unpaidInvoices);
     } catch (err) {
       console.error('Failed to load invoices:', err);
     }
@@ -155,7 +156,7 @@ export default function AdminPaymentsPage() {
     setError(null);
 
     try {
-      await fetchApi<any>('/payments/offline', {
+      const response = await fetchApi<any>('/payments/offline', {
         method: 'POST',
         body: JSON.stringify({
           invoiceIds: offlineForm.invoiceIds,
@@ -164,6 +165,17 @@ export default function AdminPaymentsPage() {
           collectorNote: offlineForm.collectorNote || undefined,
         }),
       });
+
+      if (hasPermission('payments.approve')) {
+        const createdPayments = Array.isArray(response?.items) ? response.items : [];
+        await Promise.all(
+          createdPayments.map((payment: { id?: string }) =>
+            payment?.id
+              ? fetchApi(`/payments/${payment.id}/verify/accept`, { method: 'PATCH' })
+              : Promise.resolve(),
+          ),
+        );
+      }
 
       // Reset form and close modal
       setOfflineForm({ invoiceIds: [], amount: '', source: 'CASH', collectorNote: '' });
@@ -610,6 +622,24 @@ export default function AdminPaymentsPage() {
         </p>
       </div>
 
+      {hasPermission('payments.record_offline') && (
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={openRecordOfflineModal}
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+              darkMode
+                ? 'bg-green-600 hover:bg-green-500 text-white'
+                : 'bg-green-600 hover:bg-green-700 text-white'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Oflayn to'lov yozish
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg mb-4" role="alert">
           {error}
@@ -749,22 +779,6 @@ export default function AdminPaymentsPage() {
             </label>
           </div>
           
-          {/* Record Offline Payment Button */}
-          {hasPermission('payments.record_offline') && (
-            <button
-              onClick={openRecordOfflineModal}
-              className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
-                darkMode
-                  ? 'bg-green-600 hover:bg-green-500 text-white'
-                  : 'bg-green-600 hover:bg-green-700 text-white'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              Oflayn to'lov yozish
-            </button>
-          )}
         </div>
       )}
 

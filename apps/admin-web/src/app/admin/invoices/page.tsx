@@ -72,7 +72,6 @@ export default function AdminInvoicesPage() {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrData, setQrData] = useState<QrCodeData | null>(null);
   const [loadingQr, setLoadingQr] = useState(false);
-  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [contracts, setContracts] = useState<Array<{ id: string; tenant?: { fullName: string; email?: string; phone?: string }; unit?: { name: string } }>>([]);
@@ -202,49 +201,6 @@ export default function AdminInvoicesPage() {
       }
     } finally {
       setLoadingQr(false);
-    }
-  };
-
-  const handleMarkPaid = async (invoice: Invoice) => {
-    if (!hasPermission('payments.capture_offline')) {
-      setError(t.noPermissionToMarkPaid);
-      return;
-    }
-
-    const amount = typeof invoice.amount === 'object' && invoice.amount.toNumber
-      ? invoice.amount.toNumber()
-      : Number(invoice.amount);
-
-    setMarkingPaid(invoice.id);
-    try {
-      // Create offline payment
-      const payment = await fetchApi<{ id: string }>('/payments', {
-        method: 'POST',
-        body: JSON.stringify({
-          invoiceId: invoice.id,
-          method: 'OFFLINE',
-          amount: amount.toString(),
-        }),
-      });
-      
-      // Confirm the payment
-      await fetchApi(`/payments/${payment.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          status: 'CONFIRMED',
-        }),
-      });
-      
-      await loadInvoices();
-    } catch (err) {
-      console.error('Failed to mark invoice as paid:', err);
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError(t.failedToMarkPaid);
-      }
-    } finally {
-      setMarkingPaid(null);
     }
   };
 
@@ -533,8 +489,6 @@ export default function AdminInvoicesPage() {
   if (!user || !hasPermission('invoices.read')) {
     return <NoAccess />;
   }
-
-  const canCaptureOffline = hasPermission('payments.capture_offline');
 
   return (
     <div className={`p-4 sm:p-6 lg:p-8 h-full overflow-y-auto ${
@@ -849,19 +803,6 @@ export default function AdminInvoicesPage() {
                             title={t.edit || 'Tahrirlash'}
                           >
                             {t.edit || 'Tahrirlash'}
-                          </button>
-                        )}
-                        {canCaptureOffline && invoice.status !== 'PAID' && (
-                          <button
-                            type="button"
-                            onClick={() => handleMarkPaid(invoice)}
-                            disabled={markingPaid === invoice.id}
-                            className={`px-2 py-1 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
-                              darkMode ? 'text-green-400 hover:bg-green-600/20' : 'text-green-600 hover:bg-green-100'
-                            }`}
-                            title={t.markPaid}
-                          >
-                            {markingPaid === invoice.id ? t.processing : t.markPaid}
                           </button>
                         )}
                         {showVerifyButtons && pendingPayment && (
