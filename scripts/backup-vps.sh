@@ -16,6 +16,7 @@ RUN_DIR="$BACKUP_BASE_DIR/$TIMESTAMP"
 OFFSITE_LOG_FILE=""
 OFFSITE_ERROR_TAIL=""
 RCLONE_CONFIG_PATH=""
+CURRENT_STEP="init"
 
 DOCKER_COMPOSE=(docker-compose "${COMPOSE_FILES[@]}" --env-file "$ENV_FILE")
 BACKUP_FAILED=0
@@ -30,11 +31,24 @@ load_env_file() {
     # doesn't accidentally override them.
     local pre_backup_rclone_remote="${BACKUP_RCLONE_REMOTE-}"
     local pre_backup_rclone_config="${BACKUP_RCLONE_CONFIG-}"
+    local raw
+    while IFS= read -r raw || [[ -n "$raw" ]]; do
+      local line="${raw#"${raw%%[![:space:]]*}"}"
+      [[ -z "$line" || "${line:0:1}" == "#" ]] && continue
+      if [[ ! "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+        log "skipping invalid env line in $ENV_FILE: $line"
+        continue
+      fi
 
-    set -a
-    # shellcheck disable=SC1090
-    source "$ENV_FILE"
-    set +a
+      local key="${line%%=*}"
+      local value="${line#*=}"
+      if [[ "$value" =~ ^\".*\"$ ]]; then
+        value="${value:1:${#value}-2}"
+      elif [[ "$value" =~ ^\'.*\'$ ]]; then
+        value="${value:1:${#value}-2}"
+      fi
+      export "$key=$value"
+    done < "$ENV_FILE"
 
     if [[ -n "${pre_backup_rclone_remote:-}" ]]; then
       BACKUP_RCLONE_REMOTE="$pre_backup_rclone_remote"

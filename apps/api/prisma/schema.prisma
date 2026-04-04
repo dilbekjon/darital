@@ -363,6 +363,8 @@ model TelegramUser {
   id               String   @id @default(cuid())
   tenantId         String?
   chatId           String   @unique
+  telegramUserId   String?  @unique
+  telegramUsername String?
   role             Role     @default(TENANT)
   isAuthenticated  Boolean  @default(false)
   authStep         String?

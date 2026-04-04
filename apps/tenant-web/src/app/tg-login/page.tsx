@@ -34,6 +34,10 @@ function TgLoginInner() {
         }
         if (!cancelled) router.replace('/tenant')
       } catch (e: any) {
+        if (typeof window !== 'undefined' && localStorage.getItem('accessToken')) {
+          if (!cancelled) router.replace('/tenant')
+          return
+        }
         if (!cancelled) setError(e?.message || 'Login failed')
       }
     }
@@ -64,4 +68,3 @@ export default function TgLoginPage() {
     </Suspense>
   )
 }
-

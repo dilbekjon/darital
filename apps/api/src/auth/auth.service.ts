@@ -82,7 +82,7 @@ export class AuthService {
   async createTelegramAppToken(chatId: string, tenantId: string): Promise<string> {
     return this.jwtService.signAsync(
       { sub: tenantId, chatId, typ: 'tg_app' },
-      { expiresIn: '10m' },
+      { expiresIn: '30d' },
     );
   }
 

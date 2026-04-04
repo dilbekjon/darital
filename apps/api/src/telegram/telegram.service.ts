@@ -91,13 +91,25 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     return crypto.randomInt(10_000_000, 100_000_000).toString();
   }
 
-  private async ensureTelegramUser(chatId: string, language: 'uz' | 'ru' | 'en' = 'uz') {
+  private async ensureTelegramUser(
+    chatId: string,
+    language: 'uz' | 'ru' | 'en' = 'uz',
+    identity?: { telegramUserId?: string; telegramUsername?: string | null },
+  ) {
     const existing = await this.prisma.telegramUser.findUnique({ where: { chatId } });
     if (existing) {
-      if (!existing.language && language) {
+      const needsIdentityUpdate =
+        Boolean(identity?.telegramUserId) &&
+        (existing.telegramUserId !== identity?.telegramUserId ||
+          existing.telegramUsername !== (identity?.telegramUsername ?? null));
+      if ((!existing.language && language) || needsIdentityUpdate) {
         return this.prisma.telegramUser.update({
           where: { chatId },
-          data: { language },
+          data: {
+            language: existing.language || language,
+            telegramUserId: identity?.telegramUserId || existing.telegramUserId,
+            telegramUsername: identity?.telegramUsername ?? existing.telegramUsername,
+          },
         });
       }
       return existing;
@@ -109,6 +121,8 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         role: Role.TENANT,
         language,
         authStep: 'waiting_phone',
+        telegramUserId: identity?.telegramUserId,
+        telegramUsername: identity?.telegramUsername ?? null,
       },
     });
   }
@@ -265,7 +279,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.logger.log(`📩 Received /start command from chatId: ${chatId}, userId: ${ctx.from?.id}, username: ${ctx.from?.username || 'N/A'}`);
-    const telegramUser = await this.ensureTelegramUser(chatId, 'uz');
+    const telegramUser = await this.ensureTelegramUser(chatId, 'uz', {
+      telegramUserId: ctx.from?.id ? String(ctx.from.id) : undefined,
+      telegramUsername: ctx.from?.username ?? null,
+    });
     const lang = (telegramUser.language as 'uz' | 'ru' | 'en') || 'uz';
 
     if (this.isTenantAuthorized(telegramUser)) {
@@ -1628,6 +1645,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     const message = (ctx.message && 'text' in ctx.message) ? ctx.message.text : '';
     this.logger.log(`📨 Received text message from chatId=${chatId}, userId=${ctx.from?.id}: "${message}"`);
+    await this.ensureTelegramUser(chatId, 'uz', {
+      telegramUserId: ctx.from?.id ? String(ctx.from.id) : undefined,
+      telegramUsername: ctx.from?.username ?? null,
+    });
     
     // Ignore commands
     if (message.startsWith('/')) return;
