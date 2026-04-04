@@ -182,6 +182,7 @@ export class InvoicesService {
     const qRaw = typeof q === 'string' ? q.trim() : '';
     if (qRaw) {
       const variants = this.buildSearchVariants(qRaw);
+      const validStatuses = new Set<string>(Object.values(InvoiceStatus));
       const digitQuery = qRaw.replace(/\D/g, '');
       const digitVariants = new Set<string>();
       if (digitQuery.length >= 3) {
@@ -193,7 +194,10 @@ export class InvoicesService {
       for (const v of variants) {
         or.push({ id: { contains: v, mode: 'insensitive' } });
         or.push({ contractId: { contains: v, mode: 'insensitive' } });
-        or.push({ status: { equals: v.toUpperCase() } });
+        const normalizedStatus = v.toUpperCase();
+        if (validStatuses.has(normalizedStatus)) {
+          or.push({ status: { equals: normalizedStatus as InvoiceStatus } });
+        }
         or.push({ contract: { tenant: { fullName: { contains: v, mode: 'insensitive' } } } });
         or.push({ contract: { tenant: { email: { contains: v, mode: 'insensitive' } } } });
         or.push({ contract: { unit: { name: { contains: v, mode: 'insensitive' } } } });
