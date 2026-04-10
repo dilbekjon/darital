@@ -36,6 +36,19 @@ interface Invoice {
     tenant?: { id: string; fullName?: string; email?: string; phone?: string };
     unit?: { id: string; name?: string };
   };
+  payments?: Array<{
+    id: string;
+    status: string;
+    amount: number;
+    source?: 'BANK' | 'CASH' | 'ONLINE' | null;
+    method?: 'ONLINE' | 'OFFLINE' | null;
+  }>;
+}
+
+interface Contract {
+  id: string;
+  tenant?: { fullName?: string; email?: string };
+  unit?: { name?: string };
 }
 
 interface Unit {
@@ -104,10 +117,11 @@ export default function AdminPaymentsPage() {
   // Record Offline Payment Modal State
   const [recordOfflineModalOpen, setRecordOfflineModalOpen] = useState(false);
   const [recordingOffline, setRecordingOffline] = useState(false);
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [offlineInvoiceSearch, setOfflineInvoiceSearch] = useState('');
   const [offlineForm, setOfflineForm] = useState({
-    invoiceIds: [] as string[],
+    contractId: '',
     amount: '',
     source: 'CASH' as 'BANK' | 'CASH',
     collectorNote: '',
@@ -134,9 +148,16 @@ export default function AdminPaymentsPage() {
   }, []);
 
   // Load pending invoices for offline payment recording
-  const loadPendingInvoices = useCallback(async () => {
+  const loadPendingInvoices = useCallback(async (searchTerm?: string, contractId?: string) => {
     try {
-      const data = await fetchApi<any>('/invoices?includeArchived=false&limit=1000');
+      const params = new URLSearchParams({
+        includeArchived: 'false',
+        limit: '500',
+      });
+      if (contractId) params.append('contractId', contractId);
+      const q = (searchTerm || '').trim();
+      if (q) params.append('q', q);
+      const data = await fetchApi<any>(`/invoices?${params.toString()}`);
       const result = normalizeListResponse<Invoice>(data);
       const unpaidInvoices = (result.items || []).filter((invoice) => invoice.status !== 'PAID');
       setInvoices(unpaidInvoices);
@@ -145,10 +166,64 @@ export default function AdminPaymentsPage() {
     }
   }, []);
 
+  const loadContracts = useCallback(async () => {
+    try {
+      const data = await fetchApi<any>('/contracts?includeArchived=false');
+      const items = normalizeListResponse<Contract>(data).items;
+      setContracts(items || []);
+    } catch (err) {
+      console.error('Failed to load contracts:', err);
+      setContracts([]);
+    }
+  }, []);
+
+  const getInvoiceSourceProgress = useCallback((invoice: Invoice, source: 'BANK' | 'CASH') => {
+    const due = source === 'BANK'
+      ? Number(invoice.bankAmount ?? invoice.amount ?? 0)
+      : Number(invoice.cashAmount ?? 0);
+    const paid = (invoice.payments || [])
+      .filter((payment) => {
+        if (payment.status !== 'CONFIRMED') return false;
+        const paymentSource = String(payment.source || payment.method || '').toUpperCase();
+        if (source === 'BANK') return paymentSource === 'BANK' || paymentSource === 'ONLINE';
+        return paymentSource === 'CASH';
+      })
+      .reduce((sum, payment) => sum + Number(payment.amount ?? 0), 0);
+
+    const remaining = Math.max(0, due - paid);
+    return { due, paid, remaining };
+  }, []);
+
+  const buildAllocationPlan = useCallback((source: 'BANK' | 'CASH', totalAmountInput: string) => {
+    const totalAmount = Number(totalAmountInput || 0);
+    const ordered = [...invoices].sort((a, b) => new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime());
+    const allocations: Record<string, number> = {};
+    let remainingPool = Number.isFinite(totalAmount) ? Math.max(0, totalAmount) : 0;
+
+    for (const invoice of ordered) {
+      const progress = getInvoiceSourceProgress(invoice, source);
+      if (progress.remaining <= 0 || remainingPool <= 0) {
+        allocations[invoice.id] = 0;
+        continue;
+      }
+      const allocated = Math.min(progress.remaining, remainingPool);
+      allocations[invoice.id] = allocated;
+      remainingPool -= allocated;
+    }
+
+    return { allocations, unallocated: remainingPool };
+  }, [invoices, getInvoiceSourceProgress]);
+
   // Record offline payment
   const handleRecordOfflinePayment = async () => {
-    if (offlineForm.invoiceIds.length === 0) {
-      setError('Kamida bitta hisob-fakturani tanlang');
+    if (!offlineForm.contractId) {
+      setError('Avval shartnomani tanlang');
+      return;
+    }
+
+    const totalAmount = Number(offlineForm.amount || 0);
+    if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+      setError('To‘lov summasi 0 dan katta bo‘lishi kerak');
       return;
     }
 
@@ -156,11 +231,25 @@ export default function AdminPaymentsPage() {
     setError(null);
 
     try {
+      const { allocations, unallocated } = buildAllocationPlan(offlineForm.source, offlineForm.amount);
+      const invoiceIds = Object.entries(allocations)
+        .filter(([, value]) => value > 0)
+        .map(([invoiceId]) => invoiceId);
+
+      if (invoiceIds.length === 0) {
+        setError('Tanlangan shartnoma bo‘yicha to‘lanmagan invoice topilmadi');
+        return;
+      }
+      if (unallocated > 0) {
+        setError(`Summaning bir qismi (${Math.round(unallocated).toLocaleString()} UZS) taqsimlanmadi. Summani kamaytiring yoki boshqa shartnoma tanlang.`);
+        return;
+      }
+
       const response = await fetchApi<any>('/payments/offline', {
         method: 'POST',
         body: JSON.stringify({
-          invoiceIds: offlineForm.invoiceIds,
-          amount: offlineForm.invoiceIds.length === 1 && offlineForm.amount ? offlineForm.amount : undefined,
+          invoiceIds,
+          amount: offlineForm.amount,
           source: offlineForm.source,
           collectorNote: offlineForm.collectorNote || undefined,
         }),
@@ -178,7 +267,7 @@ export default function AdminPaymentsPage() {
       }
 
       // Reset form and close modal
-      setOfflineForm({ invoiceIds: [], amount: '', source: 'CASH', collectorNote: '' });
+      setOfflineForm({ contractId: '', amount: '', source: 'CASH', collectorNote: '' });
       setOfflineInvoiceSearch('');
       setRecordOfflineModalOpen(false);
       
@@ -220,14 +309,25 @@ export default function AdminPaymentsPage() {
   const openRecordOfflineModal = async (source: 'BANK' | 'CASH') => {
     setOfflineInvoiceSearch('');
     setOfflineForm({
-      invoiceIds: [],
+      contractId: '',
       amount: '',
       source: user?.role === 'PAYMENT_COLLECTOR' ? 'CASH' : source,
       collectorNote: '',
     });
-    await loadPendingInvoices();
+    setInvoices([]);
+    await loadContracts();
     setRecordOfflineModalOpen(true);
   };
+
+  useEffect(() => {
+    if (!recordOfflineModalOpen) return;
+    const handle = setTimeout(() => {
+      if (offlineForm.contractId) {
+        loadPendingInvoices(offlineInvoiceSearch, offlineForm.contractId);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [recordOfflineModalOpen, offlineInvoiceSearch, offlineForm.contractId, loadPendingInvoices]);
 
   // Handle payment verification (Accept/Decline) — Cashier/Admin/Super Admin
   const handleVerifyPayment = async (paymentId: string, accept: boolean) => {
@@ -605,6 +705,11 @@ export default function AdminPaymentsPage() {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
+  const allocationPreview = useMemo(
+    () => buildAllocationPlan(offlineForm.source, offlineForm.amount),
+    [buildAllocationPlan, offlineForm.source, offlineForm.amount],
+  );
+
   return (
     <div className={`p-4 sm:p-6 lg:p-8 h-full overflow-y-auto ${
       darkMode ? 'bg-black' : 'bg-gray-100'
@@ -922,6 +1027,36 @@ export default function AdminPaymentsPage() {
                         <div className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                           {payment.invoice?.status || (t.notApplicable || 'Mavjud emas')}
                         </div>
+                        {payment.invoice && (
+                          <div className="mt-2 space-y-1 min-w-[180px]">
+                            {(() => {
+                              const bankProgress = getInvoiceSourceProgress(payment.invoice as Invoice, 'BANK');
+                              const cashProgress = getInvoiceSourceProgress(payment.invoice as Invoice, 'CASH');
+                              const bankPercent = bankProgress.due > 0 ? Math.min(100, (bankProgress.paid / bankProgress.due) * 100) : 100;
+                              const cashPercent = cashProgress.due > 0 ? Math.min(100, (cashProgress.paid / cashProgress.due) * 100) : 100;
+                              return (
+                                <>
+                                  <div>
+                                    <div className={`text-[10px] ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      Bank: {Math.round(bankProgress.paid).toLocaleString()} / {Math.round(bankProgress.due).toLocaleString()}
+                                    </div>
+                                    <div className={`h-1.5 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                                      <div className={`h-full ${bankPercent >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${bankPercent}%` }} />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className={`text-[10px] ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                                      Naqd: {Math.round(cashProgress.paid).toLocaleString()} / {Math.round(cashProgress.due).toLocaleString()}
+                                    </div>
+                                    <div className={`h-1.5 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                                      <div className={`h-full ${cashPercent >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${cashPercent}%` }} />
+                                    </div>
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
                         darkMode ? 'text-white' : 'text-gray-900'
@@ -1383,7 +1518,7 @@ export default function AdminPaymentsPage() {
             }}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className={`w-full max-w-md rounded-xl shadow-2xl ${
+            <div className={`w-full max-w-md max-h-[90vh] rounded-xl shadow-2xl overflow-hidden ${
               darkMode ? 'bg-gray-900 border border-blue-600/30' : 'bg-white'
             }`}>
               {/* Modal Header */}
@@ -1415,7 +1550,7 @@ export default function AdminPaymentsPage() {
               </div>
 
               {/* Modal Body */}
-              <div className="px-6 py-4 space-y-4">
+              <div className="px-6 py-4 space-y-4 overflow-y-auto max-h-[calc(90vh-110px)]">
                 {error && (
                   <div className={`p-3 rounded-lg border ${
                     darkMode ? 'bg-red-900/20 border-red-600/30 text-red-300' : 'bg-red-50 border-red-200 text-red-800'
@@ -1423,6 +1558,31 @@ export default function AdminPaymentsPage() {
                     <p className="text-sm">{error}</p>
                   </div>
                 )}
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    darkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    Shartnoma *
+                  </label>
+                  <select
+                    value={offlineForm.contractId}
+                    onChange={(e) => setOfflineForm({ ...offlineForm, contractId: e.target.value })}
+                    disabled={recordingOffline}
+                    className={`w-full px-3 py-2 border rounded-lg ${
+                      darkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  >
+                    <option value="">Shartnomani tanlang</option>
+                    {contracts.map((contract) => (
+                      <option key={contract.id} value={contract.id}>
+                        {(contract.tenant?.fullName || '—')} • {(contract.unit?.name || '—')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${
@@ -1444,14 +1604,14 @@ export default function AdminPaymentsPage() {
                   <label className={`block text-sm font-medium mb-2 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    Hisob-fakturalar *
+                    Hisob-fakturalar (tanlangan shartnoma)
                   </label>
                   <input
                     type="text"
                     value={offlineInvoiceSearch}
                     onChange={(e) => setOfflineInvoiceSearch(e.target.value)}
                     placeholder="Ijara oluvchi, shartnoma ID, hisob-faktura ID yoki xona boʻyicha qidirish..."
-                    disabled={recordingOffline}
+                    disabled={recordingOffline || !offlineForm.contractId}
                     className={`w-full px-3 py-2 border rounded-lg mb-2 ${
                       darkMode
                         ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
@@ -1462,49 +1622,48 @@ export default function AdminPaymentsPage() {
                     darkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-white'
                   }`}>
                     {offlineFilteredInvoices.map((invoice) => {
-                      const selected = offlineForm.invoiceIds.includes(invoice.id);
                       const tenantName = invoice.contract?.tenant?.fullName || '—';
                       const contractShort = invoice.contract?.id ? `${invoice.contract.id.slice(0, 8)}…` : '—';
                       const unitName = invoice.contract?.unit?.name || '—';
                       const dueStr = invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }) : 'N/A';
+                      const sourceProgress = getInvoiceSourceProgress(invoice, offlineForm.source);
+                      const allocated = allocationPreview.allocations[invoice.id] || 0;
+                      const due = sourceProgress.due;
+                      const currentPercent = due > 0 ? Math.min(100, (sourceProgress.paid / due) * 100) : 100;
+                      const afterPercent = due > 0 ? Math.min(100, ((sourceProgress.paid + allocated) / due) * 100) : 100;
                       const label = `${tenantName} • Shartnoma ${contractShort} • ${unitName}`;
                       return (
-                        <label
+                        <div
                           key={invoice.id}
-                          className={`flex items-start gap-3 px-3 py-2 border-b last:border-b-0 cursor-pointer ${
-                            darkMode ? 'border-gray-700 hover:bg-gray-700/40' : 'border-gray-200 hover:bg-gray-50'
+                          className={`px-3 py-2 border-b last:border-b-0 ${
+                            darkMode ? 'border-gray-700' : 'border-gray-200'
                           }`}
                         >
-                          <input
-                            type="checkbox"
-                            checked={selected}
-                            disabled={recordingOffline}
-                            onChange={(e) => {
-                              const invoiceIds = e.target.checked
-                                ? [...offlineForm.invoiceIds, invoice.id]
-                                : offlineForm.invoiceIds.filter((id) => id !== invoice.id);
-                              setOfflineForm({
-                                ...offlineForm,
-                                invoiceIds,
-                                amount: invoiceIds.length === 1
-                                  ? (offlineForm.amount || Number(invoice.amount).toString())
-                                  : '',
-                              });
-                            }}
-                          />
                           <div className="flex-1 min-w-0">
                             <div className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{label}</div>
                             <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                               Muddat: {dueStr} | Jami: {Number(invoice.amount).toLocaleString()} UZS | Bank: {Number(invoice.bankAmount || 0).toLocaleString()} | Naqd: {Number(invoice.cashAmount || 0).toLocaleString()}
                             </div>
+                            <div className="mt-2">
+                              <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {offlineForm.source === 'BANK' ? 'Bank' : 'Naqd'}: {Math.round(sourceProgress.paid).toLocaleString()} / {Math.round(sourceProgress.due).toLocaleString()} UZS
+                                {allocated > 0 ? ` • Shu to‘lovdan: +${Math.round(allocated).toLocaleString()} UZS` : ''}
+                              </div>
+                              <div className={`mt-1 h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} overflow-hidden`}>
+                                <div className="h-full bg-blue-500" style={{ width: `${currentPercent}%` }} />
+                              </div>
+                              <div className={`mt-1 h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} overflow-hidden`}>
+                                <div className={`h-full ${afterPercent >= 100 ? 'bg-green-500' : 'bg-emerald-500'}`} style={{ width: `${afterPercent}%` }} />
+                              </div>
+                            </div>
                           </div>
-                        </label>
+                        </div>
                       );
                     })}
                   </div>
                   {invoices.length === 0 && (
                     <p className={`text-xs mt-1 ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
-                      To'lanmagan hisob-fakturalar topilmadi
+                      {!offlineForm.contractId ? 'Avval shartnomani tanlang' : "To'lanmagan hisob-fakturalar topilmadi"}
                     </p>
                   )}
                   {invoices.length > 0 && offlineFilteredInvoices.length === 0 && (
@@ -1519,14 +1678,14 @@ export default function AdminPaymentsPage() {
                   <label className={`block text-sm font-medium mb-2 ${
                     darkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    Miqdor (UZS) {offlineForm.invoiceIds.length <= 1 ? '*' : ''}
+                    Miqdor (UZS) *
                   </label>
                   <input
                     type="number"
                     value={offlineForm.amount}
                     onChange={(e) => setOfflineForm({ ...offlineForm, amount: e.target.value })}
-                    disabled={recordingOffline || offlineForm.invoiceIds.length > 1}
-                    placeholder={offlineForm.invoiceIds.length > 1 ? "Bir nechta invoice tanlanganda har biri qolgan summasi bilan yoziladi" : "100000"}
+                    disabled={recordingOffline || !offlineForm.contractId}
+                    placeholder="Masalan: 12000000"
                     className={`w-full px-3 py-2 border rounded-lg ${
                       darkMode
                         ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
@@ -1561,7 +1720,7 @@ export default function AdminPaymentsPage() {
                   darkMode ? 'bg-blue-900/20 border-blue-600/30 text-blue-300' : 'bg-blue-50 border-blue-200 text-blue-800'
                 }`}>
                   <p className="text-sm">
-                    ℹ️ To‘lov avval `kutilmoqda` holatida yoziladi. Kassir keyin tasdiqlaydi. Bir nechta invoice tanlansa, har biri qolgan summasi bilan alohida yaratiladi.
+                    ℹ️ Summani kiriting: tizim uni eng eski invoice’dan boshlab avtomatik taqsimlaydi. 100% to‘langan satr yashil bo‘ladi.
                   </p>
                 </div>
 
@@ -1585,7 +1744,7 @@ export default function AdminPaymentsPage() {
                   </button>
                   <button
                     onClick={handleRecordOfflinePayment}
-                    disabled={recordingOffline || offlineForm.invoiceIds.length === 0 || (offlineForm.invoiceIds.length === 1 && !offlineForm.amount)}
+                    disabled={recordingOffline || !offlineForm.contractId || !offlineForm.amount}
                     className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
                       darkMode
                         ? 'bg-green-600 hover:bg-green-700 text-white disabled:opacity-50'

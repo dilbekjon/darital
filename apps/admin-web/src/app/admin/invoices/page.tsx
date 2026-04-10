@@ -805,8 +805,20 @@ export default function AdminInvoicesPage() {
                       <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                         Bank: {splitStatus.bankPaid.toLocaleString()} / {splitStatus.bankDue.toLocaleString()}
                       </div>
+                      <div className={`mt-1 h-2 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                        <div
+                          className={`h-full ${splitStatus.bankDone ? 'bg-green-500' : 'bg-blue-500'}`}
+                          style={{ width: `${splitStatus.bankDue > 0 ? Math.min(100, (splitStatus.bankPaid / splitStatus.bankDue) * 100) : 100}%` }}
+                        />
+                      </div>
                       <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                         Naqd: {splitStatus.cashPaid.toLocaleString()} / {splitStatus.cashDue.toLocaleString()}
+                      </div>
+                      <div className={`mt-1 h-2 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                        <div
+                          className={`h-full ${splitStatus.cashDone ? 'bg-green-500' : 'bg-blue-500'}`}
+                          style={{ width: `${splitStatus.cashDue > 0 ? Math.min(100, (splitStatus.cashPaid / splitStatus.cashDue) * 100) : 100}%` }}
+                        />
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

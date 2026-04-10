@@ -405,6 +405,15 @@ export class PaymentsService {
         include: {
           invoice: {
             include: {
+              payments: {
+                select: {
+                  id: true,
+                  status: true,
+                  amount: true,
+                  source: true,
+                  method: true,
+                },
+              },
               contract: {
                 include: {
                   tenant: {
@@ -485,8 +494,17 @@ export class PaymentsService {
       invoice: {
         id: payment.invoice.id,
         amount: payment.invoice.amount.toNumber(),
+        bankAmount: (payment.invoice as any).bankAmount?.toNumber?.() ?? null,
+        cashAmount: (payment.invoice as any).cashAmount?.toNumber?.() ?? null,
         status: payment.invoice.status,
         dueDate: payment.invoice.dueDate ? payment.invoice.dueDate.toISOString() : null,
+        payments: (payment.invoice as any).payments?.map((invPayment: any) => ({
+          id: invPayment.id,
+          status: invPayment.status,
+          amount: invPayment.amount?.toNumber?.() ?? Number(invPayment.amount ?? 0),
+          source: invPayment.source ?? null,
+          method: invPayment.method ?? null,
+        })) ?? [],
       },
     }));
 
@@ -560,11 +578,18 @@ export class PaymentsService {
       throw new NotFoundException('Ba’zi hisob-fakturalar topilmadi');
     }
 
+    const orderedInvoices = [...invoices].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    const amountPoolProvided = dto.amount !== undefined && dto.amount !== null && String(dto.amount).trim() !== '';
+    let amountPool = amountPoolProvided ? new Decimal(dto.amount as string) : null;
+    if (amountPool && amountPool.lte(0)) {
+      throw new ConflictException('To‘lov summasi 0 dan katta bo‘lishi kerak');
+    }
+
     const collectedAt = dto.collectedAt ? new Date(dto.collectedAt) : new Date();
     const createdPayments = await this.prisma.$transaction(async (tx) => {
       const results = [] as any[];
 
-      for (const invoice of invoices) {
+      for (const invoice of orderedInvoices) {
         const bankDue = new Decimal((invoice as any).bankAmount || 0);
         const cashDue = new Decimal((invoice as any).cashAmount || 0);
         const hasSplit = !bankDue.plus(cashDue).equals(0);
@@ -590,17 +615,26 @@ export class PaymentsService {
         const remaining = dueForSource.minus(paidForSource);
 
         if (remaining.lte(0)) {
-          const label = dto.source === 'BANK' ? 'bank' : 'naqd';
-          throw new ConflictException(`Invoice ${invoice.id} uchun ${label} qismi allaqachon yopilgan`);
+          if (uniqueInvoiceIds.length === 1) {
+            const label = dto.source === 'BANK' ? 'bank' : 'naqd';
+            throw new ConflictException(`Invoice ${invoice.id} uchun ${label} qismi allaqachon yopilgan`);
+          }
+          continue;
         }
 
-        const amount =
-          uniqueInvoiceIds.length === 1 && dto.amount
-            ? new Decimal(dto.amount)
-            : remaining;
+        const amount = (() => {
+          if (amountPool) {
+            const alloc = remaining.lessThan(amountPool) ? remaining : amountPool;
+            return alloc;
+          }
+          if (uniqueInvoiceIds.length === 1 && dto.amount) {
+            return new Decimal(dto.amount);
+          }
+          return remaining;
+        })();
 
         if (amount.lte(0)) {
-          throw new ConflictException('To‘lov summasi 0 dan katta bo‘lishi kerak');
+          continue;
         }
         if (amount.greaterThan(remaining)) {
           throw new ConflictException(`Invoice ${invoice.id} uchun summa qolgan ${dto.source === 'BANK' ? 'bank' : 'naqd'} qarzdorlikdan oshib ketdi`);
@@ -633,6 +667,19 @@ export class PaymentsService {
             },
           }),
         );
+
+        if (amountPool) {
+          amountPool = amountPool.minus(amount);
+          if (amountPool.lte(0)) break;
+        }
+      }
+
+      if (results.length === 0) {
+        throw new ConflictException('Tanlangan invoice’lar uchun taqsimlanadigan summa topilmadi');
+      }
+
+      if (amountPool && amountPool.greaterThan(0)) {
+        throw new ConflictException(`Kiritilgan summa to‘liq taqsimlanmadi. Ortiqcha: ${amountPool.toString()}`);
       }
 
       return results;
