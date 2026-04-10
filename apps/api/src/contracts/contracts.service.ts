@@ -65,6 +65,7 @@ export class ContractsService {
       },
       unit: {
         name: contract.unit.name,
+        buildingName: contract.unit.building?.name || '',
       },
     }));
   }
@@ -119,6 +120,7 @@ export class ContractsService {
       },
       unit: {
         name: contract.unit.name,
+        buildingName: contract.unit.building?.name || '',
         building: contract.unit.building,
       },
     }));

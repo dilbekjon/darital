@@ -48,7 +48,7 @@ interface Invoice {
 interface Contract {
   id: string;
   tenant?: { fullName?: string; email?: string };
-  unit?: { name?: string };
+  unit?: { name?: string; buildingName?: string };
 }
 
 interface Unit {
@@ -118,6 +118,7 @@ export default function AdminPaymentsPage() {
   const [recordOfflineModalOpen, setRecordOfflineModalOpen] = useState(false);
   const [recordingOffline, setRecordingOffline] = useState(false);
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [contractSearch, setContractSearch] = useState('');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [offlineInvoiceSearch, setOfflineInvoiceSearch] = useState('');
   const [offlineForm, setOfflineForm] = useState({
@@ -176,6 +177,27 @@ export default function AdminPaymentsPage() {
       setContracts([]);
     }
   }, []);
+
+  const filteredContracts = useMemo(() => {
+    const query = normalizeUzbekSearch(contractSearch);
+    if (!query) return contracts;
+
+    return contracts.filter((contract) => {
+      const tenantName = normalizeUzbekSearch(contract.tenant?.fullName || '');
+      const tenantEmail = normalizeUzbekSearch(contract.tenant?.email || '');
+      const unitName = normalizeUzbekSearch(contract.unit?.name || '');
+      const buildingName = normalizeUzbekSearch(contract.unit?.buildingName || '');
+      const contractId = normalizeUzbekSearch(contract.id);
+
+      return (
+        tenantName.includes(query) ||
+        tenantEmail.includes(query) ||
+        unitName.includes(query) ||
+        buildingName.includes(query) ||
+        contractId.includes(query)
+      );
+    });
+  }, [contracts, contractSearch]);
 
   const getInvoiceSourceProgress = useCallback((invoice: Invoice, source: 'BANK' | 'CASH') => {
     const due = source === 'BANK'
@@ -308,6 +330,7 @@ export default function AdminPaymentsPage() {
   // Open record offline payment modal
   const openRecordOfflineModal = async (source: 'BANK' | 'CASH') => {
     setOfflineInvoiceSearch('');
+    setContractSearch('');
     setOfflineForm({
       contractId: '',
       amount: '',
@@ -1518,7 +1541,7 @@ export default function AdminPaymentsPage() {
             }}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className={`w-full max-w-md max-h-[90vh] rounded-xl shadow-2xl overflow-hidden ${
+            <div className={`w-[95vw] max-w-5xl max-h-[92vh] rounded-xl shadow-2xl overflow-hidden ${
               darkMode ? 'bg-gray-900 border border-blue-600/30' : 'bg-white'
             }`}>
               {/* Modal Header */}
@@ -1550,7 +1573,7 @@ export default function AdminPaymentsPage() {
               </div>
 
               {/* Modal Body */}
-              <div className="px-6 py-4 space-y-4 overflow-y-auto max-h-[calc(90vh-110px)]">
+              <div className="px-6 py-4 space-y-4 overflow-y-auto max-h-[calc(92vh-110px)]">
                 {error && (
                   <div className={`p-3 rounded-lg border ${
                     darkMode ? 'bg-red-900/20 border-red-600/30 text-red-300' : 'bg-red-50 border-red-200 text-red-800'
@@ -1565,6 +1588,18 @@ export default function AdminPaymentsPage() {
                   }`}>
                     Shartnoma *
                   </label>
+                  <input
+                    type="text"
+                    value={contractSearch}
+                    onChange={(e) => setContractSearch(e.target.value)}
+                    disabled={recordingOffline}
+                    placeholder="Shartnoma, ijarachi, bino yoki xona bo‘yicha qidiring..."
+                    className={`w-full px-3 py-2 border rounded-lg mb-2 ${
+                      darkMode
+                        ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                    } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
                   <select
                     value={offlineForm.contractId}
                     onChange={(e) => setOfflineForm({ ...offlineForm, contractId: e.target.value })}
@@ -1576,12 +1611,15 @@ export default function AdminPaymentsPage() {
                     } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   >
                     <option value="">Shartnomani tanlang</option>
-                    {contracts.map((contract) => (
+                    {filteredContracts.map((contract) => (
                       <option key={contract.id} value={contract.id}>
-                        {(contract.tenant?.fullName || '—')} • {(contract.unit?.name || '—')}
+                        {(contract.tenant?.fullName || '—')} • {(contract.unit?.buildingName || '—')} • {(contract.unit?.name || '—')}
                       </option>
                     ))}
                   </select>
+                  <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {filteredContracts.length} ta shartnoma topildi
+                  </p>
                 </div>
 
                 <div>
