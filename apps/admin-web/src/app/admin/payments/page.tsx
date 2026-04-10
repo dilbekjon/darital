@@ -643,6 +643,11 @@ export default function AdminPaymentsPage() {
     }
   }, [loading, user, hasPermission]);
 
+  const allocationPreview = useMemo(
+    () => buildAllocationPlan(offlineForm.source, offlineForm.amount),
+    [buildAllocationPlan, offlineForm.source, offlineForm.amount],
+  );
+
   if (loading || pageLoading) {
     return <DaritalLoader darkMode={darkMode} />;
   }
@@ -704,11 +709,6 @@ export default function AdminPaymentsPage() {
     const diffTime = now.getTime() - dueDate.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
-
-  const allocationPreview = useMemo(
-    () => buildAllocationPlan(offlineForm.source, offlineForm.amount),
-    [buildAllocationPlan, offlineForm.source, offlineForm.amount],
-  );
 
   return (
     <div className={`p-4 sm:p-6 lg:p-8 h-full overflow-y-auto ${
