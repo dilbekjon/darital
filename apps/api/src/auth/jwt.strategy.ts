@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../prisma.service';
 import { AdminRole } from '@prisma/client';
+import { ROLE_PRESETS, PermissionCode } from '../rbac/permissions.catalog';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -68,11 +69,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         include: { permission: true },
       });
 
-      const permissions = rolePermissions.map(rp => rp.permission.code);
+      const dbPermissions = rolePermissions.map((rp) => rp.permission.code);
+      const presetPermissions = ROLE_PRESETS[String(user.role)] || [];
+      const permissions = Array.from(new Set<PermissionCode>([
+        ...(dbPermissions as PermissionCode[]),
+        ...presetPermissions,
+      ]));
 
       return { id: user.id, email: user.email, role: user.role, fullName: user.fullName, permissions };
     }
   }
 }
-
 

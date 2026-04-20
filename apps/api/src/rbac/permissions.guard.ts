@@ -2,7 +2,7 @@ import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma.service'; // Corrected import path
 import { PERMISSIONS_KEY } from './permissions.decorator';
-import { PermissionCode } from './permissions.catalog';
+import { PermissionCode, ROLE_PRESETS } from './permissions.catalog';
 import { AdminRole } from '@prisma/client';
 
 @Injectable()
@@ -58,7 +58,12 @@ export class PermissionsGuard implements CanActivate {
       include: { permission: true },
     });
 
-    const userPermissionCodes = new Set(rolePermissions.map(rp => rp.permission.code));
+    const dbPermissions = rolePermissions.map((rp) => rp.permission.code as PermissionCode);
+    const presetPermissions = ROLE_PRESETS[String(user.role)] || [];
+    const userPermissionCodes = new Set<PermissionCode>([
+      ...dbPermissions,
+      ...presetPermissions,
+    ]);
 
     // Check if the user has all required permissions
     return requiredPermissions.every(permission => userPermissionCodes.has(permission));
