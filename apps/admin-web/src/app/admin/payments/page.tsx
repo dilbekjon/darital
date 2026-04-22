@@ -128,6 +128,7 @@ export default function AdminPaymentsPage() {
     source: 'CASH' as 'BANK' | 'CASH',
     collectorNote: '',
   });
+  const [offlineAmountManuallyEdited, setOfflineAmountManuallyEdited] = useState(false);
 
   // Load payments function - wrapped in useCallback to prevent stale closures
   const loadPayments = useCallback(async () => {
@@ -216,6 +217,57 @@ export default function AdminPaymentsPage() {
     const remaining = Math.max(0, due - paid);
     return { due, paid, remaining };
   }, []);
+
+  const orderedInvoices = useMemo(() => {
+    return [...invoices].sort((a, b) => {
+      const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+      const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+      if (aTime !== bTime) return aTime - bTime;
+      return a.id.localeCompare(b.id);
+    });
+  }, [invoices]);
+
+  const reconcileInvoiceIdsByAmount = useCallback((invoiceIds: string[], rawAmount: string, source: 'BANK' | 'CASH') => {
+    const targetAmount = Math.max(0, Number(rawAmount || 0));
+    if (!Number.isFinite(targetAmount) || targetAmount <= 0) return [];
+
+    const orderedIdSet = new Set(orderedInvoices.map((inv) => inv.id));
+    const selectedOrdered = orderedInvoices
+      .filter((inv) => invoiceIds.includes(inv.id) && orderedIdSet.has(inv.id))
+      .map((inv) => inv.id);
+
+    let runningTotal = selectedOrdered.reduce((sum, id) => {
+      const inv = orderedInvoices.find((item) => item.id === id);
+      if (!inv) return sum;
+      return sum + getInvoiceSourceProgress(inv, source).remaining;
+    }, 0);
+
+    while (selectedOrdered.length > 0) {
+      const lastId = selectedOrdered[selectedOrdered.length - 1];
+      const lastInvoice = orderedInvoices.find((inv) => inv.id === lastId);
+      if (!lastInvoice) break;
+      const lastRemaining = getInvoiceSourceProgress(lastInvoice, source).remaining;
+      if (runningTotal - lastRemaining >= targetAmount) {
+        selectedOrdered.pop();
+        runningTotal -= lastRemaining;
+      } else {
+        break;
+      }
+    }
+
+    if (runningTotal < targetAmount) {
+      for (const invoice of orderedInvoices) {
+        if (selectedOrdered.includes(invoice.id)) continue;
+        const remaining = getInvoiceSourceProgress(invoice, source).remaining;
+        if (remaining <= 0) continue;
+        selectedOrdered.push(invoice.id);
+        runningTotal += remaining;
+        if (runningTotal >= targetAmount) break;
+      }
+    }
+
+    return selectedOrdered;
+  }, [orderedInvoices, getInvoiceSourceProgress]);
 
   // Record offline payment
   const handleRecordOfflinePayment = async () => {
@@ -309,6 +361,7 @@ export default function AdminPaymentsPage() {
       source: user?.role === 'PAYMENT_COLLECTOR' ? 'CASH' : 'CASH',
       collectorNote: '',
     });
+    setOfflineAmountManuallyEdited(false);
     setInvoices([]);
     await loadContracts();
     setRecordOfflineModalOpen(true);
@@ -335,12 +388,73 @@ export default function AdminPaymentsPage() {
   }, [offlineForm.invoiceIds, invoices, getInvoiceSourceProgress, offlineForm.source]);
 
   useEffect(() => {
+    if (offlineAmountManuallyEdited) return;
     setOfflineForm((prev) => {
       const nextAmount = prev.invoiceIds.length > 0 ? String(Math.round(selectedInvoiceTotal)) : '';
       if (prev.amount === nextAmount) return prev;
       return { ...prev, amount: nextAmount };
     });
-  }, [selectedInvoiceTotal]);
+  }, [selectedInvoiceTotal, offlineAmountManuallyEdited]);
+
+  useEffect(() => {
+    if (!recordOfflineModalOpen) return;
+    setOfflineForm((prev) => {
+      const nextInvoiceIds = reconcileInvoiceIdsByAmount(prev.invoiceIds, prev.amount, prev.source);
+      if (
+        nextInvoiceIds.length === prev.invoiceIds.length &&
+        nextInvoiceIds.every((id, index) => id === prev.invoiceIds[index])
+      ) {
+        return prev;
+      }
+      return { ...prev, invoiceIds: nextInvoiceIds };
+    });
+  }, [recordOfflineModalOpen, reconcileInvoiceIdsByAmount, invoices]);
+
+  const invoiceAllocationMap = useMemo(() => {
+    const allocation = new Map<string, number>();
+    let remainingAmount = Math.max(0, Number(offlineForm.amount || 0));
+    if (!Number.isFinite(remainingAmount) || remainingAmount <= 0) return allocation;
+
+    const selectedOrdered = orderedInvoices.filter((invoice) => offlineForm.invoiceIds.includes(invoice.id));
+    for (const invoice of selectedOrdered) {
+      if (remainingAmount <= 0) break;
+      const sourceProgress = getInvoiceSourceProgress(invoice, offlineForm.source);
+      const applied = Math.min(sourceProgress.remaining, remainingAmount);
+      if (applied > 0) {
+        allocation.set(invoice.id, applied);
+        remainingAmount -= applied;
+      }
+    }
+
+    return allocation;
+  }, [offlineForm.amount, offlineForm.invoiceIds, offlineForm.source, orderedInvoices, getInvoiceSourceProgress]);
+
+  const paymentDistributionPreview = useMemo(() => {
+    const selectedOrdered = orderedInvoices.filter((invoice) => offlineForm.invoiceIds.includes(invoice.id));
+    return selectedOrdered
+      .map((invoice) => {
+        const sourceProgress = getInvoiceSourceProgress(invoice, offlineForm.source);
+        const allocated = invoiceAllocationMap.get(invoice.id) ?? 0;
+        if (allocated <= 0) return null;
+        const percent = sourceProgress.remaining > 0
+          ? Math.min(100, Math.round((allocated / sourceProgress.remaining) * 100))
+          : 100;
+        return {
+          id: invoice.id,
+          dueDate: invoice.dueDate,
+          allocated,
+          target: sourceProgress.remaining,
+          percent,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  }, [
+    orderedInvoices,
+    offlineForm.invoiceIds,
+    offlineForm.source,
+    invoiceAllocationMap,
+    getInvoiceSourceProgress,
+  ]);
 
   // Handle payment verification (Accept/Decline) — Cashier/Admin/Super Admin
   const handleVerifyPayment = async (paymentId: string, accept: boolean) => {
@@ -1573,12 +1687,15 @@ export default function AdminPaymentsPage() {
                   <select
                     value={offlineForm.contractId}
                     onChange={(e) =>
-                      setOfflineForm({
-                        ...offlineForm,
-                        contractId: e.target.value,
-                        invoiceIds: [],
-                        amount: '',
-                      })
+                      {
+                        setOfflineAmountManuallyEdited(false);
+                        setOfflineForm({
+                          ...offlineForm,
+                          contractId: e.target.value,
+                          invoiceIds: [],
+                          amount: '',
+                        });
+                      }
                     }
                     disabled={recordingOffline}
                     className={`w-full px-3 py-2 border rounded-lg ${
@@ -1607,7 +1724,23 @@ export default function AdminPaymentsPage() {
                   </label>
                   <select
                     value={offlineForm.source}
-                    onChange={(e) => setOfflineForm({ ...offlineForm, source: e.target.value as 'BANK' | 'CASH' })}
+                    onChange={(e) => {
+                      const source = e.target.value as 'BANK' | 'CASH';
+                      setOfflineForm((prev) => {
+                        const recalculatedTotal = prev.invoiceIds.reduce((sum, invoiceId) => {
+                          const invoice = invoices.find((inv) => inv.id === invoiceId);
+                          if (!invoice) return sum;
+                          const progress = getInvoiceSourceProgress(invoice, source);
+                          return sum + progress.remaining;
+                        }, 0);
+                        return {
+                          ...prev,
+                          source,
+                          amount: prev.invoiceIds.length > 0 ? String(Math.round(recalculatedTotal)) : '',
+                        };
+                      });
+                      setOfflineAmountManuallyEdited(false);
+                    }}
                     disabled={recordingOffline || user?.role === 'PAYMENT_COLLECTOR'}
                     className={`w-full px-3 py-2 border rounded-lg ${
                       darkMode
@@ -1651,7 +1784,8 @@ export default function AdminPaymentsPage() {
                       const sourceProgress = getInvoiceSourceProgress(invoice, offlineForm.source);
                       const due = sourceProgress.due;
                       const currentPercent = due > 0 ? Math.min(100, (sourceProgress.paid / due) * 100) : 100;
-                      const afterPaid = sourceProgress.paid + (selected ? sourceProgress.remaining : 0);
+                      const allocatedAmount = invoiceAllocationMap.get(invoice.id) ?? 0;
+                      const afterPaid = sourceProgress.paid + allocatedAmount;
                       const afterPercent = due > 0 ? Math.min(100, (afterPaid / due) * 100) : 100;
                       const label = `${tenantName} • Shartnoma ${contractShort} • ${unitName}`;
                       return (
@@ -1670,10 +1804,39 @@ export default function AdminPaymentsPage() {
                                 const invoiceIds = e.target.checked
                                   ? [...offlineForm.invoiceIds, invoice.id]
                                   : offlineForm.invoiceIds.filter((id) => id !== invoice.id);
-                                setOfflineForm({
-                                  ...offlineForm,
+                                const normalizedInvoiceIds = reconcileInvoiceIdsByAmount(
                                   invoiceIds,
-                                });
+                                  offlineAmountManuallyEdited ? offlineForm.amount : String(
+                                    Math.round(
+                                      invoiceIds.reduce((sum, selectedId) => {
+                                        const selectedInvoice = invoices.find((inv) => inv.id === selectedId);
+                                        if (!selectedInvoice) return sum;
+                                        const progress = getInvoiceSourceProgress(selectedInvoice, offlineForm.source);
+                                        return sum + progress.remaining;
+                                      }, 0),
+                                    ),
+                                  ),
+                                  offlineForm.source,
+                                );
+                                setOfflineForm((prev) => ({
+                                  ...prev,
+                                  invoiceIds: normalizedInvoiceIds,
+                                  amount: offlineAmountManuallyEdited
+                                    ? prev.amount
+                                    : String(
+                                        Math.round(
+                                          normalizedInvoiceIds.reduce((sum, selectedId) => {
+                                            const selectedInvoice = invoices.find((inv) => inv.id === selectedId);
+                                            if (!selectedInvoice) return sum;
+                                            const progress = getInvoiceSourceProgress(selectedInvoice, offlineForm.source);
+                                            return sum + progress.remaining;
+                                          }, 0),
+                                        ),
+                                      ),
+                                }));
+                                if (!offlineAmountManuallyEdited) {
+                                  setOfflineAmountManuallyEdited(false);
+                                }
                               }}
                             />
                             <div className="flex-1 min-w-0">
@@ -1684,7 +1847,7 @@ export default function AdminPaymentsPage() {
                               <div className="mt-2">
                                 <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                                   {offlineForm.source === 'BANK' ? 'Bank' : 'Naqd'}: {Math.round(sourceProgress.paid).toLocaleString()} / {Math.round(sourceProgress.due).toLocaleString()} UZS
-                                  {selected ? ` • Tanlandi (+${Math.round(sourceProgress.remaining).toLocaleString()} UZS)` : ''}
+                                  {selected && allocatedAmount > 0 ? ` • Ajratiladi (+${Math.round(allocatedAmount).toLocaleString()} UZS)` : ''}
                                 </div>
                                 <div className={`mt-1 h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} overflow-hidden`}>
                                   <div className="h-full bg-blue-500" style={{ width: `${currentPercent}%` }} />
@@ -1721,18 +1884,67 @@ export default function AdminPaymentsPage() {
                   <input
                     type="number"
                     value={offlineForm.amount}
-                    readOnly
-                    disabled
-                    placeholder="Invoice tanlang, summa avtomatik hisoblanadi"
+                    onChange={(e) => {
+                      const nextAmount = e.target.value;
+                      setOfflineAmountManuallyEdited(true);
+                      setOfflineForm((prev) => ({
+                        ...prev,
+                        amount: nextAmount,
+                        invoiceIds: reconcileInvoiceIdsByAmount(prev.invoiceIds, nextAmount, prev.source),
+                      }));
+                    }}
+                    disabled={recordingOffline || offlineForm.invoiceIds.length === 0}
+                    placeholder="Summani kiriting (invoice tanlansa avtomatik to‘ldiriladi)"
                     className={`w-full px-3 py-2 border rounded-lg ${
                       darkMode
                         ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
-                        : 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-400'
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
                     } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   />
                   <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Tanlangan invoice’lar bo‘yicha avtomatik: {Math.round(selectedInvoiceTotal).toLocaleString()} UZS
+                    Avtomatik hisoblangan summa: {Math.round(selectedInvoiceTotal).toLocaleString()} UZS
                   </p>
+                  {paymentDistributionPreview.length > 0 && (
+                    <div className={`mt-3 border rounded-lg ${
+                      darkMode ? 'border-gray-700 bg-gray-800/60' : 'border-gray-200 bg-gray-50'
+                    }`}>
+                      <div className={`px-3 py-2 border-b text-xs font-semibold ${
+                        darkMode ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-700'
+                      }`}>
+                        Taqsimot (preview)
+                      </div>
+                      <div className="max-h-40 overflow-y-auto">
+                        {paymentDistributionPreview.map((item) => {
+                          const dueStr = item.dueDate
+                            ? new Date(item.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : 'N/A';
+                          const full = item.percent >= 100;
+                          return (
+                            <div
+                              key={item.id}
+                              className={`px-3 py-2 text-xs border-b last:border-b-0 ${
+                                darkMode ? 'border-gray-700 text-gray-300' : 'border-gray-200 text-gray-700'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="truncate">Muddat: {dueStr} • #{item.id.slice(0, 8)}…</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                  full
+                                    ? (darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-700')
+                                    : (darkMode ? 'bg-yellow-900/30 text-yellow-300' : 'bg-yellow-100 text-yellow-700')
+                                }`}>
+                                  {full ? "To‘liq" : 'Qisman'}
+                                </span>
+                              </div>
+                              <div className="mt-1">
+                                {Math.round(item.allocated).toLocaleString()} / {Math.round(item.target).toLocaleString()} UZS ({item.percent}%)
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Collector Note */}

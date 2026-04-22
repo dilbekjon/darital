@@ -474,7 +474,10 @@ export default function AdminTenantsPage() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className={`text-base font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        <h3
+                          onClick={() => router.push(`/admin/tenants/${tenant.id}`)}
+                          className={`text-base font-semibold cursor-pointer hover:underline ${darkMode ? 'text-white' : 'text-gray-900'}`}
+                        >
                           {tenant.fullName}
                         </h3>
                         {tenant.isArchived && (
@@ -490,6 +493,12 @@ export default function AdminTenantsPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
+                      <button
+                        onClick={() => router.push(`/admin/tenants/${tenant.id}`)}
+                        className={`text-sm font-medium ${darkMode ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-600 hover:text-indigo-800'}`}
+                      >
+                        Ko'rish
+                      </button>
                       {canEditTenants && !tenant.isArchived && (
                         <>
                           <button
@@ -602,7 +611,12 @@ export default function AdminTenantsPage() {
                         darkMode ? (tenant.isArchived ? 'text-gray-400' : 'text-white') : (tenant.isArchived ? 'text-gray-500' : 'text-gray-900')
                       }`}>
                         <div className="flex items-center gap-2">
-                          {tenant.fullName}
+                          <button
+                            onClick={() => router.push(`/admin/tenants/${tenant.id}`)}
+                            className="hover:underline"
+                          >
+                            {tenant.fullName}
+                          </button>
                           {tenant.isArchived && (
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                               darkMode ? 'bg-orange-900/30 text-orange-300' : 'bg-orange-100 text-orange-800'
@@ -624,6 +638,16 @@ export default function AdminTenantsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-3 flex-wrap">
+                          <button
+                            onClick={() => router.push(`/admin/tenants/${tenant.id}`)}
+                            className={`transition-colors ${
+                              darkMode
+                                ? 'text-indigo-400 hover:text-indigo-300'
+                                : 'text-indigo-600 hover:text-indigo-900'
+                            }`}
+                          >
+                            Ko'rish
+                          </button>
                           {canEditTenants && !tenant.isArchived && (
                             <>
                               <button
