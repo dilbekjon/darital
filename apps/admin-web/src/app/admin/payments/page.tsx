@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -96,7 +96,6 @@ export default function AdminPaymentsPage() {
   const t = useUntypedTranslations();
   const { darkMode } = useTheme();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -393,13 +392,15 @@ export default function AdminPaymentsPage() {
     if (loading || !user) return;
     if (!hasPermission('payments.record_offline')) return;
 
-    const action = searchParams.get('action');
-    const tenantId = searchParams.get('tenantId');
+    if (typeof window === 'undefined') return;
+    const currentSearch = new URLSearchParams(window.location.search);
+    const action = currentSearch.get('action');
+    const tenantId = currentSearch.get('tenantId');
     if (action !== 'add-payment' || !tenantId) return;
 
-    openRecordOfflineModal({ tenantId });
+    void openRecordOfflineModal({ tenantId });
     router.replace('/admin/payments');
-  }, [loading, user, hasPermission, searchParams, openRecordOfflineModal, router]);
+  }, [loading, user, hasPermission, openRecordOfflineModal, router]);
 
   useEffect(() => {
     if (!recordOfflineModalOpen) return;
