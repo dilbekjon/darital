@@ -86,6 +86,13 @@ export class AuthService {
     );
   }
 
+  async createAdminTelegramAppToken(chatId: string, adminId: string): Promise<string> {
+    return this.jwtService.signAsync(
+      { sub: adminId, chatId, typ: 'tg_admin_app' },
+      { expiresIn: '30d' },
+    );
+  }
+
   async exchangeTelegramAppToken(token: string): Promise<{ accessToken: string }> {
     let payload: any;
     try {
@@ -117,6 +124,44 @@ export class AuthService {
       role: AdminRole.TENANT_USER,
       email: tenant.phone,
       name: tenant.fullName,
+    });
+
+    return { accessToken };
+  }
+
+  async exchangeAdminTelegramAppToken(token: string): Promise<{ accessToken: string }> {
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(token);
+    } catch (e: any) {
+      const err: any = new UnauthorizedException({ code: 'INVALID_TOKEN', message: 'Invalid or expired token' });
+      throw err;
+    }
+
+    if (!payload?.sub || payload?.typ !== 'tg_admin_app' || !payload?.chatId) {
+      const err: any = new UnauthorizedException({ code: 'INVALID_TOKEN', message: 'Invalid token payload' });
+      throw err;
+    }
+
+    const telegramUser = await this.prisma.adminTelegramUser.findUnique({
+      where: { chatId: String(payload.chatId) },
+    });
+    if (!telegramUser?.isAuthenticated || telegramUser.adminId !== String(payload.sub)) {
+      const err: any = new UnauthorizedException({ code: 'NOT_AUTHENTICATED', message: 'Telegram admin session not authenticated' });
+      throw err;
+    }
+
+    const admin = await this.prisma.user.findUnique({ where: { id: String(payload.sub) } });
+    if (!admin) {
+      const err: any = new UnauthorizedException({ code: 'ADMIN_NOT_FOUND', message: 'Admin user not found' });
+      throw err;
+    }
+
+    const accessToken = await this.jwtService.signAsync({
+      sub: admin.id,
+      role: admin.role,
+      email: admin.email,
+      name: admin.fullName,
     });
 
     return { accessToken };

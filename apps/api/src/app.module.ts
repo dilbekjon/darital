@@ -30,6 +30,7 @@ import { BulkActionsModule } from './bulk-actions/bulk-actions.module';
 import { EmailTemplatesModule } from './email-templates/email-templates.module';
 import { ArchiveModule } from './archive/archive.module';
 import { AdminModule } from './admin/admin.module';
+import { AdminTelegramModule } from './admin-telegram/admin-telegram.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from './rbac/permissions.guard';
 import { CustomThrottlerGuard } from './telegram/custom-throttler.guard';
@@ -63,6 +64,7 @@ import { HealthController } from './health.controller';
     MailModule,
     NotificationsModule,
     TelegramModule, // Enable Telegram bot
+    AdminTelegramModule,
     TenantPortalModule,
     AuditLogsModule,
     ChatModule,
@@ -101,4 +103,3 @@ import { HealthController } from './health.controller';
   ],
 })
 export class AppModule {}
-

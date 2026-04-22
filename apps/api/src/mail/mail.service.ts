@@ -108,6 +108,20 @@ export class MailService {
     const text = body;
     return this.send(adminRecipient, subject, html, text);
   }
-}
 
+  async sendAdminTelegramLoginCode(adminEmail: string, fullName: string, code: string): Promise<MailOk | MailErr> {
+    const subject = 'Darital Admin Telegram login code';
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height:1.6;">
+        <h2 style="margin:0 0 8px;">Darital Admin</h2>
+        <p>Assalomu alaykum ${fullName || 'admin'}.</p>
+        <p>Telegram admin botiga kirish kodi:</p>
+        <p style="font-size:24px; font-weight:700; letter-spacing:4px;">${code}</p>
+        <p>Kod 10 daqiqa davomida amal qiladi.</p>
+      </div>
+    `;
+    const text = `Darital Admin Telegram login code: ${code}. Code expires in 10 minutes.`;
+    return this.send(adminEmail, subject, html, text);
+  }
+}
 

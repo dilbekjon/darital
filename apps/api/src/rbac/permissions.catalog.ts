@@ -82,6 +82,7 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
   // Cashier - Verifies and approves all payments, cannot edit payment details; needs contracts + units for context
   CASHIER: [
     'payments.read',
+    'payments.record_offline',
     'payments.approve',
     'payments.capture_offline',
     'invoices.read',

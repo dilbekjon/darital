@@ -41,7 +41,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(null);
       setLoading(false);
       // Only redirect if not already on login page or tenant pages
-      if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/tenant')) {
+      if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/tenant') && !window.location.pathname.startsWith('/tg-login')) {
         router.push('/login');
       }
       return;
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (err instanceof ApiError && err.status === 401) {
         clearToken();
         setUser(null);
-        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/tenant')) {
+        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/tenant') && !window.location.pathname.startsWith('/tg-login')) {
           router.push('/login');
         }
       } else {

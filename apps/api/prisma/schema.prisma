@@ -377,6 +377,27 @@ model TelegramUser {
   createdAt        DateTime @default(now())
 }
 
+model AdminTelegramUser {
+  id               String   @id @default(cuid())
+  adminId          String?
+  chatId           String   @unique
+  telegramUserId   String?  @unique
+  telegramUsername String?
+  isAuthenticated  Boolean  @default(false)
+  authStep         String?
+  pendingAdminId   String?
+  pendingEmail     String?
+  otpHash          String?
+  otpExpiresAt     DateTime?
+  otpAttempts      Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([adminId])
+  @@index([pendingEmail])
+  @@map("admin_telegram_users")
+}
+
 model TenantDevice {
   id        String   @id @default(cuid())
   tenantId  String

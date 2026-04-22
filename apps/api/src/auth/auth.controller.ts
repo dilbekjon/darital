@@ -89,6 +89,15 @@ export class AuthController {
     return this.authService.exchangeTelegramAppToken(body.token);
   }
 
+  @Post('admin-telegram-exchange')
+  @Public()
+  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  @ApiOperation({ summary: 'Exchange Admin Telegram app token for an API access token' })
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  async adminTelegramExchange(@Body() body: TelegramExchangeDto) {
+    return this.authService.exchangeAdminTelegramAppToken(body.token);
+  }
+
   // The /me endpoint is now handled by MeController. Removing from AuthController.
   // @Get('me')
   // @ApiBearerAuth()
