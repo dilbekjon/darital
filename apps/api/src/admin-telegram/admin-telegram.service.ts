@@ -1,10 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Context, Markup, Telegraf } from 'telegraf';
 import * as bcrypt from 'bcryptjs';
-import * as crypto from 'crypto';
 import { PrismaService } from '../prisma.service';
 import { AuthService } from '../auth/auth.service';
-import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AdminTelegramService implements OnModuleInit, OnModuleDestroy {
@@ -14,7 +12,6 @@ export class AdminTelegramService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
-    private readonly mailService: MailService,
   ) {}
 
   async onModuleInit() {
@@ -116,8 +113,9 @@ export class AdminTelegramService implements OnModuleInit, OnModuleDestroy {
     return url.toString();
   }
 
-  private generateCode(): string {
-    return crypto.randomInt(10000000, 99999999).toString();
+  private normalizePhone(rawPhone: string): string {
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    return cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
   }
 
   private async ensureAdminTelegramUser(ctx: Context) {
@@ -149,7 +147,7 @@ export class AdminTelegramService implements OnModuleInit, OnModuleDestroy {
         chatId,
         telegramUserId,
         telegramUsername,
-        authStep: 'waiting_email',
+        authStep: 'waiting_phone',
       },
     });
   }
@@ -181,7 +179,7 @@ export class AdminTelegramService implements OnModuleInit, OnModuleDestroy {
       where: { chatId },
       data: {
         isAuthenticated: false,
-        authStep: 'waiting_email',
+        authStep: 'waiting_phone',
         pendingAdminId: null,
         pendingEmail: null,
         otpHash: null,
@@ -190,7 +188,7 @@ export class AdminTelegramService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    await ctx.reply('Admin emailingizni yuboring.');
+    await ctx.reply('Admin telefon raqamingizni yuboring. Format: +998901234567');
   }
 
   private async showMainMenu(ctx: Context, chatId: string) {
@@ -234,83 +232,63 @@ export class AdminTelegramService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    if (telegramUser.authStep === 'waiting_code') {
-      await this.verifyCode(ctx, telegramUser, text);
+    if (telegramUser.authStep === 'waiting_password') {
+      await this.handlePassword(ctx, telegramUser, text);
       return;
     }
 
-    await this.handleEmail(ctx, chatId, text);
+    await this.handlePhone(ctx, chatId, text);
   }
 
-  private async handleEmail(ctx: Context, chatId: string, text: string) {
-    const email = text.toLowerCase();
-    if (!email.includes('@')) {
-      await ctx.reply('To‘g‘ri admin email kiriting.');
+  private async handlePhone(ctx: Context, chatId: string, text: string) {
+    const phone = this.normalizePhone(text);
+    if (!/^\d{12}$/.test(phone)) {
+      await ctx.reply('Telefon format noto‘g‘ri. Masalan: +998901234567');
       return;
     }
 
-    const admin = await this.prisma.user.findUnique({ where: { email } });
+    const admin = await this.prisma.user.findFirst({ where: { phone } });
     if (!admin) {
-      await ctx.reply('Bu email bilan admin topilmadi.');
-      return;
-    }
-
-    const code = this.generateCode();
-    const mailResult = await this.mailService.sendAdminTelegramLoginCode(admin.email, admin.fullName, code);
-    if ('code' in mailResult) {
-      this.logger.warn(`Admin Telegram login email failed for ${admin.email}: ${mailResult.message}`);
-      await ctx.reply('Email kod yuborilmadi. Mail sozlamalarini tekshiring.');
+      await ctx.reply('Bu telefon bilan admin topilmadi.');
       return;
     }
 
     await this.prisma.adminTelegramUser.update({
       where: { chatId },
       data: {
-        authStep: 'waiting_code',
+        authStep: 'waiting_password',
         pendingAdminId: admin.id,
-        pendingEmail: admin.email,
-        otpHash: await bcrypt.hash(code, 10),
-        otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        pendingEmail: phone,
+        otpHash: null,
+        otpExpiresAt: null,
         otpAttempts: 0,
       },
     });
 
-    await ctx.reply('8 xonali kod emailingizga yuborildi. Kodni shu yerga yozing.');
+    await ctx.reply('Parolni yuboring.');
   }
 
-  private async verifyCode(
+  private async handlePassword(
     ctx: Context,
     telegramUser: {
       chatId: string;
       pendingAdminId: string | null;
-      otpHash: string | null;
-      otpExpiresAt: Date | null;
       otpAttempts: number;
     },
-    code: string,
+    passwordInput: string,
   ) {
-    if (!telegramUser.pendingAdminId || !telegramUser.otpHash || !telegramUser.otpExpiresAt) {
+    if (!telegramUser.pendingAdminId) {
       await this.startLogin(ctx);
       return;
     }
 
-    if (telegramUser.otpExpiresAt < new Date()) {
-      await this.prisma.adminTelegramUser.update({
-        where: { chatId: telegramUser.chatId },
-        data: {
-          authStep: 'waiting_email',
-          pendingAdminId: null,
-          pendingEmail: null,
-          otpHash: null,
-          otpExpiresAt: null,
-          otpAttempts: 0,
-        },
-      });
-      await ctx.reply('Kod muddati tugadi. Emailni qayta yuboring.');
+    const admin = await this.prisma.user.findUnique({ where: { id: telegramUser.pendingAdminId } });
+    if (!admin?.password) {
+      await this.startLogin(ctx);
       return;
     }
 
-    const valid = await bcrypt.compare(code.trim(), telegramUser.otpHash);
+    const valid = await bcrypt.compare(passwordInput.trim(), admin.password);
     if (!valid) {
       const attempts = telegramUser.otpAttempts + 1;
       await this.prisma.adminTelegramUser.update({
@@ -322,7 +300,7 @@ export class AdminTelegramService implements OnModuleInit, OnModuleDestroy {
         await this.prisma.adminTelegramUser.update({
           where: { chatId: telegramUser.chatId },
           data: {
-            authStep: 'waiting_email',
+            authStep: 'waiting_phone',
             pendingAdminId: null,
             pendingEmail: null,
             otpHash: null,
@@ -330,11 +308,11 @@ export class AdminTelegramService implements OnModuleInit, OnModuleDestroy {
             otpAttempts: 0,
           },
         });
-        await ctx.reply('Juda ko‘p noto‘g‘ri urinish. /start bilan qayta boshlang.');
+        await ctx.reply('Juda ko‘p noto‘g‘ri urinish. Qayta kirish uchun /start bosing.');
         return;
       }
 
-      await ctx.reply(`Kod noto‘g‘ri. Qolgan urinishlar: ${5 - attempts}`);
+      await ctx.reply(`Parol noto‘g‘ri. Qolgan urinishlar: ${5 - attempts}`);
       return;
     }
 
@@ -366,7 +344,7 @@ export class AdminTelegramService implements OnModuleInit, OnModuleDestroy {
       data: {
         adminId: null,
         isAuthenticated: false,
-        authStep: 'waiting_email',
+        authStep: 'waiting_phone',
         pendingAdminId: null,
         pendingEmail: null,
         otpHash: null,

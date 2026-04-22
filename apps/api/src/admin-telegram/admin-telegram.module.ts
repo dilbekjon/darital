@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
-import { MailModule } from '../mail/mail.module';
 import { AdminTelegramService } from './admin-telegram.service';
 
 @Module({
-  imports: [AuthModule, MailModule],
+  imports: [AuthModule],
   providers: [AdminTelegramService],
   exports: [AdminTelegramService],
 })

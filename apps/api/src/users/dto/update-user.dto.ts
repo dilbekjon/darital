@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional, IsEnum } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional, IsEnum, Matches } from 'class-validator';
 import { AdminRole } from '@prisma/client';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -25,4 +25,10 @@ export class UpdateUserDto {
   @IsOptional()
   @IsEnum(AdminRole)
   role?: AdminRole;
+
+  @ApiPropertyOptional({ example: '+998901234567', description: 'Admin phone number' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9+]{9,15}$/, { message: 'Invalid phone format' })
+  phone?: string;
 }

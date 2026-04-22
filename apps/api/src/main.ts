@@ -8,19 +8,6 @@ import * as fs from 'fs';
 import { ErrorAlertService } from './alerts/error-alert.service';
 
 async function bootstrap() {
-  // Run Prisma migrations in production before starting the server
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      console.log('🔄 Running Prisma migrations...');
-      const { execSync } = require('child_process');
-      execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-      console.log('✅ Prisma migrations completed');
-    } catch (error: any) {
-      console.error('❌ Prisma migration failed:', error?.message || error);
-      console.error('   Continuing anyway - migrations may have already been applied');
-    }
-  }
-
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['log', 'error', 'warn', 'debug', 'verbose'],
   });
@@ -205,4 +192,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-

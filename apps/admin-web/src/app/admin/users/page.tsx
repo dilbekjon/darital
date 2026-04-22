@@ -24,7 +24,8 @@ enum AdminRole {
 
 interface User {
   id: string;
-  email: string;
+  email?: string | null;
+  phone?: string | null;
   fullName: string;
   role: AdminRole;
   createdAt: string;
@@ -47,6 +48,7 @@ export default function AdminUsersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
+    phone: '',
     password: '',
     fullName: '',
     role: AdminRole.ADMIN as AdminRole,
@@ -67,7 +69,8 @@ export default function AdminUsersPage() {
 	      filtered = filtered.filter(
 	        (user) =>
 	          normalizeUzbekSearch(user.fullName).includes(query) ||
-	          normalizeUzbekSearch(user.email).includes(query) ||
+	          normalizeUzbekSearch(user.email || '').includes(query) ||
+            normalizeUzbekSearch(user.phone || '').includes(query) ||
 	          normalizeUzbekSearch(user.role).includes(query)
 	      );
 	    }
@@ -161,14 +164,18 @@ export default function AdminUsersPage() {
     setError(null);
     
     try {
-      const response = await fetchApi<User>('/admin/users', {
+      const payload = {
+        ...formData,
+        email: formData.email.trim() || undefined,
+      };
+      await fetchApi<User>('/admin/users', {
         method: 'POST',
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       
       await loadUsers();
       setIsCreateModalOpen(false);
-      setFormData({ email: '', password: '', fullName: '', role: AdminRole.ADMIN });
+      setFormData({ email: '', phone: '', password: '', fullName: '', role: AdminRole.ADMIN });
       setError(null);
     } catch (err) {
       console.error('Failed to create user:', err);
@@ -321,6 +328,11 @@ export default function AdminUsersPage() {
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>
+                    Telefon
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    darkMode ? 'text-gray-300' : 'text-gray-500'
+                  }`}>
                     {t.role || 'Rol'}
                   </th>
                   <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
@@ -350,7 +362,10 @@ export default function AdminUsersPage() {
                   }`}>{u.fullName}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
-                  }`}>{u.email}</td>
+                  }`}>{u.email || '—'}</td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                    darkMode ? 'text-gray-300' : 'text-gray-500'
+                  }`}>{u.phone || '—'}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>{u.role === 'SUPER_ADMIN' ? (t.superAdmin || 'Bosh Direktor') :
@@ -425,14 +440,29 @@ export default function AdminUsersPage() {
               </div>
               <div className="mb-4">
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t.email} *
+                  {t.email || 'Email'} ({t.optional || 'ixtiyoriy'})
                 </label>
                 <input
                   type="email"
                   id="email"
-                  required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="admin@darital.uz"
+                  className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${
+                    darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Telefon *
+                </label>
+                <input
+                  type="text"
+                  id="phone"
+                  required
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
@@ -488,7 +518,7 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={() => {
                     setIsCreateModalOpen(false);
-                    setFormData({ email: '', password: '', fullName: '', role: AdminRole.ADMIN });
+                    setFormData({ email: '', phone: '', password: '', fullName: '', role: AdminRole.ADMIN });
                     setError(null);
                   }}
                   className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"

@@ -9,8 +9,27 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private normalizePhone(rawPhone: string): string {
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    return cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
+  }
+
+  private normalizeEmail(rawEmail?: string | null): string | null {
+    const normalized = rawEmail?.trim().toLowerCase();
+    return normalized ? normalized : null;
+  }
+
   async create(dto: CreateUserDto): Promise<User> {
-    const existingUser = await this.findByEmail(dto.email);
+    const normalizedPhone = this.normalizePhone(dto.phone);
+    const existingByPhone = await this.prisma.user.findFirst({
+      where: { phone: normalizedPhone },
+    });
+    if (existingByPhone) {
+      throw new BadRequestException('User with this phone already exists');
+    }
+
+    const normalizedEmail = this.normalizeEmail(dto.email) ?? `admin+${normalizedPhone}@darital.local`;
+    const existingUser = await this.findByEmail(normalizedEmail);
     if (existingUser) {
       throw new BadRequestException('User with this email already exists');
     }
@@ -19,6 +38,8 @@ export class UsersService {
     return this.prisma.user.create({
       data: {
         ...dto,
+        email: normalizedEmail,
+        phone: normalizedPhone,
         password: hashedPassword,
         role: dto.role || AdminRole.ADMIN, // Default to ADMIN if not specified
       },
@@ -32,6 +53,7 @@ export class UsersService {
       select: {
         id: true,
         email: true,
+        phone: true,
         fullName: true,
         role: true,
         createdAt: true,
@@ -41,6 +63,7 @@ export class UsersService {
     return users.map((user) => ({
       id: user.id,
       email: user.email,
+      phone: user.phone,
       fullName: user.fullName,
       role: user.role,
       createdAt: user.createdAt.toISOString(),
@@ -49,6 +72,10 @@ export class UsersService {
 
   async findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email } });
+  }
+
+  async findByPhone(phone: string): Promise<User | null> {
+    return this.prisma.user.findFirst({ where: { phone } });
   }
 
   async findById(id: string): Promise<User | null> {
@@ -61,6 +88,37 @@ export class UsersService {
 
     if (dto.password) {
       dto.password = await bcrypt.hash(dto.password, 10);
+    }
+
+    if (dto.email !== undefined) {
+      const normalizedEmail = this.normalizeEmail(dto.email);
+      if (!normalizedEmail) {
+        throw new BadRequestException('Email cannot be empty');
+      }
+      const existingByEmail = await this.prisma.user.findFirst({
+        where: {
+          email: normalizedEmail,
+          id: { not: id },
+        },
+      });
+      if (existingByEmail) {
+        throw new BadRequestException('User with this email already exists');
+      }
+      dto.email = normalizedEmail;
+    }
+
+    if (dto.phone) {
+      const normalizedPhone = this.normalizePhone(dto.phone);
+      const existingByPhone = await this.prisma.user.findFirst({
+        where: {
+          phone: normalizedPhone,
+          id: { not: id },
+        },
+      });
+      if (existingByPhone) {
+        throw new BadRequestException('User with this phone already exists');
+      }
+      dto.phone = normalizedPhone;
     }
 
     return this.prisma.user.update({
@@ -92,5 +150,3 @@ export class UsersService {
     });
   }
 }
-
-

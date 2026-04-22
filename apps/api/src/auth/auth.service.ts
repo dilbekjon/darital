@@ -26,27 +26,25 @@ export class AuthService {
       return null;
     }
 
-    const isEmail = trimmedLogin.includes('@');
-    if (isEmail) {
-      const trimmedEmail = trimmedLogin.toLowerCase();
-      const user = await this.usersService.findByEmail(trimmedEmail);
-      if (!user) return null;
-      if (!user.password) {
-        this.logger.warn(`User ${trimmedEmail} has no password set`);
+    const cleanPhone = trimmedLogin.replace(/\D/g, '');
+    if (!cleanPhone) {
+      this.logger.warn('Login attempt failed: login is not a phone number');
+      return null;
+    }
+    const phone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
+
+    const admin = await this.usersService.findByPhone(phone);
+    if (admin) {
+      if (!admin.password?.startsWith('$2')) {
+        this.logger.error(`Admin ${phone} has unhashed password.`);
         return null;
       }
-      if (!user.password.startsWith('$2')) {
-        this.logger.error(`User ${trimmedEmail} has unhashed password in database.`);
-        return null;
-      }
-      const isValid = await bcrypt.compare(trimmedPassword, user.password);
+      const isValid = await bcrypt.compare(trimmedPassword, admin.password);
       if (!isValid) return null;
-      this.logger.log(`Login successful for admin email: ${trimmedEmail}`);
-      return user;
+      this.logger.log(`Login successful for admin phone: ${phone}`);
+      return admin;
     }
 
-    const cleanPhone = trimmedLogin.replace(/\D/g, '');
-    const phone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
     const tenant = await this.prisma.tenant.findUnique({ where: { phone } });
     if (!tenant) {
       this.logger.warn(`Tenant not found for phone: ${phone}`);

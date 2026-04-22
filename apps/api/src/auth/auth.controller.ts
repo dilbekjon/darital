@@ -18,11 +18,11 @@ export class AuthController {
   @Post('login')
   @Public()
   @Throttle({ default: { ttl: 60000, limit: 5 } })
-  @ApiOperation({ summary: 'Authenticate: admin by email, tenant by phone' })
+  @ApiOperation({ summary: 'Authenticate: admin by phone, tenant by phone' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async login(@Body() body: LoginDto) {
     const loginId = body.login ?? body.email;
-    if (!loginId) throw new BadRequestException('login or email required');
+    if (!loginId) throw new BadRequestException('login required');
     return this.authService.login(loginId, body.password);
   }
 
