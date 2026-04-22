@@ -4,6 +4,7 @@ import { AdminRole, User } from '@prisma/client'; // Updated import for AdminRol
 import * as bcrypt from 'bcryptjs';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserCredentialsDto } from './dto/update-user-credentials.dto';
 
 @Injectable()
 export class UsersService {
@@ -147,6 +148,40 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id },
       data: { role: newRole },
+    });
+  }
+
+  async updateCredentials(id: string, dto: UpdateUserCredentialsDto): Promise<User> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+
+    if (!dto.phone && !dto.password) {
+      throw new BadRequestException('At least one field (phone or password) is required');
+    }
+
+    const data: Partial<User> = {};
+
+    if (dto.phone) {
+      const normalizedPhone = this.normalizePhone(dto.phone);
+      const existingByPhone = await this.prisma.user.findFirst({
+        where: {
+          phone: normalizedPhone,
+          id: { not: id },
+        },
+      });
+      if (existingByPhone) {
+        throw new BadRequestException('User with this phone already exists');
+      }
+      data.phone = normalizedPhone;
+    }
+
+    if (dto.password) {
+      data.password = await bcrypt.hash(dto.password, 10);
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data,
     });
   }
 }

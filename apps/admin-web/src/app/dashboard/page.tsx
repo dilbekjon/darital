@@ -24,6 +24,37 @@ interface DashboardStats {
   expiringContracts: number;
 }
 
+interface CollectorSummaryItem {
+  invoiceId: string;
+  dueDate: string;
+  tenantName: string;
+  tenantPhone: string;
+  unitName: string | null;
+  cashTarget: number;
+  cashCollected: number;
+  remaining: number;
+  status: 'COLLECTED' | 'PARTIAL' | 'PENDING';
+}
+
+interface CollectorSummary {
+  month: string;
+  totals: {
+    requiredCount: number;
+    collectedCount: number;
+    remainingCount: number;
+    requiredAmount: number;
+    collectedAmount: number;
+    remainingAmount: number;
+    myCollectedAmount: number;
+    myCollectedInvoiceCount: number;
+  };
+  items: {
+    shouldCollect: CollectorSummaryItem[];
+    collected: CollectorSummaryItem[];
+    remaining: CollectorSummaryItem[];
+  };
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading, hasPermission } = useAuth();
@@ -31,6 +62,7 @@ export default function DashboardPage() {
   const { darkMode } = useTheme();
   const { showToast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [collectorSummary, setCollectorSummary] = useState<CollectorSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,6 +73,7 @@ export default function DashboardPage() {
   const canViewReports = hasPermission('reports.view');
   const canViewChat = hasPermission('chat.read');
   const canManageNotifications = hasPermission('notifications.manage');
+  const isPaymentCollector = user?.role === 'PAYMENT_COLLECTOR';
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -104,6 +137,13 @@ export default function DashboardPage() {
         overdueInvoices,
         expiringContracts,
       });
+
+      if (user?.role === 'PAYMENT_COLLECTOR') {
+        const collectorRes = await fetchApi<CollectorSummary>('/payments/collector-summary').catch(() => null);
+        setCollectorSummary(collectorRes);
+      } else {
+        setCollectorSummary(null);
+      }
     } catch (err) {
       console.error('Failed to load dashboard stats:', err);
       if (err instanceof ApiError) {
@@ -123,6 +163,14 @@ export default function DashboardPage() {
   if (!user) {
     return null;
   }
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('uz-UZ', {
+      style: 'currency',
+      currency: 'UZS',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value || 0);
 
   return (
     <div className={`min-h-screen transition-colors duration-500 ${
@@ -279,6 +327,82 @@ export default function DashboardPage() {
             </>
           )}
         </div>
+
+        {isPaymentCollector && collectorSummary && (
+          <div className={`rounded-xl p-6 shadow-md border mb-8 ${
+            darkMode ? 'bg-black border-blue-600/30' : 'bg-white border-gray-200'
+          }`}>
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-5">
+              <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                To‘lov yig‘uvchi nazorati ({collectorSummary.month})
+              </h2>
+              <button
+                onClick={() => router.push('/admin/payments')}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${
+                  darkMode
+                    ? 'border-blue-600/40 text-blue-300 hover:bg-blue-500/10'
+                    : 'border-blue-200 text-blue-700 hover:bg-blue-50'
+                }`}
+              >
+                To‘lovlar sahifasi
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className={`rounded-lg border p-4 ${darkMode ? 'border-blue-600/30 bg-blue-500/5' : 'border-gray-200 bg-gray-50'}`}>
+                <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Olishi kerak</p>
+                <p className={`text-2xl font-bold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{collectorSummary.totals.requiredCount}</p>
+                <p className={`text-sm mt-1 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>{formatCurrency(collectorSummary.totals.requiredAmount)}</p>
+              </div>
+              <div className={`rounded-lg border p-4 ${darkMode ? 'border-green-600/30 bg-green-500/5' : 'border-gray-200 bg-gray-50'}`}>
+                <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Olingan</p>
+                <p className={`text-2xl font-bold mt-1 ${darkMode ? 'text-green-400' : 'text-green-700'}`}>{collectorSummary.totals.collectedCount}</p>
+                <p className={`text-sm mt-1 ${darkMode ? 'text-green-300' : 'text-green-700'}`}>{formatCurrency(collectorSummary.totals.collectedAmount)}</p>
+              </div>
+              <div className={`rounded-lg border p-4 ${darkMode ? 'border-yellow-600/30 bg-yellow-500/5' : 'border-gray-200 bg-gray-50'}`}>
+                <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Qolgan</p>
+                <p className={`text-2xl font-bold mt-1 ${darkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>{collectorSummary.totals.remainingCount}</p>
+                <p className={`text-sm mt-1 ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>{formatCurrency(collectorSummary.totals.remainingAmount)}</p>
+              </div>
+            </div>
+
+            <div className={`mb-4 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Siz yozgan to‘lovlar: <span className="font-semibold">{collectorSummary.totals.myCollectedInvoiceCount} ta invoice</span> • {formatCurrency(collectorSummary.totals.myCollectedAmount)}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className={`${darkMode ? 'text-gray-400 border-b border-blue-600/20' : 'text-gray-600 border-b border-gray-200'}`}>
+                    <th className="py-2 pr-3 text-left">Mijoz</th>
+                    <th className="py-2 pr-3 text-left">Obyekt</th>
+                    <th className="py-2 pr-3 text-left">Muddat</th>
+                    <th className="py-2 pr-3 text-right">Kerak</th>
+                    <th className="py-2 pr-3 text-right">Olingan</th>
+                    <th className="py-2 pr-3 text-right">Qolgan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {collectorSummary.items.remaining.slice(0, 12).map((item) => (
+                    <tr key={item.invoiceId} className={`${darkMode ? 'border-b border-blue-600/10 text-gray-200' : 'border-b border-gray-100 text-gray-800'}`}>
+                      <td className="py-2 pr-3">{item.tenantName} <span className={`${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>({item.tenantPhone})</span></td>
+                      <td className="py-2 pr-3">{item.unitName || '—'}</td>
+                      <td className="py-2 pr-3">{new Date(item.dueDate).toLocaleDateString('en-GB')}</td>
+                      <td className="py-2 pr-3 text-right">{formatCurrency(item.cashTarget)}</td>
+                      <td className="py-2 pr-3 text-right">{formatCurrency(item.cashCollected)}</td>
+                      <td className="py-2 pr-3 text-right font-semibold">{formatCurrency(item.remaining)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {collectorSummary.items.remaining.length === 0 && (
+                <p className={`py-4 text-sm ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
+                  Ajoyib — shu oy uchun naqd yig‘imda qolgan invoice yo‘q.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* What Needs Your Attention + Quick Actions */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">

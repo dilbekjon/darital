@@ -36,6 +36,14 @@ export class PaymentsController {
     return this.paymentsService.findAll(query);
   }
 
+  @Get('collector-summary')
+  @Permissions('payments.read')
+  @ApiOperation({ summary: 'Current month collection summary for payment collector dashboard' })
+  async collectorSummary(@Req() req: Request, @Query('month') month?: string) {
+    const user = req.user as { id: string };
+    return this.paymentsService.getCollectorMonthlySummary(user.id, month);
+  }
+
   @Post()
   @Permissions('payments.record_offline')
   @UsePipes(new ValidationPipe({ whitelist: true }))
@@ -265,4 +273,3 @@ Or use the test script:
     return this.paymentsService.handleWebhook(normalized, webhookDto);
   }
 }
-

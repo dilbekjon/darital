@@ -158,6 +158,107 @@ export default function AdminTenantDetailsPage() {
     };
   }, [contracts, invoices, payments]);
 
+  const financeOverview = useMemo(() => {
+    const monthMap = new Map<string, {
+      month: string;
+      monthLabel: string;
+      invoiceCount: number;
+      totalDue: number;
+      totalPaid: number;
+      totalRemaining: number;
+      bankDue: number;
+      bankPaid: number;
+      bankRemaining: number;
+      cashDue: number;
+      cashPaid: number;
+      cashRemaining: number;
+    }>();
+
+    let totalDue = 0;
+    let totalPaid = 0;
+    let totalRemaining = 0;
+    let overdueRemaining = 0;
+    const now = new Date();
+
+    for (const invoice of invoices) {
+      const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null;
+      const monthKey = dueDate
+        ? `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}`
+        : 'N/A';
+      const monthLabel = dueDate
+        ? dueDate.toLocaleDateString('uz-UZ', { year: 'numeric', month: 'long' })
+        : 'Noma’lum oy';
+
+      const invoiceTotal = Number(invoice.amount || 0);
+      const bankDue = Number(invoice.bankAmount ?? invoice.amount ?? 0);
+      const cashDue = Number(invoice.cashAmount ?? 0);
+
+      const confirmedPayments = (invoice.payments || []).filter((payment) => payment.status === 'CONFIRMED');
+      const invoicePaid = confirmedPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      const invoiceRemaining = Math.max(0, invoiceTotal - invoicePaid);
+
+      const bankPaid = confirmedPayments
+        .filter((payment) => {
+          const source = String(payment.source || '').toUpperCase();
+          return source === 'BANK' || source === 'ONLINE';
+        })
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+
+      const cashPaid = confirmedPayments
+        .filter((payment) => String(payment.source || '').toUpperCase() === 'CASH')
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+
+      const bankRemaining = Math.max(0, bankDue - bankPaid);
+      const cashRemaining = Math.max(0, cashDue - cashPaid);
+
+      const row = monthMap.get(monthKey) || {
+        month: monthKey,
+        monthLabel,
+        invoiceCount: 0,
+        totalDue: 0,
+        totalPaid: 0,
+        totalRemaining: 0,
+        bankDue: 0,
+        bankPaid: 0,
+        bankRemaining: 0,
+        cashDue: 0,
+        cashPaid: 0,
+        cashRemaining: 0,
+      };
+
+      row.invoiceCount += 1;
+      row.totalDue += invoiceTotal;
+      row.totalPaid += invoicePaid;
+      row.totalRemaining += invoiceRemaining;
+      row.bankDue += bankDue;
+      row.bankPaid += bankPaid;
+      row.bankRemaining += bankRemaining;
+      row.cashDue += cashDue;
+      row.cashPaid += cashPaid;
+      row.cashRemaining += cashRemaining;
+
+      monthMap.set(monthKey, row);
+
+      totalDue += invoiceTotal;
+      totalPaid += invoicePaid;
+      totalRemaining += invoiceRemaining;
+
+      if (dueDate && dueDate < now && invoiceRemaining > 0) {
+        overdueRemaining += invoiceRemaining;
+      }
+    }
+
+    const months = Array.from(monthMap.values()).sort((a, b) => b.month.localeCompare(a.month));
+
+    return {
+      totalDue,
+      totalPaid,
+      totalRemaining,
+      overdueRemaining,
+      months,
+    };
+  }, [invoices]);
+
   const sortedInvoices = useMemo(
     () => [...invoices].sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()),
     [invoices],
@@ -349,6 +450,77 @@ export default function AdminTenantDetailsPage() {
               </div>
             )}
           </div>
+
+          <div className={`lg:col-span-2 rounded-lg p-4 ${darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+            <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+              <h2 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                Moliyaviy umumiy holat
+              </h2>
+              <button
+                onClick={() => router.push(`/admin/payments?action=add-payment&tenantId=${tenant.id}`)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  darkMode
+                    ? 'bg-green-600 hover:bg-green-500 text-white'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+              >
+                To‘lov qo‘shish
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+              <div className={`rounded-lg p-3 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Jami to‘lanishi kerak</div>
+                <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(financeOverview.totalDue)}</div>
+              </div>
+              <div className={`rounded-lg p-3 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Jami to‘langan</div>
+                <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-green-300' : 'text-green-700'}`}>{formatCurrency(financeOverview.totalPaid)}</div>
+              </div>
+              <div className={`rounded-lg p-3 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Jami qoldiq</div>
+                <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>{formatCurrency(financeOverview.totalRemaining)}</div>
+              </div>
+              <div className={`rounded-lg p-3 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Muddati o‘tgan qarz</div>
+                <div className={`text-sm font-semibold mt-1 ${darkMode ? 'text-red-300' : 'text-red-700'}`}>{formatCurrency(financeOverview.overdueRemaining)}</div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <th className="py-2 text-left">Oy</th>
+                    <th className="py-2 text-left">Invoice</th>
+                    <th className="py-2 text-left">Jami</th>
+                    <th className="py-2 text-left">To‘langan</th>
+                    <th className="py-2 text-left">Qolgan</th>
+                    <th className="py-2 text-left">Bank (qoldiq)</th>
+                    <th className="py-2 text-left">Naqd (qoldiq)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financeOverview.months.map((month) => (
+                    <tr key={month.month} className={`border-t ${darkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                      <td className="py-2">{month.monthLabel}</td>
+                      <td className="py-2">{month.invoiceCount}</td>
+                      <td className="py-2">{formatCurrency(month.totalDue)}</td>
+                      <td className="py-2">{formatCurrency(month.totalPaid)}</td>
+                      <td className="py-2 font-semibold">{formatCurrency(month.totalRemaining)}</td>
+                      <td className="py-2">{formatCurrency(month.bankRemaining)}</td>
+                      <td className="py-2">{formatCurrency(month.cashRemaining)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {financeOverview.months.length === 0 && (
+                <p className={`py-3 text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Moliyaviy ma’lumot topilmadi
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -413,7 +585,21 @@ export default function AdminTenantDetailsPage() {
 
       {activeTab === 'payments' && (
         <div className={`rounded-lg p-4 ${darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-          <h2 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>To‘lovlar tarixi</h2>
+          <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
+            <h2 className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>To‘lovlar tarixi</h2>
+            {hasPermission('payments.record_offline') && (
+              <button
+                onClick={() => router.push(`/admin/payments?action=add-payment&tenantId=${tenant.id}`)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                  darkMode
+                    ? 'bg-green-600 hover:bg-green-500 text-white'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+              >
+                To‘lov qo‘shish
+              </button>
+            )}
+          </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
@@ -453,4 +639,3 @@ export default function AdminTenantDetailsPage() {
     </div>
   );
 }
-

@@ -56,6 +56,137 @@ export class PaymentsService {
     return status ? status.toLowerCase().trim() : '';
   }
 
+  private getMonthRange(month?: string) {
+    const now = new Date();
+    const match = month?.match(/^(\d{4})-(\d{2})$/);
+    const year = match ? Number(match[1]) : now.getUTCFullYear();
+    const monthIndex = match ? Number(match[2]) - 1 : now.getUTCMonth();
+    const start = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0, 0));
+    return { start, end, month: `${year}-${String(monthIndex + 1).padStart(2, '0')}` };
+  }
+
+  async getCollectorMonthlySummary(actorId: string, month?: string) {
+    const { start, end, month: normalizedMonth } = this.getMonthRange(month);
+
+    const invoices = await this.prisma.invoice.findMany({
+      where: {
+        isArchived: false,
+        dueDate: {
+          gte: start,
+          lt: end,
+        },
+      },
+      include: {
+        contract: {
+          include: {
+            tenant: {
+              select: {
+                id: true,
+                fullName: true,
+                phone: true,
+              },
+            },
+            unit: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        payments: {
+          where: {
+            isArchived: false,
+            source: 'CASH',
+            status: { in: [PaymentStatus.PENDING, PaymentStatus.CONFIRMED] },
+          },
+          select: {
+            id: true,
+            amount: true,
+            status: true,
+            collectedBy: true,
+            collectedAt: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: {
+        dueDate: 'asc',
+      },
+    });
+
+    const items = invoices
+      .map((invoice) => {
+        const cashTargetRaw = new Decimal((invoice as any).cashAmount ?? 0);
+        const hasSplit = !new Decimal((invoice as any).bankAmount ?? 0).plus(cashTargetRaw).equals(0);
+        const cashTarget = hasSplit ? cashTargetRaw : new Decimal(invoice.amount);
+        if (cashTarget.lte(0)) return null;
+
+        const cashCollected = invoice.payments.reduce(
+          (sum, payment) => sum.plus(payment.amount),
+          new Decimal(0),
+        );
+        const remainingRaw = cashTarget.minus(cashCollected);
+        const remaining = remainingRaw.gt(0) ? remainingRaw : new Decimal(0);
+
+        return {
+          invoiceId: invoice.id,
+          dueDate: invoice.dueDate.toISOString(),
+          tenantId: invoice.contract.tenant.id,
+          tenantName: invoice.contract.tenant.fullName,
+          tenantPhone: invoice.contract.tenant.phone,
+          unitId: invoice.contract.unit?.id ?? null,
+          unitName: invoice.contract.unit?.name ?? null,
+          cashTarget: cashTarget.toNumber(),
+          cashCollected: cashCollected.toNumber(),
+          remaining: remaining.toNumber(),
+          status: remaining.eq(0) ? 'COLLECTED' : cashCollected.gt(0) ? 'PARTIAL' : 'PENDING',
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    const requiredAmount = items.reduce((sum, item) => sum + item.cashTarget, 0);
+    const collectedAmount = items.reduce((sum, item) => sum + item.cashCollected, 0);
+    const remainingAmount = items.reduce((sum, item) => sum + item.remaining, 0);
+
+    const myCollectedPayments = await this.prisma.payment.findMany({
+      where: {
+        isArchived: false,
+        source: 'CASH',
+        collectedBy: actorId,
+        status: { in: [PaymentStatus.PENDING, PaymentStatus.CONFIRMED] },
+        createdAt: { gte: start, lt: end },
+      },
+      select: {
+        amount: true,
+        invoiceId: true,
+      },
+    });
+
+    const myCollectedAmount = myCollectedPayments.reduce((sum, payment) => sum + payment.amount.toNumber(), 0);
+    const myCollectedInvoiceCount = new Set(myCollectedPayments.map((payment) => payment.invoiceId)).size;
+
+    return {
+      month: normalizedMonth,
+      totals: {
+        requiredCount: items.length,
+        collectedCount: items.filter((item) => item.cashCollected > 0).length,
+        remainingCount: items.filter((item) => item.remaining > 0).length,
+        requiredAmount,
+        collectedAmount,
+        remainingAmount,
+        myCollectedAmount,
+        myCollectedInvoiceCount,
+      },
+      items: {
+        shouldCollect: items,
+        collected: items.filter((item) => item.cashCollected > 0),
+        remaining: items.filter((item) => item.remaining > 0),
+      },
+    };
+  }
+
   async confirmPaymentTransaction(params: {
     paymentId: string;
     providerPaymentId?: string;

@@ -44,8 +44,15 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<AdminRole | ''>( '');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [credentialsSubmitting, setCredentialsSubmitting] = useState(false);
+  const [credentialsUser, setCredentialsUser] = useState<User | null>(null);
+  const [credentialsForm, setCredentialsForm] = useState({
+    phone: '',
+    password: '',
+  });
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
@@ -156,6 +163,47 @@ export default function AdminUsersPage() {
     }
   };
 
+  const openCredentialsModal = (targetUser: User) => {
+    setCredentialsUser(targetUser);
+    setCredentialsForm({
+      phone: targetUser.phone || '',
+      password: '',
+    });
+    setIsCredentialsModalOpen(true);
+  };
+
+  const handleSaveCredentials = async () => {
+    if (!credentialsUser) return;
+    if (!credentialsForm.phone.trim() && !credentialsForm.password.trim()) {
+      setError('Telefon yoki parol kiriting');
+      return;
+    }
+
+    setCredentialsSubmitting(true);
+    setError(null);
+    try {
+      await fetchApi(`/admin/users/${credentialsUser.id}/credentials`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          phone: credentialsForm.phone.trim() || undefined,
+          password: credentialsForm.password.trim() || undefined,
+        }),
+      });
+      setIsCredentialsModalOpen(false);
+      setCredentialsUser(null);
+      setCredentialsForm({ phone: '', password: '' });
+      await loadUsers();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.data?.message || err.message);
+      } else {
+        setError('Telefon/parolni yangilashda xatolik yuz berdi');
+      }
+    } finally {
+      setCredentialsSubmitting(false);
+    }
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hasPermission('admin.users.update')) return;
@@ -202,6 +250,7 @@ export default function AdminUsersPage() {
   }
 
   const canManageUsers = hasPermission('admin.users.update');
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   return (
     <div className={`p-4 sm:p-6 lg:p-8 min-h-screen ${
@@ -381,6 +430,14 @@ export default function AdminUsersPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     {canManageUsers && u.id !== user?.id && (
                       <>
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => openCredentialsModal(u)}
+                            className="text-emerald-600 hover:text-emerald-900 dark:text-emerald-400 dark:hover:text-emerald-300 mr-4"
+                          >
+                            Telefon/Parol
+                          </button>
+                        )}
                         <button 
                           onClick={() => handleEditRole(u)}
                           className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
@@ -534,6 +591,73 @@ export default function AdminUsersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Role Edit Modal */}
+      {isCredentialsModalOpen && credentialsUser && (
+        <div className={`fixed inset-0 overflow-y-auto h-full w-full flex items-center justify-center z-50 ${
+          darkMode ? 'bg-black bg-opacity-70' : 'bg-gray-600 bg-opacity-50'
+        }`}>
+          <div className={`bg-white dark:bg-black rounded-lg shadow-xl p-6 w-full max-w-md mx-auto border ${
+            darkMode ? 'border-blue-600/30' : 'border-gray-200'
+          }`}>
+            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+              Telefon/Parol: {credentialsUser.fullName}
+            </h2>
+            {error && (
+              <div className={`px-4 py-3 rounded-lg mb-4 border ${
+                darkMode
+                  ? 'bg-red-900/20 border-red-800 text-red-300'
+                  : 'bg-red-100 border-red-400 text-red-700'
+              }`} role="alert">
+                {error}
+              </div>
+            )}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Telefon</label>
+              <input
+                type="text"
+                value={credentialsForm.phone}
+                onChange={(e) => setCredentialsForm({ ...credentialsForm, phone: e.target.value })}
+                className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${
+                  darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                }`}
+                placeholder="+998901234567"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Yangi parol</label>
+              <input
+                type="password"
+                value={credentialsForm.password}
+                onChange={(e) => setCredentialsForm({ ...credentialsForm, password: e.target.value })}
+                className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${
+                  darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                }`}
+                placeholder="Bo'sh qoldirilsa o'zgarmaydi"
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsCredentialsModalOpen(false);
+                  setCredentialsUser(null);
+                  setCredentialsForm({ phone: '', password: '' });
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={handleSaveCredentials}
+                disabled={credentialsSubmitting}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:bg-gray-400"
+              >
+                {credentialsSubmitting ? 'Saqlanmoqda...' : (t.save || 'Saqlash')}
+              </button>
+            </div>
           </div>
         </div>
       )}

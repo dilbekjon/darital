@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -47,7 +47,8 @@ interface Invoice {
 
 interface Contract {
   id: string;
-  tenant?: { fullName?: string; email?: string };
+  status?: string;
+  tenant?: { id?: string; fullName?: string; email?: string };
   unit?: { name?: string; buildingName?: string };
 }
 
@@ -95,6 +96,7 @@ export default function AdminPaymentsPage() {
   const t = useUntypedTranslations();
   const { darkMode } = useTheme();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,14 +171,16 @@ export default function AdminPaymentsPage() {
     }
   }, []);
 
-  const loadContracts = useCallback(async () => {
+  const loadContracts = useCallback(async (): Promise<Contract[]> => {
     try {
       const data = await fetchApi<any>('/contracts?includeArchived=false');
       const items = normalizeListResponse<Contract>(data).items;
       setContracts(items || []);
+      return items || [];
     } catch (err) {
       console.error('Failed to load contracts:', err);
       setContracts([]);
+      return [];
     }
   }, []);
 
@@ -351,21 +355,51 @@ export default function AdminPaymentsPage() {
   }, [invoices, offlineInvoiceSearch]);
 
   // Open record offline payment modal
-  const openRecordOfflineModal = async () => {
+  const openRecordOfflineModal = useCallback(async (options?: { tenantId?: string }) => {
+    const tenantId = options?.tenantId || '';
     setOfflineInvoiceSearch('');
     setContractSearch('');
+
+    const loadedContracts = await loadContracts();
+    let preselectedContractId = '';
+
+    if (tenantId) {
+      const tenantContracts = loadedContracts.filter((contract) => contract.tenant?.id === tenantId);
+      if (tenantContracts.length > 0) {
+        const activeContract = tenantContracts.find((contract) => contract.status === 'ACTIVE');
+        preselectedContractId = (activeContract || tenantContracts[0]).id;
+        const tenantName = (activeContract || tenantContracts[0]).tenant?.fullName || '';
+        if (tenantName) setContractSearch(tenantName);
+      }
+    }
+
     setOfflineForm({
-      contractId: '',
+      contractId: preselectedContractId,
       invoiceIds: [],
       amount: '',
       source: user?.role === 'PAYMENT_COLLECTOR' ? 'CASH' : 'CASH',
       collectorNote: '',
     });
     setOfflineAmountManuallyEdited(false);
-    setInvoices([]);
-    await loadContracts();
+    if (preselectedContractId) {
+      await loadPendingInvoices('', preselectedContractId);
+    } else {
+      setInvoices([]);
+    }
     setRecordOfflineModalOpen(true);
-  };
+  }, [loadContracts, loadPendingInvoices, user?.role]);
+
+  useEffect(() => {
+    if (loading || !user) return;
+    if (!hasPermission('payments.record_offline')) return;
+
+    const action = searchParams.get('action');
+    const tenantId = searchParams.get('tenantId');
+    if (action !== 'add-payment' || !tenantId) return;
+
+    openRecordOfflineModal({ tenantId });
+    router.replace('/admin/payments');
+  }, [loading, user, hasPermission, searchParams, openRecordOfflineModal, router]);
 
   useEffect(() => {
     if (!recordOfflineModalOpen) return;
@@ -857,7 +891,7 @@ export default function AdminPaymentsPage() {
       {hasPermission('payments.record_offline') && (
         <div className="mb-4 flex justify-end">
           <button
-            onClick={openRecordOfflineModal}
+            onClick={() => { void openRecordOfflineModal(); }}
             className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 shadow-sm ${
               darkMode
                 ? 'bg-green-600 hover:bg-green-500 text-white'

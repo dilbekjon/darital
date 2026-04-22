@@ -1,11 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, UsePipes, ValidationPipe, ForbiddenException, Req } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserCredentialsDto } from './dto/update-user-credentials.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Permissions } from '../rbac/permissions.decorator';
 import { AdminRole } from '@prisma/client';
+import { Request } from 'express';
 
 @ApiTags('admin/users')
 @ApiBearerAuth()
@@ -58,5 +60,21 @@ export class UsersController {
   updateRole(@Param('id') id: string, @Body() body: { role: AdminRole }) {
     // Ensure SUPER_ADMIN cannot be changed by non-SUPER_ADMIN
     return this.usersService.updateRole(id, body.role);
+  }
+
+  @Patch(':id/credentials')
+  @Permissions('admin.users.update')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @ApiOperation({ summary: 'SUPER_ADMIN updates admin phone/password' })
+  async updateCredentials(
+    @Param('id') id: string,
+    @Body() body: UpdateUserCredentialsDto,
+    @Req() req: Request,
+  ) {
+    const actor = req.user as { role?: string };
+    if (actor?.role !== AdminRole.SUPER_ADMIN && actor?.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Only SUPER_ADMIN can change admin phone/password');
+    }
+    return this.usersService.updateCredentials(id, body);
   }
 }
