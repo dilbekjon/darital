@@ -16,6 +16,23 @@ import { Request } from 'express';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Patch('me/credentials')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @ApiOperation({ summary: 'Update my own admin phone/password' })
+  async updateMyCredentials(
+    @Body() body: UpdateUserCredentialsDto,
+    @Req() req: Request,
+  ) {
+    const actor = req.user as { id?: string; role?: string };
+    if (!actor?.id) {
+      throw new ForbiddenException('Unauthorized');
+    }
+    if (actor?.role === AdminRole.TENANT_USER || actor?.role === 'TENANT_USER') {
+      throw new ForbiddenException('Tenant users cannot update admin credentials');
+    }
+    return this.usersService.updateCredentials(actor.id, body);
+  }
+
   @Post()
   @Permissions('admin.users.update') // Permission to create new admin users
   @UsePipes(new ValidationPipe({ whitelist: true }))

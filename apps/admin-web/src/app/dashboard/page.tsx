@@ -200,7 +200,7 @@ export default function DashboardPage() {
                 {t.welcomeBack}, {user?.fullName}!
               </h1>
               <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>
-                {user?.email} • <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold border-2 ${
+                {user?.phone || user?.email || '-'} • <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold border-2 ${
                   darkMode 
                     ? 'bg-blue-500/20 text-blue-400 border-blue-500/50'
                     : 'bg-blue-100 text-blue-800 border-blue-300'

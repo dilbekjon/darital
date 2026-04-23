@@ -93,7 +93,8 @@ export interface LoginResponse {
 
 export interface UserResponse {
   id: string;
-  email: string;
+  email?: string;
+  phone?: string;
   fullName: string;
   role: string; // This will now be AdminRole from backend
   permissions: string[]; // Added permissions list
@@ -111,4 +112,3 @@ export async function getMe(): Promise<UserResponse> {
 }
 
 export { ApiError }
-

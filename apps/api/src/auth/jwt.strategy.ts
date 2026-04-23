@@ -45,6 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       return { 
         id: tenant.id, 
         email: tenant.email || '', 
+        phone: tenant.phone || '',
         role: AdminRole.TENANT_USER, 
         fullName: tenant.fullName, 
         permissions: [] 
@@ -76,8 +77,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         ...presetPermissions,
       ]));
 
-      return { id: user.id, email: user.email, role: user.role, fullName: user.fullName, permissions };
+      return {
+        id: user.id,
+        email: user.email,
+        phone: user.phone || '',
+        role: user.role,
+        fullName: user.fullName,
+        permissions,
+      };
     }
   }
 }
-

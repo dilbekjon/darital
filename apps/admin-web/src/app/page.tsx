@@ -62,7 +62,7 @@ export default function Home() {
           {/* Welcome Header */}
           <div className={`mb-8 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             <h1 className="text-4xl font-bold mb-2">
-              Welcome back, {user.fullName || user.email}!
+              Welcome back, {user.fullName || user.phone || user.email}!
             </h1>
             <p className={`text-lg ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Darital Admin Dashboard
@@ -84,8 +84,8 @@ export default function Home() {
               </h2>
               <div className="space-y-3">
                 <div>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Email</p>
-                  <p className={darkMode ? 'text-white' : 'text-gray-900'}>{user.email}</p>
+                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Phone</p>
+                  <p className={darkMode ? 'text-white' : 'text-gray-900'}>{user.phone || '-'}</p>
                 </div>
                 <div>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Role</p>
@@ -190,4 +190,3 @@ export default function Home() {
     </main>
   )
 }
-

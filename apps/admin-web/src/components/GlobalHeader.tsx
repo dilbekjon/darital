@@ -164,7 +164,7 @@ export default function GlobalHeader() {
                         }`}>{user.fullName}</p>
                         <p className={`text-xs ${
                           darkMode ? 'text-gray-400' : 'text-gray-500'
-                        }`}>{user.email}</p>
+                        }`}>{user.phone || user.email || '-'}</p>
                         <p className={`text-xs mt-1 ${
                           darkMode ? 'text-gray-400' : 'text-gray-500'
                         }`}>{user.role}</p>
@@ -201,4 +201,3 @@ export default function GlobalHeader() {
     </header>
   );
 }
-
