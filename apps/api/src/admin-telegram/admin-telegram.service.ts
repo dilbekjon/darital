@@ -60,11 +60,18 @@ export class AdminTelegramService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      await bot.launch({
-        dropPendingUpdates: true,
-        allowedUpdates: ['message', 'callback_query'],
-      });
-      this.logger.log('Admin Telegram bot is ready to receive messages.');
+      // Do not block Nest startup on Telegram long-polling launch.
+      void bot
+        .launch({
+          dropPendingUpdates: true,
+          allowedUpdates: ['message', 'callback_query'],
+        })
+        .then(() => {
+          this.logger.log('Admin Telegram bot is ready to receive messages.');
+        })
+        .catch((err: any) => {
+          this.logger.error(`Failed to launch Admin Telegram bot polling: ${err?.message || err}`);
+        });
     } catch (error: any) {
       this.logger.error(`Failed to initialize Admin Telegram bot: ${error?.message || error}`);
     }

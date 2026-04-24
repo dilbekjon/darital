@@ -109,15 +109,15 @@ export class PaymentsController {
   }
 
   @Patch(':id/capture')
-  @Permissions('payments.capture_offline')
+  @Permissions('payments.record_offline')
   @ApiOperation({ 
-    summary: 'Mark offline payment as received (Cashier)',
-    description: 'Cashier marks that cash has been received from Payment Collector. Accessible by: CASHIER, ADMIN, SUPER_ADMIN.'
+    summary: 'Collector confirms cash received',
+    description: 'Naqd to‘lovda tenant tasdiqidan keyin to‘lov yig‘uvchi pulni olganini tasdiqlaydi.'
   })
-  @ApiResponse({ status: 200, description: 'Payment marked as cash received' })
+  @ApiResponse({ status: 200, description: 'Payment marked as collected by payment collector' })
   async captureOffline(@Param('id') id: string, @Req() req: Request) {
     const user = req.user as { id: string };
-    return this.paymentsService.verifyPayment(id, true, undefined, user?.id);
+    return this.paymentsService.collectorConfirmCashReceived(id, user?.id);
   }
 
   @Delete(':id')

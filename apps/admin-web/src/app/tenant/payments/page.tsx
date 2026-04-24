@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getTenantPayments } from '../../../lib/tenantApi';
+import { getTenantPayments, confirmTenantCashGiven } from '../../../lib/tenantApi';
 import { ApiError } from '../../../lib/api';
 import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -10,6 +10,7 @@ import { useTheme } from '../../../contexts/ThemeContext';
 const PaymentsPage = () => {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmingPaymentId, setConfirmingPaymentId] = useState<string | null>(null);
   const router = useRouter();
   const t = useUntypedTranslations();
   const { darkMode } = useTheme();
@@ -30,6 +31,23 @@ const PaymentsPage = () => {
     };
     loadData();
   }, [router]);
+
+  const reloadPayments = async () => {
+    const paymentData = await getTenantPayments();
+    setPayments(paymentData);
+  };
+
+  const handleConfirmCashGiven = async (paymentId: string) => {
+    setConfirmingPaymentId(paymentId);
+    try {
+      await confirmTenantCashGiven(paymentId);
+      await reloadPayments();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setConfirmingPaymentId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -175,6 +193,27 @@ const PaymentsPage = () => {
                       {payment.status === 'CONFIRMED' && '✓ '}
                       {getStatusText(payment.status)}
                     </span>
+                    {payment.method === 'OFFLINE' && payment.source === 'CASH' && payment.status === 'PENDING' && (
+                      <div className="mt-2">
+                        {!payment.tenantConfirmedAt ? (
+                          <button
+                            onClick={() => handleConfirmCashGiven(payment.id)}
+                            disabled={confirmingPaymentId === payment.id}
+                            className={`px-3 py-2 rounded-lg text-xs font-semibold ${
+                              darkMode
+                                ? 'bg-blue-600/30 text-blue-200 border border-blue-500/40'
+                                : 'bg-blue-100 text-blue-800 border border-blue-300'
+                            }`}
+                          >
+                            {confirmingPaymentId === payment.id ? 'Saqlanmoqda...' : 'Pul berdim'}
+                          </button>
+                        ) : (
+                          <div className={`text-xs ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
+                            Tenant tasdiqladi
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

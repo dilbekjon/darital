@@ -333,6 +333,8 @@ model Payment {
   // Offline payment tracking
   collectedBy   String?        // User ID of Payment Collector who received cash
   collectedAt   DateTime?      // When the cash was collected
+  tenantConfirmedBy String?    // Tenant ID who confirmed handing over cash
+  tenantConfirmedAt DateTime?  // When tenant confirmed handing over cash
   collectorNote String?        // Note from collector (e.g., receipt number)
   approvedBy    String?        // Cashier who approved the payment
   approvedAt    DateTime?      // When the payment was approved
@@ -349,6 +351,7 @@ model Payment {
   @@index([createdAt])
   @@index([isArchived])
   @@index([collectedBy])
+  @@index([tenantConfirmedAt])
 }
 
 model Balance {

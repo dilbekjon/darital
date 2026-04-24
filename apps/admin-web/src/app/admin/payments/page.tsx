@@ -72,6 +72,8 @@ interface Payment {
   // Offline payment tracking
   collectedBy?: string;
   collectedAt?: string;
+  tenantConfirmedBy?: string;
+  tenantConfirmedAt?: string;
   collectorNote?: string;
   approvedBy?: string;
   approvedAt?: string;
@@ -104,6 +106,7 @@ export default function AdminPaymentsPage() {
   const [methodFilter, setMethodFilter] = useState<string>('ALL');
   const [overdueFilter, setOverdueFilter] = useState<boolean>(false);
   const [verifyingPaymentId, setVerifyingPaymentId] = useState<string | null>(null);
+  const [capturingPaymentId, setCapturingPaymentId] = useState<string | null>(null);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -527,6 +530,23 @@ export default function AdminPaymentsPage() {
     }
   };
 
+  const handleCollectorCapture = async (paymentId: string) => {
+    setCapturingPaymentId(paymentId);
+    try {
+      await fetchApi(`/payments/${paymentId}/capture`, { method: 'PATCH' });
+      await loadPayments();
+    } catch (err) {
+      console.error('Failed to mark payment as collected:', err);
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Pulni qabul qilishda xatolik yuz berdi.');
+      }
+    } finally {
+      setCapturingPaymentId(null);
+    }
+  };
+
   // Handle payment deletion
   const handleDeletePayment = async (paymentId: string) => {
     if (!hasPermission('payments.capture_offline')) {
@@ -837,6 +857,11 @@ export default function AdminPaymentsPage() {
     const paymentReceived = isPaymentReceived(payment);
     
     if (status === 'PENDING') {
+      if (payment.method === 'OFFLINE' && payment.source === 'CASH') {
+        if (!payment.tenantConfirmedAt) return 'Tenant tasdig‘i kutilmoqda';
+        if (!payment.collectedAt) return 'Yig‘uvchi tasdig‘i kutilmoqda';
+        return 'Kassir tasdig‘i kutilmoqda';
+      }
       // If PENDING but payment not received, show "Awaiting Payment"
       if (!paymentReceived && payment.method === 'ONLINE') {
         return 'Awaiting Payment';
@@ -1250,16 +1275,42 @@ export default function AdminPaymentsPage() {
                           {(() => {
                             // Check if payment was actually received (using helper function)
                             const paymentReceived = isPaymentReceived(payment);
+                            const isOfflineCash = payment.method === 'OFFLINE' && payment.source === 'CASH';
+                            const canCollectorCapture =
+                              user?.role === 'PAYMENT_COLLECTOR' &&
+                              hasPermission('payments.record_offline') &&
+                              isOfflineCash &&
+                              payment.status === 'PENDING' &&
+                              !!payment.tenantConfirmedAt &&
+                              !payment.collectedAt;
+                            const offlineReadyForCashier =
+                              payment.method === 'OFFLINE' &&
+                              (!isOfflineCash || (!!payment.tenantConfirmedAt && !!payment.collectedAt));
                             // Accept/Decline: for ONLINE PENDING (when received) OR for OFFLINE PENDING (collector added, needs cashier approval)
                             const showButtons = canApprovePayments &&
                                               payment.status === 'PENDING' &&
-                                              ((payment.method === 'ONLINE' && paymentReceived) || payment.method === 'OFFLINE');
+                                              ((payment.method === 'ONLINE' && paymentReceived) || offlineReadyForCashier);
                             
                             return (
                               <>
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full w-fit ${getStatusColor(payment.status, payment)}`}>
                                   {getStatusText(payment.status, payment)}
                                 </span>
+                                {canCollectorCapture && (
+                                  <button
+                                    onClick={() => handleCollectorCapture(payment.id)}
+                                    disabled={capturingPaymentId === payment.id}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors w-fit ${
+                                      capturingPaymentId === payment.id
+                                        ? (darkMode ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed')
+                                        : (darkMode
+                                            ? 'bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 border border-blue-600/30'
+                                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300')
+                                    }`}
+                                  >
+                                    {capturingPaymentId === payment.id ? 'Saqlanmoqda...' : 'Pulni oldim'}
+                                  </button>
+                                )}
                                 {overdue && (
                                   <div className="text-xs text-red-600 font-semibold">
                                     ⚠️ {daysOverdue} day{daysOverdue !== 1 ? 's' : ''} overdue

@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { PrismaService } from '../prisma.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -612,6 +612,8 @@ export class PaymentsService {
       // Offline payment tracking fields
       collectedBy: payment.collectedBy,
       collectedAt: payment.collectedAt ? payment.collectedAt.toISOString() : null,
+      tenantConfirmedBy: (payment as any).tenantConfirmedBy ?? null,
+      tenantConfirmedAt: (payment as any).tenantConfirmedAt ? new Date((payment as any).tenantConfirmedAt).toISOString() : null,
       collectorNote: payment.collectorNote,
       approvedBy: payment.approvedBy,
       approvedAt: payment.approvedAt ? payment.approvedAt.toISOString() : null,
@@ -716,7 +718,6 @@ export class PaymentsService {
       throw new ConflictException('To‘lov summasi 0 dan katta bo‘lishi kerak');
     }
 
-    const collectedAt = dto.collectedAt ? new Date(dto.collectedAt) : new Date();
     const createdPayments = await this.prisma.$transaction(async (tx) => {
       const results = [] as any[];
 
@@ -781,8 +782,10 @@ export class PaymentsService {
               amount,
               status: PaymentStatus.PENDING,
               collectedBy: actor.id,
-              collectedAt,
+              collectedAt: null,
               collectorNote: dto.collectorNote,
+              tenantConfirmedAt: null,
+              tenantConfirmedBy: null,
             } as any,
             include: {
               invoice: {
@@ -832,9 +835,140 @@ export class PaymentsService {
       count: createdPayments.length,
       message:
         role === AdminRole.PAYMENT_COLLECTOR
-          ? 'Naqd to‘lovlar yozildi. Kassir tasdiqlashi kerak.'
+          ? 'Naqd to‘lov yozildi. Avval tenant, keyin to‘lov yig‘uvchi, oxirida kassir tasdiqlaydi.'
           : 'To‘lovlar yozildi. Tasdiqlash uchun tayyor.',
     };
+  }
+
+  async tenantConfirmCashGiven(paymentId: string, tenantId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        invoice: {
+          include: {
+            contract: {
+              include: {
+                tenant: { select: { id: true, fullName: true, email: true } },
+                unit: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.invoice.contract.tenantId !== tenantId) {
+      throw new ForbiddenException('Siz bu to‘lovni tasdiqlay olmaysiz');
+    }
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new ConflictException('Faqat PENDING holatdagi to‘lov tasdiqlanadi');
+    }
+    if (payment.method !== PaymentMethod.OFFLINE || String((payment as any).source) !== 'CASH') {
+      throw new ConflictException('Faqat naqd oflayn to‘lov uchun tenant tasdiqlashi mavjud');
+    }
+
+    if ((payment as any).tenantConfirmedAt) {
+      return payment;
+    }
+
+    const updated = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        tenantConfirmedAt: new Date(),
+        tenantConfirmedBy: tenantId,
+      } as any,
+      include: {
+        invoice: {
+          include: {
+            contract: {
+              include: {
+                tenant: { select: { id: true, fullName: true, email: true } },
+                unit: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const gateway = this.getChatGateway();
+    if (gateway) {
+      setImmediate(async () => {
+        try {
+          await gateway.emitPaymentUpdated(updated);
+        } catch (error) {
+          console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+        }
+      });
+    }
+
+    return updated;
+  }
+
+  async collectorConfirmCashReceived(paymentId: string, collectorId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        invoice: {
+          include: {
+            contract: {
+              include: {
+                tenant: { select: { id: true, fullName: true, email: true } },
+                unit: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new ConflictException('Faqat PENDING holatdagi to‘lov qabul qilinadi');
+    }
+    if (payment.method !== PaymentMethod.OFFLINE || String((payment as any).source) !== 'CASH') {
+      throw new ConflictException('Faqat naqd oflayn to‘lovni qabul qilish mumkin');
+    }
+    if (!(payment as any).tenantConfirmedAt) {
+      throw new ConflictException('Avval tenant "pul berdim" ni tasdiqlashi kerak');
+    }
+    if (payment.collectedAt) {
+      return payment;
+    }
+
+    const updated = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        collectedBy: payment.collectedBy || collectorId,
+        collectedAt: new Date(),
+      } as any,
+      include: {
+        invoice: {
+          include: {
+            contract: {
+              include: {
+                tenant: { select: { id: true, fullName: true, email: true } },
+                unit: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const gateway = this.getChatGateway();
+    if (gateway) {
+      setImmediate(async () => {
+        try {
+          await gateway.emitPaymentUpdated(updated);
+        } catch (error) {
+          console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+        }
+      });
+    }
+
+    return updated;
   }
 
   async update(id: string, dto: UpdatePaymentDto) {
@@ -918,6 +1052,15 @@ export class PaymentsService {
 
     if (payment.status !== PaymentStatus.PENDING) {
       throw new ConflictException(`Payment is already ${payment.status}, cannot verify`);
+    }
+
+    if (
+      accept &&
+      payment.method === PaymentMethod.OFFLINE &&
+      String((payment as any).source) === 'CASH' &&
+      (!(payment as any).tenantConfirmedAt || !payment.collectedAt)
+    ) {
+      throw new ConflictException('Naqd to‘lov uchun avval tenant va to‘lov yig‘uvchi tasdiqlari kerak');
     }
 
     if (accept) {

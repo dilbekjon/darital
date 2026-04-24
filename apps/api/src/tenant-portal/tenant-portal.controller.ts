@@ -105,6 +105,13 @@ export class TenantPortalController {
     return this.tenantPortalService.refreshPaymentStatus(req.user, id);
   }
 
+  @Post('payments/:id/confirm-cash-given')
+  @ApiOperation({ summary: 'Tenant confirms they handed over cash payment' })
+  async confirmCashGiven(@Req() req, @Param('id') id: string) {
+    this.ensureTenantAccess(req.user);
+    return this.tenantPortalService.confirmCashGiven(req.user, id);
+  }
+
   @Get('balance')
   // Permissions are handled by ensureTenantAccess helper
   @ApiOperation({ summary: 'Get tenant balance' })

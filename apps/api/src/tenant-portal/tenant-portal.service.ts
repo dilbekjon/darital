@@ -150,6 +150,8 @@ export class TenantPortalService {
       status: payment.status,
       paidAt: payment.paidAt ? payment.paidAt.toISOString() : null,
       createdAt: payment.createdAt.toISOString(),
+      collectedAt: payment.collectedAt ? payment.collectedAt.toISOString() : null,
+      tenantConfirmedAt: (payment as any).tenantConfirmedAt ? new Date((payment as any).tenantConfirmedAt).toISOString() : null,
       unitName: payment.invoice?.contract?.unit?.name || null,
     }));
   }
@@ -198,6 +200,8 @@ export class TenantPortalService {
       status: payment.status,
       createdAt: payment.createdAt,
       paidAt: payment.paidAt,
+      collectedAt: payment.collectedAt,
+      tenantConfirmedAt: (payment as any).tenantConfirmedAt ?? null,
       invoice: {
         id: payment.invoice.id,
         amount: payment.invoice.amount.toNumber(),
@@ -207,6 +211,18 @@ export class TenantPortalService {
         contractId: payment.invoice.contract.id,
       },
     };
+  }
+
+  async confirmCashGiven(user: any, paymentId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    return this.paymentsService.tenantConfirmCashGiven(paymentId, tenant.id);
   }
 
   async getBalanceForUser(user: any) {

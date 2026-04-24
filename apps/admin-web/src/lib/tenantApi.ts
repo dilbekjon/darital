@@ -18,9 +18,13 @@ interface Payment {
   id: string;
   invoiceId: string;
   method: 'ONLINE' | 'OFFLINE';
+  source?: 'ONLINE' | 'BANK' | 'CASH';
   amount: number;
   status: 'PENDING' | 'CONFIRMED';
   paidAt: string;
+  createdAt?: string;
+  collectedAt?: string | null;
+  tenantConfirmedAt?: string | null;
 }
 
 interface Balance {
@@ -53,6 +57,12 @@ export async function getTenantInvoices(): Promise<Invoice[]> {
 export async function getTenantPayments(): Promise<Payment[]> {
   const response = await fetchApi<any>('/tenant/payments');
   return normalizeListResponse<Payment>(response).items;
+}
+
+export async function confirmTenantCashGiven(paymentId: string): Promise<any> {
+  return fetchApi(`/tenant/payments/${paymentId}/confirm-cash-given`, {
+    method: 'POST',
+  });
 }
 
 export async function getTenantBalance(): Promise<Balance> {
