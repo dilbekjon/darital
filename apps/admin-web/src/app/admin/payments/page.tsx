@@ -233,24 +233,37 @@ export default function AdminPaymentsPage() {
     });
   }, [invoices]);
 
+  const hasManualAmount = useMemo(() => {
+    if (!offlineAmountManuallyEdited) return false;
+    const parsed = Number(offlineForm.amount || 0);
+    return Number.isFinite(parsed) && parsed > 0;
+  }, [offlineAmountManuallyEdited, offlineForm.amount]);
+
+  const eligibleInvoices = useMemo(() => {
+    return orderedInvoices.filter((invoice) => {
+      if (invoice.status === 'PAID') return false;
+      return getInvoiceSourceProgress(invoice, offlineForm.source).remaining > 0;
+    });
+  }, [orderedInvoices, getInvoiceSourceProgress, offlineForm.source]);
+
   const reconcileInvoiceIdsByAmount = useCallback((invoiceIds: string[], rawAmount: string, source: 'BANK' | 'CASH') => {
     const targetAmount = Math.max(0, Number(rawAmount || 0));
     if (!Number.isFinite(targetAmount) || targetAmount <= 0) return [];
 
-    const orderedIdSet = new Set(orderedInvoices.map((inv) => inv.id));
-    const selectedOrdered = orderedInvoices
+    const orderedIdSet = new Set(eligibleInvoices.map((inv) => inv.id));
+    const selectedOrdered = eligibleInvoices
       .filter((inv) => invoiceIds.includes(inv.id) && orderedIdSet.has(inv.id))
       .map((inv) => inv.id);
 
     let runningTotal = selectedOrdered.reduce((sum, id) => {
-      const inv = orderedInvoices.find((item) => item.id === id);
+      const inv = eligibleInvoices.find((item) => item.id === id);
       if (!inv) return sum;
       return sum + getInvoiceSourceProgress(inv, source).remaining;
     }, 0);
 
     while (selectedOrdered.length > 0) {
       const lastId = selectedOrdered[selectedOrdered.length - 1];
-      const lastInvoice = orderedInvoices.find((inv) => inv.id === lastId);
+      const lastInvoice = eligibleInvoices.find((inv) => inv.id === lastId);
       if (!lastInvoice) break;
       const lastRemaining = getInvoiceSourceProgress(lastInvoice, source).remaining;
       if (runningTotal - lastRemaining >= targetAmount) {
@@ -262,7 +275,7 @@ export default function AdminPaymentsPage() {
     }
 
     if (runningTotal < targetAmount) {
-      for (const invoice of orderedInvoices) {
+      for (const invoice of eligibleInvoices) {
         if (selectedOrdered.includes(invoice.id)) continue;
         const remaining = getInvoiceSourceProgress(invoice, source).remaining;
         if (remaining <= 0) continue;
@@ -273,7 +286,7 @@ export default function AdminPaymentsPage() {
     }
 
     return selectedOrdered;
-  }, [orderedInvoices, getInvoiceSourceProgress]);
+  }, [eligibleInvoices, getInvoiceSourceProgress]);
 
   // Record offline payment
   const handleRecordOfflinePayment = async () => {
@@ -339,8 +352,8 @@ export default function AdminPaymentsPage() {
   // Filter pending invoices by search (tenant name, contract id, invoice id, unit name)
   const offlineFilteredInvoices = useMemo(() => {
     const q = normalizeUzbekSearch(offlineInvoiceSearch);
-    if (!q) return invoices;
-    return invoices.filter((inv) => {
+    if (!q) return eligibleInvoices;
+    return eligibleInvoices.filter((inv) => {
       const tenantName = normalizeUzbekSearch(inv.contract?.tenant?.fullName ?? '');
       const tenantContact = normalizeUzbekSearch(inv.contract?.tenant?.phone ?? inv.contract?.tenant?.email ?? '');
       const contractId = normalizeUzbekSearch(inv.contract?.id ?? inv.contractId ?? '');
@@ -354,7 +367,7 @@ export default function AdminPaymentsPage() {
         unitName.includes(q)
       );
     });
-  }, [invoices, offlineInvoiceSearch]);
+  }, [eligibleInvoices, offlineInvoiceSearch]);
 
   // Open record offline payment modal
   const openRecordOfflineModal = useCallback(async (options?: { tenantId?: string }) => {
@@ -426,16 +439,27 @@ export default function AdminPaymentsPage() {
   }, [offlineForm.invoiceIds, invoices, getInvoiceSourceProgress, offlineForm.source]);
 
   useEffect(() => {
-    if (offlineAmountManuallyEdited) return;
+    if (hasManualAmount) return;
     setOfflineForm((prev) => {
       const nextAmount = prev.invoiceIds.length > 0 ? String(Math.round(selectedInvoiceTotal)) : '';
       if (prev.amount === nextAmount) return prev;
       return { ...prev, amount: nextAmount };
     });
-  }, [selectedInvoiceTotal, offlineAmountManuallyEdited]);
+  }, [selectedInvoiceTotal, hasManualAmount]);
 
   useEffect(() => {
     if (!recordOfflineModalOpen) return;
+    const eligibleIds = new Set(eligibleInvoices.map((invoice) => invoice.id));
+    setOfflineForm((prev) => {
+      const nextInvoiceIds = prev.invoiceIds.filter((invoiceId) => eligibleIds.has(invoiceId));
+      if (nextInvoiceIds.length === prev.invoiceIds.length) return prev;
+      return { ...prev, invoiceIds: nextInvoiceIds };
+    });
+  }, [recordOfflineModalOpen, eligibleInvoices]);
+
+  useEffect(() => {
+    if (!recordOfflineModalOpen) return;
+    if (!hasManualAmount) return;
     setOfflineForm((prev) => {
       const nextInvoiceIds = reconcileInvoiceIdsByAmount(prev.invoiceIds, prev.amount, prev.source);
       if (
@@ -446,7 +470,7 @@ export default function AdminPaymentsPage() {
       }
       return { ...prev, invoiceIds: nextInvoiceIds };
     });
-  }, [recordOfflineModalOpen, reconcileInvoiceIdsByAmount, invoices]);
+  }, [recordOfflineModalOpen, hasManualAmount, reconcileInvoiceIdsByAmount, invoices]);
 
   const invoiceAllocationMap = useMemo(() => {
     const allocation = new Map<string, number>();
@@ -1890,37 +1914,31 @@ export default function AdminPaymentsPage() {
                                 const invoiceIds = e.target.checked
                                   ? [...offlineForm.invoiceIds, invoice.id]
                                   : offlineForm.invoiceIds.filter((id) => id !== invoice.id);
-                                const normalizedInvoiceIds = reconcileInvoiceIdsByAmount(
-                                  invoiceIds,
-                                  offlineAmountManuallyEdited ? offlineForm.amount : String(
-                                    Math.round(
-                                      invoiceIds.reduce((sum, selectedId) => {
-                                        const selectedInvoice = invoices.find((inv) => inv.id === selectedId);
-                                        if (!selectedInvoice) return sum;
-                                        const progress = getInvoiceSourceProgress(selectedInvoice, offlineForm.source);
-                                        return sum + progress.remaining;
-                                      }, 0),
-                                    ),
+                                const autoCalculatedAmount = String(
+                                  Math.round(
+                                    invoiceIds.reduce((sum, selectedId) => {
+                                      const selectedInvoice = invoices.find((inv) => inv.id === selectedId);
+                                      if (!selectedInvoice) return sum;
+                                      const progress = getInvoiceSourceProgress(selectedInvoice, offlineForm.source);
+                                      return sum + progress.remaining;
+                                    }, 0),
                                   ),
-                                  offlineForm.source,
                                 );
+                                const normalizedInvoiceIds = hasManualAmount
+                                  ? reconcileInvoiceIdsByAmount(
+                                      invoiceIds,
+                                      offlineForm.amount,
+                                      offlineForm.source,
+                                    )
+                                  : invoiceIds;
                                 setOfflineForm((prev) => ({
                                   ...prev,
                                   invoiceIds: normalizedInvoiceIds,
-                                  amount: offlineAmountManuallyEdited
+                                  amount: hasManualAmount
                                     ? prev.amount
-                                    : String(
-                                        Math.round(
-                                          normalizedInvoiceIds.reduce((sum, selectedId) => {
-                                            const selectedInvoice = invoices.find((inv) => inv.id === selectedId);
-                                            if (!selectedInvoice) return sum;
-                                            const progress = getInvoiceSourceProgress(selectedInvoice, offlineForm.source);
-                                            return sum + progress.remaining;
-                                          }, 0),
-                                        ),
-                                      ),
+                                    : autoCalculatedAmount,
                                 }));
-                                if (!offlineAmountManuallyEdited) {
+                                if (!hasManualAmount) {
                                   setOfflineAmountManuallyEdited(false);
                                 }
                               }}
@@ -1948,12 +1966,12 @@ export default function AdminPaymentsPage() {
                       );
                     })}
                   </div>
-                  {invoices.length === 0 && (
+                  {eligibleInvoices.length === 0 && (
                     <p className={`text-xs mt-1 ${darkMode ? 'text-yellow-400' : 'text-yellow-600'}`}>
                       {!offlineForm.contractId ? 'Avval shartnomani tanlang' : "To'lanmagan hisob-fakturalar topilmadi"}
                     </p>
                   )}
-                  {invoices.length > 0 && offlineFilteredInvoices.length === 0 && (
+                  {eligibleInvoices.length > 0 && offlineFilteredInvoices.length === 0 && (
                     <p className={`text-xs mt-1 ${darkMode ? 'text-amber-400' : 'text-amber-600'}`}>
                       Qidiruv boʻyicha hech narsa topilmadi. Boshqa soʻz yozib koʻring.
                     </p>
@@ -1972,15 +1990,18 @@ export default function AdminPaymentsPage() {
                     value={offlineForm.amount}
                     onChange={(e) => {
                       const nextAmount = e.target.value;
-                      setOfflineAmountManuallyEdited(true);
+                      setOfflineAmountManuallyEdited(nextAmount.trim() !== '');
                       setOfflineForm((prev) => ({
                         ...prev,
                         amount: nextAmount,
-                        invoiceIds: reconcileInvoiceIdsByAmount(prev.invoiceIds, nextAmount, prev.source),
+                        invoiceIds:
+                          nextAmount.trim() === ''
+                            ? prev.invoiceIds
+                            : reconcileInvoiceIdsByAmount(prev.invoiceIds, nextAmount, prev.source),
                       }));
                     }}
-                    disabled={recordingOffline || offlineForm.invoiceIds.length === 0}
-                    placeholder="Summani kiriting (invoice tanlansa avtomatik to‘ldiriladi)"
+                    disabled={recordingOffline || !offlineForm.contractId}
+                    placeholder="Summani kiriting yoki invoice tanlang"
                     className={`w-full px-3 py-2 border rounded-lg ${
                       darkMode
                         ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500'
