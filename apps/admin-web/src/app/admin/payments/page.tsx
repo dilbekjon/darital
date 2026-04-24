@@ -57,6 +57,15 @@ interface Unit {
   name: string;
 }
 
+type CashCustodyStatus =
+  | 'NOT_APPLICABLE'
+  | 'AWAITING_TENANT_CONFIRMATION'
+  | 'DECLARED_BY_TENANT'
+  | 'WITH_COLLECTOR'
+  | 'DISPUTED'
+  | 'RECEIVED_BY_COMPANY'
+  | 'CANCELLED';
+
 interface Payment {
   id: string;
   invoiceId: string;
@@ -74,9 +83,24 @@ interface Payment {
   collectedAt?: string;
   tenantConfirmedBy?: string;
   tenantConfirmedAt?: string;
+  tenantConfirmedAmount?: number | null;
+  collectorReceivedAmount?: number | null;
   collectorNote?: string;
   approvedBy?: string;
   approvedAt?: string;
+  cashCustody?: {
+    status: CashCustodyStatus;
+    tenantConfirmedAmount?: number | null;
+    collectorReceivedAmount?: number | null;
+    expectedAmount: number;
+    differenceFromRecorded?: number | null;
+    differenceBetweenTenantAndCollector?: number | null;
+    steps?: {
+      tenantConfirmedAt?: string | null;
+      collectorConfirmedAt?: string | null;
+      cashierApprovedAt?: string | null;
+    };
+  };
   tenant?: Tenant;
   unit?: Unit;
   invoice?: Invoice;
@@ -555,9 +579,22 @@ export default function AdminPaymentsPage() {
   };
 
   const handleCollectorCapture = async (paymentId: string) => {
+    const payment = payments.find((item) => item.id === paymentId);
+    const suggestedAmount = payment?.tenantConfirmedAmount ?? payment?.amount ?? 0;
+    const rawAmount = window.prompt('Olingan summani kiriting', String(suggestedAmount));
+    if (rawAmount === null) return;
+    const normalizedAmount = rawAmount.trim();
+    if (!normalizedAmount || Number.isNaN(Number(normalizedAmount)) || Number(normalizedAmount) <= 0) {
+      setError('To‘g‘ri summa kiriting');
+      return;
+    }
+
     setCapturingPaymentId(paymentId);
     try {
-      await fetchApi(`/payments/${paymentId}/capture`, { method: 'PATCH' });
+      await fetchApi(`/payments/${paymentId}/capture`, {
+        method: 'PATCH',
+        body: JSON.stringify({ amount: normalizedAmount }),
+      });
       await loadPayments();
     } catch (err) {
       console.error('Failed to mark payment as collected:', err);
@@ -687,6 +724,42 @@ export default function AdminPaymentsPage() {
     return false;
   };
 
+  const getCashCustodyLabel = (payment: Payment) => {
+    switch (payment.cashCustody?.status) {
+      case 'AWAITING_TENANT_CONFIRMATION':
+        return 'Tenant hali tasdiqlamagan';
+      case 'DECLARED_BY_TENANT':
+        return 'Tenant berdi, yig‘uvchi kutilyapti';
+      case 'WITH_COLLECTOR':
+        return 'Pul yig‘uvchida';
+      case 'DISPUTED':
+        return 'Summada tafovut bor';
+      case 'RECEIVED_BY_COMPANY':
+        return 'Kompaniyada';
+      case 'CANCELLED':
+        return 'Bekor qilingan';
+      default:
+        return 'Oddiy to‘lov';
+    }
+  };
+
+  const getCashCustodyClass = (payment: Payment) => {
+    switch (payment.cashCustody?.status) {
+      case 'AWAITING_TENANT_CONFIRMATION':
+        return darkMode ? 'bg-gray-700/40 text-gray-300' : 'bg-gray-100 text-gray-700';
+      case 'DECLARED_BY_TENANT':
+        return darkMode ? 'bg-blue-900/30 text-blue-300' : 'bg-blue-100 text-blue-800';
+      case 'WITH_COLLECTOR':
+        return darkMode ? 'bg-orange-900/30 text-orange-300' : 'bg-orange-100 text-orange-800';
+      case 'DISPUTED':
+        return darkMode ? 'bg-red-900/30 text-red-300' : 'bg-red-100 text-red-800';
+      case 'RECEIVED_BY_COMPANY':
+        return darkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-800';
+      default:
+        return darkMode ? 'bg-gray-700/30 text-gray-300' : 'bg-gray-100 text-gray-700';
+    }
+  };
+
   // Calculate statistics
   const stats: PaymentStats = useMemo(() => {
     const stats: PaymentStats = {
@@ -796,6 +869,25 @@ export default function AdminPaymentsPage() {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [payments, searchQuery, statusFilter, methodFilter, overdueFilter]);
+
+  const cashCustodyStats = useMemo(() => {
+    const cashPayments = payments.filter((payment) => payment.method === 'OFFLINE' && payment.source === 'CASH');
+    const sumBy = (status: CashCustodyStatus) =>
+      cashPayments
+        .filter((payment) => payment.cashCustody?.status === status)
+        .reduce((sum, payment) => sum + payment.amount, 0);
+
+    return {
+      awaitingTenantCount: cashPayments.filter((payment) => payment.cashCustody?.status === 'AWAITING_TENANT_CONFIRMATION').length,
+      awaitingTenantAmount: sumBy('AWAITING_TENANT_CONFIRMATION'),
+      declaredCount: cashPayments.filter((payment) => payment.cashCustody?.status === 'DECLARED_BY_TENANT').length,
+      declaredAmount: sumBy('DECLARED_BY_TENANT'),
+      withCollectorCount: cashPayments.filter((payment) => payment.cashCustody?.status === 'WITH_COLLECTOR').length,
+      withCollectorAmount: sumBy('WITH_COLLECTOR'),
+      disputedCount: cashPayments.filter((payment) => payment.cashCustody?.status === 'DISPUTED').length,
+      disputedAmount: sumBy('DISPUTED'),
+    };
+  }, [payments]);
 
   // Set up WebSocket connection for real-time payment updates
   useEffect(() => {
@@ -1022,6 +1114,29 @@ export default function AdminPaymentsPage() {
           <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
             Not Paid
           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+          <div className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tenant tasdig‘i kutilmoqda</div>
+          <div className={`text-2xl font-bold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{cashCustodyStats.awaitingTenantCount}</div>
+          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.awaitingTenantAmount.toLocaleString()}</div>
+        </div>
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-blue-700/40' : 'bg-white border-blue-200'}`}>
+          <div className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tenant berdi</div>
+          <div className="text-2xl font-bold mt-1 text-blue-600">{cashCustodyStats.declaredCount}</div>
+          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.declaredAmount.toLocaleString()}</div>
+        </div>
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-orange-700/40' : 'bg-white border-orange-200'}`}>
+          <div className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Pul yig‘uvchida</div>
+          <div className="text-2xl font-bold mt-1 text-orange-600">{cashCustodyStats.withCollectorCount}</div>
+          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.withCollectorAmount.toLocaleString()}</div>
+        </div>
+        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-red-700/40' : 'bg-white border-red-200'}`}>
+          <div className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tafovutli to‘lovlar</div>
+          <div className="text-2xl font-bold mt-1 text-red-600">{cashCustodyStats.disputedCount}</div>
+          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.disputedAmount.toLocaleString()}</div>
         </div>
       </div>
 
@@ -1288,6 +1403,16 @@ export default function AdminPaymentsPage() {
                             {new Date(payment.collectedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                           </div>
                         )}
+                        {payment.method === 'OFFLINE' && payment.source === 'CASH' && payment.tenantConfirmedAmount != null && (
+                          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Tenant: {Math.round(payment.tenantConfirmedAmount).toLocaleString()} UZS
+                          </div>
+                        )}
+                        {payment.method === 'OFFLINE' && payment.source === 'CASH' && payment.collectorReceivedAmount != null && (
+                          <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Yig‘uvchi: {Math.round(payment.collectorReceivedAmount).toLocaleString()} UZS
+                          </div>
+                        )}
                         {payment.method === 'OFFLINE' && payment.collectorNote && (
                           <div className={`text-xs mt-0.5 truncate max-w-[120px] ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} title={payment.collectorNote}>
                             {payment.collectorNote}
@@ -1320,6 +1445,21 @@ export default function AdminPaymentsPage() {
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full w-fit ${getStatusColor(payment.status, payment)}`}>
                                   {getStatusText(payment.status, payment)}
                                 </span>
+                                {payment.method === 'OFFLINE' && payment.source === 'CASH' && (
+                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full w-fit ${getCashCustodyClass(payment)}`}>
+                                    {getCashCustodyLabel(payment)}
+                                  </span>
+                                )}
+                                {payment.cashCustody?.differenceBetweenTenantAndCollector != null && payment.cashCustody.differenceBetweenTenantAndCollector !== 0 && (
+                                  <div className="text-xs text-red-600 font-semibold">
+                                    Tafovut: {Math.abs(payment.cashCustody.differenceBetweenTenantAndCollector).toLocaleString()} UZS
+                                  </div>
+                                )}
+                                {payment.method === 'OFFLINE' && payment.source === 'CASH' && (
+                                  <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    1) Tenant → 2) Yig‘uvchi → 3) Kassir
+                                  </div>
+                                )}
                                 {canCollectorCapture && (
                                   <button
                                     onClick={() => handleCollectorCapture(payment.id)}

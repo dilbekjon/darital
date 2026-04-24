@@ -335,6 +335,8 @@ model Payment {
   collectedAt   DateTime?      // When the cash was collected
   tenantConfirmedBy String?    // Tenant ID who confirmed handing over cash
   tenantConfirmedAt DateTime?  // When tenant confirmed handing over cash
+  tenantConfirmedAmount Decimal? // Amount tenant says they handed to collector
+  collectorReceivedAmount Decimal? // Amount collector says they received from tenant
   collectorNote String?        // Note from collector (e.g., receipt number)
   approvedBy    String?        // Cashier who approved the payment
   approvedAt    DateTime?      // When the payment was approved
@@ -352,6 +354,7 @@ model Payment {
   @@index([isArchived])
   @@index([collectedBy])
   @@index([tenantConfirmedAt])
+  @@index([tenantConfirmedAmount])
 }
 
 model Balance {

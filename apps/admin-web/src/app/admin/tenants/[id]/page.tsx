@@ -62,6 +62,14 @@ interface Payment {
   source?: string;
   createdAt: string;
   paidAt?: string | null;
+  tenantConfirmedAt?: string | null;
+  tenantConfirmedAmount?: number | null;
+  collectorReceivedAmount?: number | null;
+  collectedAt?: string | null;
+  cashCustody?: {
+    status?: string;
+    differenceBetweenTenantAndCollector?: number | null;
+  };
   invoice?: {
     id: string;
     status: string;
@@ -445,6 +453,11 @@ export default function AdminTenantDetailsPage() {
                     <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       {payment.source || payment.method} • {new Date(payment.createdAt).toLocaleString('en-GB')}
                     </div>
+                    {payment.method === 'OFFLINE' && payment.source === 'CASH' && (
+                      <div className={`text-xs mt-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {payment.cashCustody?.status || 'CASH'} • tenant {payment.tenantConfirmedAmount ? formatCurrency(payment.tenantConfirmedAmount) : '-'} • collector {payment.collectorReceivedAmount ? formatCurrency(payment.collectorReceivedAmount) : '-'}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -608,6 +621,7 @@ export default function AdminTenantDetailsPage() {
                   <th className="py-2 text-left">Invoice</th>
                   <th className="py-2 text-left">Miqdor</th>
                   <th className="py-2 text-left">Manba</th>
+                  <th className="py-2 text-left">Kassa holati</th>
                   <th className="py-2 text-left">Holat</th>
                 </tr>
               </thead>
@@ -618,6 +632,19 @@ export default function AdminTenantDetailsPage() {
                     <td className="py-3">{payment.invoiceId}</td>
                     <td className="py-3">{formatCurrency(payment.amount)}</td>
                     <td className="py-3">{payment.source || payment.method}</td>
+                    <td className="py-3">
+                      {payment.method === 'OFFLINE' && payment.source === 'CASH' ? (
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium">{payment.cashCustody?.status || '-'}</div>
+                          <div className="text-xs opacity-80">
+                            Tenant: {payment.tenantConfirmedAmount ? formatCurrency(payment.tenantConfirmedAmount) : '-'}
+                          </div>
+                          <div className="text-xs opacity-80">
+                            Yig‘uvchi: {payment.collectorReceivedAmount ? formatCurrency(payment.collectorReceivedAmount) : '-'}
+                          </div>
+                        </div>
+                      ) : '-'}
+                    </td>
                     <td className="py-3">
                       <span className={`px-2 py-1 text-xs rounded-full ${
                         payment.status === 'CONFIRMED'

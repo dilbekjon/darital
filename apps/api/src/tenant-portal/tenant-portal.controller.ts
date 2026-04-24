@@ -7,6 +7,7 @@ import { RegisterDeviceDto } from './dto/register-device.dto';
 import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
 import { AdminRole } from '@prisma/client'; // Import AdminRole
 import { PaymentIntentDto } from '../payments/dto/payment-intent.dto';
+import { ConfirmCashDto } from '../payments/dto/confirm-cash.dto';
 
 @ApiTags('Tenant Portal')
 @ApiBearerAuth()
@@ -106,10 +107,11 @@ export class TenantPortalController {
   }
 
   @Post('payments/:id/confirm-cash-given')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
   @ApiOperation({ summary: 'Tenant confirms they handed over cash payment' })
-  async confirmCashGiven(@Req() req, @Param('id') id: string) {
+  async confirmCashGiven(@Req() req, @Param('id') id: string, @Body() body: ConfirmCashDto) {
     this.ensureTenantAccess(req.user);
-    return this.tenantPortalService.confirmCashGiven(req.user, id);
+    return this.tenantPortalService.confirmCashGiven(req.user, id, body);
   }
 
   @Get('balance')

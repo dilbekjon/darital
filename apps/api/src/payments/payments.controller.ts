@@ -4,6 +4,7 @@ import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { RecordOfflinePaymentDto } from './dto/record-offline-payment.dto';
+import { ConfirmCashDto } from './dto/confirm-cash.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Permissions } from '../rbac/permissions.decorator';
 import { AuditInterceptor } from '../audit/audit.interceptor';
@@ -42,6 +43,14 @@ export class PaymentsController {
   async collectorSummary(@Req() req: Request, @Query('month') month?: string) {
     const user = req.user as { id: string };
     return this.paymentsService.getCollectorMonthlySummary(user.id, month);
+  }
+
+  @Get('cash-custody-summary')
+  @Permissions('payments.read')
+  @ApiOperation({ summary: 'Cash custody summary for cashier and collector monitoring' })
+  async cashCustodySummary(@Req() req: Request, @Query('month') month?: string) {
+    const user = req.user as { id: string; role?: string };
+    return this.paymentsService.getCashCustodySummary({ id: user.id, role: user.role }, month);
   }
 
   @Post()
@@ -109,15 +118,16 @@ export class PaymentsController {
   }
 
   @Patch(':id/capture')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
   @Permissions('payments.record_offline')
   @ApiOperation({ 
     summary: 'Collector confirms cash received',
     description: 'Naqd to‘lovda tenant tasdiqidan keyin to‘lov yig‘uvchi pulni olganini tasdiqlaydi.'
   })
   @ApiResponse({ status: 200, description: 'Payment marked as collected by payment collector' })
-  async captureOffline(@Param('id') id: string, @Req() req: Request) {
+  async captureOffline(@Param('id') id: string, @Body() body: ConfirmCashDto, @Req() req: Request) {
     const user = req.user as { id: string };
-    return this.paymentsService.collectorConfirmCashReceived(id, user?.id);
+    return this.paymentsService.collectorConfirmCashReceived(id, user?.id, body);
   }
 
   @Delete(':id')

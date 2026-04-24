@@ -11,6 +11,7 @@ const PaymentsPage = () => {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmingPaymentId, setConfirmingPaymentId] = useState<string | null>(null);
+  const [cashAmounts, setCashAmounts] = useState<Record<string, string>>({});
   const router = useRouter();
   const t = useUntypedTranslations();
   const { darkMode } = useTheme();
@@ -38,9 +39,13 @@ const PaymentsPage = () => {
   };
 
   const handleConfirmCashGiven = async (paymentId: string) => {
+    const amount = cashAmounts[paymentId]?.trim();
+    if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) {
+      return;
+    }
     setConfirmingPaymentId(paymentId);
     try {
-      await confirmTenantCashGiven(paymentId);
+      await confirmTenantCashGiven(paymentId, amount);
       await reloadPayments();
     } catch (err) {
       console.error(err);
@@ -80,6 +85,23 @@ const PaymentsPage = () => {
         return t.pending;
       default:
         return status;
+    }
+  };
+
+  const getCustodyText = (payment: any) => {
+    switch (payment.custodyStatus) {
+      case 'AWAITING_TENANT_CONFIRMATION':
+        return '1-qadam: siz bergan summani tasdiqlang';
+      case 'DECLARED_BY_TENANT':
+        return '2-qadam: to‘lov yig‘uvchi pulni olganini tasdiqlaydi';
+      case 'WITH_COLLECTOR':
+        return '3-qadam: kassir pul kompaniyaga topshirilganini tasdiqlaydi';
+      case 'DISPUTED':
+        return 'Summada tafovut bor, kassir tekshiradi';
+      case 'RECEIVED_BY_COMPANY':
+        return 'To‘lov kompaniya hisobiga qabul qilingan';
+      default:
+        return '';
     }
   };
 
@@ -194,22 +216,46 @@ const PaymentsPage = () => {
                       {getStatusText(payment.status)}
                     </span>
                     {payment.method === 'OFFLINE' && payment.source === 'CASH' && payment.status === 'PENDING' && (
-                      <div className="mt-2">
+                      <div className="mt-2 space-y-2">
+                        <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {getCustodyText(payment)}
+                        </div>
                         {!payment.tenantConfirmedAt ? (
-                          <button
-                            onClick={() => handleConfirmCashGiven(payment.id)}
-                            disabled={confirmingPaymentId === payment.id}
-                            className={`px-3 py-2 rounded-lg text-xs font-semibold ${
-                              darkMode
-                                ? 'bg-blue-600/30 text-blue-200 border border-blue-500/40'
-                                : 'bg-blue-100 text-blue-800 border border-blue-300'
-                            }`}
-                          >
-                            {confirmingPaymentId === payment.id ? 'Saqlanmoqda...' : 'Pul berdim'}
-                          </button>
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              min="0"
+                              step="1000"
+                              value={cashAmounts[payment.id] ?? String(payment.amount)}
+                              onChange={(e) => setCashAmounts((prev) => ({ ...prev, [payment.id]: e.target.value }))}
+                              className={`w-full max-w-xs px-3 py-2 rounded-lg border text-sm ${
+                                darkMode
+                                  ? 'bg-gray-900 border-gray-700 text-white'
+                                  : 'bg-white border-gray-300 text-gray-900'
+                              }`}
+                              placeholder="Bergan summangiz"
+                            />
+                            <button
+                              onClick={() => handleConfirmCashGiven(payment.id)}
+                              disabled={confirmingPaymentId === payment.id}
+                              className={`px-3 py-2 rounded-lg text-xs font-semibold ${
+                                darkMode
+                                  ? 'bg-blue-600/30 text-blue-200 border border-blue-500/40'
+                                  : 'bg-blue-100 text-blue-800 border border-blue-300'
+                              }`}
+                            >
+                              {confirmingPaymentId === payment.id ? 'Saqlanmoqda...' : 'Pul berdim'}
+                            </button>
+                          </div>
                         ) : (
-                          <div className={`text-xs ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
-                            Tenant tasdiqladi
+                          <div className={`text-xs space-y-1 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
+                            <div>Tenant tasdiqladi</div>
+                            {payment.tenantConfirmedAmount != null && (
+                              <div>Bergan summa: {Number(payment.tenantConfirmedAmount).toLocaleString()} UZS</div>
+                            )}
+                            {payment.collectorReceivedAmount != null && (
+                              <div>Yig‘uvchi olgan summa: {Number(payment.collectorReceivedAmount).toLocaleString()} UZS</div>
+                            )}
                           </div>
                         )}
                       </div>

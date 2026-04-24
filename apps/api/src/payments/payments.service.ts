@@ -12,6 +12,7 @@ import { PaymentProviderEnum } from './dto/payment-intent.dto';
 import { CheckoutUzService } from './checkout-uz.service';
 import { ChatGateway } from '../chat/chat.gateway';
 import { OfflinePaymentSource } from './dto/record-offline-payment.dto';
+import { ConfirmCashDto } from './dto/confirm-cash.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -64,6 +65,69 @@ export class PaymentsService {
     const start = new Date(Date.UTC(year, monthIndex, 1, 0, 0, 0, 0));
     const end = new Date(Date.UTC(year, monthIndex + 1, 1, 0, 0, 0, 0));
     return { start, end, month: `${year}-${String(monthIndex + 1).padStart(2, '0')}` };
+  }
+
+  private toNumericValue(value: any): number | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'number') return value;
+    if (typeof value?.toNumber === 'function') return value.toNumber();
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private toIsoValue(value: any): string | null {
+    if (!value) return null;
+    try {
+      return new Date(value).toISOString();
+    } catch {
+      return null;
+    }
+  }
+
+  getCashCustodyStatus(payment: any):
+    | 'NOT_APPLICABLE'
+    | 'AWAITING_TENANT_CONFIRMATION'
+    | 'DECLARED_BY_TENANT'
+    | 'WITH_COLLECTOR'
+    | 'DISPUTED'
+    | 'RECEIVED_BY_COMPANY'
+    | 'CANCELLED' {
+    if (payment.status === PaymentStatus.CANCELLED) return 'CANCELLED';
+    if (payment.status === PaymentStatus.CONFIRMED) return 'RECEIVED_BY_COMPANY';
+    if (payment.method !== PaymentMethod.OFFLINE || String(payment.source) !== 'CASH') return 'NOT_APPLICABLE';
+    if (!payment.tenantConfirmedAt) return 'AWAITING_TENANT_CONFIRMATION';
+
+    const declaredAmount = this.toNumericValue(payment.tenantConfirmedAmount);
+    const receivedAmount = this.toNumericValue(payment.collectorReceivedAmount);
+    const recordedAmount = this.toNumericValue(payment.amount);
+    const hasDispute =
+      (declaredAmount !== null && recordedAmount !== null && declaredAmount !== recordedAmount) ||
+      (declaredAmount !== null && receivedAmount !== null && declaredAmount !== receivedAmount);
+
+    if (hasDispute) return 'DISPUTED';
+    if (!payment.collectedAt) return 'DECLARED_BY_TENANT';
+    return 'WITH_COLLECTOR';
+  }
+
+  getCashCustodySummaryForPayment(payment: any) {
+    const status = this.getCashCustodyStatus(payment);
+    const declaredAmount = this.toNumericValue(payment.tenantConfirmedAmount);
+    const receivedAmount = this.toNumericValue(payment.collectorReceivedAmount);
+    const recordedAmount = this.toNumericValue(payment.amount) ?? 0;
+    return {
+      status,
+      tenantConfirmedAmount: declaredAmount,
+      collectorReceivedAmount: receivedAmount,
+      expectedAmount: recordedAmount,
+      differenceFromRecorded: declaredAmount !== null ? declaredAmount - recordedAmount : null,
+      differenceBetweenTenantAndCollector:
+        declaredAmount !== null && receivedAmount !== null ? declaredAmount - receivedAmount : null,
+      steps: {
+        tenantConfirmedAt: this.toIsoValue(payment.tenantConfirmedAt),
+        collectorConfirmedAt: this.toIsoValue(payment.collectedAt),
+        cashierApprovedAt: this.toIsoValue(payment.approvedAt ?? payment.paidAt),
+      },
+    };
   }
 
   async getCollectorMonthlySummary(actorId: string, month?: string) {
@@ -184,6 +248,86 @@ export class PaymentsService {
         collected: items.filter((item) => item.cashCollected > 0),
         remaining: items.filter((item) => item.remaining > 0),
       },
+    };
+  }
+
+  async getCashCustodySummary(actor: { id: string; role?: string }, month?: string) {
+    const { start, end, month: normalizedMonth } = this.getMonthRange(month);
+
+    const where: Prisma.PaymentWhereInput = {
+      isArchived: false,
+      method: PaymentMethod.OFFLINE,
+      source: 'CASH',
+      createdAt: { gte: start, lt: end },
+    };
+
+    if (actor.role === AdminRole.PAYMENT_COLLECTOR) {
+      where.collectedBy = actor.id;
+    }
+
+    const payments = await this.prisma.payment.findMany({
+      where,
+      include: {
+        invoice: {
+          include: {
+            contract: {
+              include: {
+                tenant: {
+                  select: { id: true, fullName: true, phone: true },
+                },
+                unit: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const items = payments.map((payment) => {
+      const summary = this.getCashCustodySummaryForPayment(payment as any);
+      return {
+        id: payment.id,
+        invoiceId: payment.invoiceId,
+        amount: payment.amount.toNumber(),
+        createdAt: payment.createdAt.toISOString(),
+        tenantName: payment.invoice.contract.tenant.fullName,
+        tenantPhone: payment.invoice.contract.tenant.phone,
+        unitName: payment.invoice.contract.unit?.name ?? null,
+        status: summary.status,
+        tenantConfirmedAmount: summary.tenantConfirmedAmount,
+        collectorReceivedAmount: summary.collectorReceivedAmount,
+        expectedAmount: summary.expectedAmount,
+        differenceFromRecorded: summary.differenceFromRecorded,
+        differenceBetweenTenantAndCollector: summary.differenceBetweenTenantAndCollector,
+        tenantConfirmedAt: summary.steps.tenantConfirmedAt,
+        collectorConfirmedAt: summary.steps.collectorConfirmedAt,
+        cashierApprovedAt: summary.steps.cashierApprovedAt,
+      };
+    });
+
+    const summarize = (status: ReturnType<PaymentsService['getCashCustodyStatus']>) => {
+      const subset = items.filter((item) => item.status === status);
+      return {
+        count: subset.length,
+        amount: subset.reduce((sum, item) => sum + item.expectedAmount, 0),
+      };
+    };
+
+    return {
+      month: normalizedMonth,
+      totals: {
+        totalCount: items.length,
+        totalAmount: items.reduce((sum, item) => sum + item.expectedAmount, 0),
+        awaitingTenant: summarize('AWAITING_TENANT_CONFIRMATION'),
+        declaredByTenant: summarize('DECLARED_BY_TENANT'),
+        withCollector: summarize('WITH_COLLECTOR'),
+        disputed: summarize('DISPUTED'),
+        receivedByCompany: summarize('RECEIVED_BY_COMPANY'),
+      },
+      items,
     };
   }
 
@@ -614,9 +758,12 @@ export class PaymentsService {
       collectedAt: payment.collectedAt ? payment.collectedAt.toISOString() : null,
       tenantConfirmedBy: (payment as any).tenantConfirmedBy ?? null,
       tenantConfirmedAt: (payment as any).tenantConfirmedAt ? new Date((payment as any).tenantConfirmedAt).toISOString() : null,
+      tenantConfirmedAmount: (payment as any).tenantConfirmedAmount?.toNumber?.() ?? null,
+      collectorReceivedAmount: (payment as any).collectorReceivedAmount?.toNumber?.() ?? null,
       collectorNote: payment.collectorNote,
       approvedBy: payment.approvedBy,
       approvedAt: payment.approvedAt ? payment.approvedAt.toISOString() : null,
+      cashCustody: this.getCashCustodySummaryForPayment(payment),
       // Archive fields
       isArchived: payment.isArchived,
       archivedAt: payment.archivedAt ? payment.archivedAt.toISOString() : null,
@@ -786,6 +933,8 @@ export class PaymentsService {
               collectorNote: dto.collectorNote,
               tenantConfirmedAt: null,
               tenantConfirmedBy: null,
+              tenantConfirmedAmount: null,
+              collectorReceivedAmount: null,
             } as any,
             include: {
               invoice: {
@@ -840,7 +989,7 @@ export class PaymentsService {
     };
   }
 
-  async tenantConfirmCashGiven(paymentId: string, tenantId: string) {
+  async tenantConfirmCashGiven(paymentId: string, tenantId: string, dto?: ConfirmCashDto) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
       include: {
@@ -872,11 +1021,17 @@ export class PaymentsService {
       return payment;
     }
 
+    const confirmedAmount = dto?.amount ? new Decimal(dto.amount) : payment.amount;
+    if (confirmedAmount.lte(0)) {
+      throw new ConflictException('Tasdiqlanadigan summa 0 dan katta bo‘lishi kerak');
+    }
+
     const updated = await this.prisma.payment.update({
       where: { id: paymentId },
       data: {
         tenantConfirmedAt: new Date(),
         tenantConfirmedBy: tenantId,
+        tenantConfirmedAmount: confirmedAmount,
       } as any,
       include: {
         invoice: {
@@ -906,7 +1061,7 @@ export class PaymentsService {
     return updated;
   }
 
-  async collectorConfirmCashReceived(paymentId: string, collectorId: string) {
+  async collectorConfirmCashReceived(paymentId: string, collectorId: string, dto?: ConfirmCashDto) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
       include: {
@@ -930,6 +1085,9 @@ export class PaymentsService {
     if (payment.method !== PaymentMethod.OFFLINE || String((payment as any).source) !== 'CASH') {
       throw new ConflictException('Faqat naqd oflayn to‘lovni qabul qilish mumkin');
     }
+    if (payment.collectedBy && payment.collectedBy !== collectorId) {
+      throw new ForbiddenException('Bu to‘lov boshqa to‘lov yig‘uvchiga biriktirilgan');
+    }
     if (!(payment as any).tenantConfirmedAt) {
       throw new ConflictException('Avval tenant "pul berdim" ni tasdiqlashi kerak');
     }
@@ -937,11 +1095,20 @@ export class PaymentsService {
       return payment;
     }
 
+    const confirmedAmount = dto?.amount
+      ? new Decimal(dto.amount)
+      : ((payment as any).tenantConfirmedAmount ?? payment.amount);
+    if (confirmedAmount.lte(0)) {
+      throw new ConflictException('Qabul qilingan summa 0 dan katta bo‘lishi kerak');
+    }
+
     const updated = await this.prisma.payment.update({
       where: { id: paymentId },
       data: {
         collectedBy: payment.collectedBy || collectorId,
         collectedAt: new Date(),
+        collectorReceivedAmount: confirmedAmount,
+        collectorNote: dto?.note?.trim() ? dto.note.trim() : payment.collectorNote,
       } as any,
       include: {
         invoice: {

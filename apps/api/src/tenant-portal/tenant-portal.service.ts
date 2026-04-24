@@ -7,6 +7,7 @@ import { PaymentMethod, PaymentProvider, PaymentStatus, Prisma } from '@prisma/c
 import { CheckoutUzService } from '../payments/checkout-uz.service';
 import { ClickService } from '../payments/click.service';
 import { PaymentsService } from '../payments/payments.service';
+import { ConfirmCashDto } from '../payments/dto/confirm-cash.dto';
 
 @Injectable()
 export class TenantPortalService {
@@ -152,6 +153,10 @@ export class TenantPortalService {
       createdAt: payment.createdAt.toISOString(),
       collectedAt: payment.collectedAt ? payment.collectedAt.toISOString() : null,
       tenantConfirmedAt: (payment as any).tenantConfirmedAt ? new Date((payment as any).tenantConfirmedAt).toISOString() : null,
+      tenantConfirmedAmount: (payment as any).tenantConfirmedAmount?.toNumber?.() ?? null,
+      collectorReceivedAmount: (payment as any).collectorReceivedAmount?.toNumber?.() ?? null,
+      custodyStatus: this.paymentsService.getCashCustodyStatus(payment as any),
+      custodySummary: this.paymentsService.getCashCustodySummaryForPayment(payment as any),
       unitName: payment.invoice?.contract?.unit?.name || null,
     }));
   }
@@ -202,6 +207,10 @@ export class TenantPortalService {
       paidAt: payment.paidAt,
       collectedAt: payment.collectedAt,
       tenantConfirmedAt: (payment as any).tenantConfirmedAt ?? null,
+      tenantConfirmedAmount: (payment as any).tenantConfirmedAmount?.toNumber?.() ?? null,
+      collectorReceivedAmount: (payment as any).collectorReceivedAmount?.toNumber?.() ?? null,
+      custodyStatus: this.paymentsService.getCashCustodyStatus(payment as any),
+      custodySummary: this.paymentsService.getCashCustodySummaryForPayment(payment as any),
       invoice: {
         id: payment.invoice.id,
         amount: payment.invoice.amount.toNumber(),
@@ -213,7 +222,7 @@ export class TenantPortalService {
     };
   }
 
-  async confirmCashGiven(user: any, paymentId: string) {
+  async confirmCashGiven(user: any, paymentId: string, dto: ConfirmCashDto) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: user.id },
     });
@@ -222,7 +231,7 @@ export class TenantPortalService {
       throw new NotFoundException('Tenant not found');
     }
 
-    return this.paymentsService.tenantConfirmCashGiven(paymentId, tenant.id);
+    return this.paymentsService.tenantConfirmCashGiven(paymentId, tenant.id, dto);
   }
 
   async getBalanceForUser(user: any) {

@@ -25,6 +25,25 @@ interface Payment {
   createdAt?: string;
   collectedAt?: string | null;
   tenantConfirmedAt?: string | null;
+  tenantConfirmedAmount?: number | null;
+  collectorReceivedAmount?: number | null;
+  custodyStatus?:
+    | 'NOT_APPLICABLE'
+    | 'AWAITING_TENANT_CONFIRMATION'
+    | 'DECLARED_BY_TENANT'
+    | 'WITH_COLLECTOR'
+    | 'DISPUTED'
+    | 'RECEIVED_BY_COMPANY'
+    | 'CANCELLED';
+  custodySummary?: {
+    differenceFromRecorded?: number | null;
+    differenceBetweenTenantAndCollector?: number | null;
+    steps?: {
+      tenantConfirmedAt?: string | null;
+      collectorConfirmedAt?: string | null;
+      cashierApprovedAt?: string | null;
+    };
+  };
 }
 
 interface Balance {
@@ -59,9 +78,10 @@ export async function getTenantPayments(): Promise<Payment[]> {
   return normalizeListResponse<Payment>(response).items;
 }
 
-export async function confirmTenantCashGiven(paymentId: string): Promise<any> {
+export async function confirmTenantCashGiven(paymentId: string, amount?: string): Promise<any> {
   return fetchApi(`/tenant/payments/${paymentId}/confirm-cash-given`, {
     method: 'POST',
+    body: JSON.stringify(amount ? { amount } : {}),
   });
 }
 

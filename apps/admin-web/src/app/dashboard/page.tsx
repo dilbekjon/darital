@@ -55,6 +55,18 @@ interface CollectorSummary {
   };
 }
 
+interface CashCustodySummary {
+  totals: {
+    totalCount: number;
+    totalAmount: number;
+    awaitingTenant: { count: number; amount: number };
+    declaredByTenant: { count: number; amount: number };
+    withCollector: { count: number; amount: number };
+    disputed: { count: number; amount: number };
+    receivedByCompany: { count: number; amount: number };
+  };
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading, hasPermission } = useAuth();
@@ -63,6 +75,7 @@ export default function DashboardPage() {
   const { showToast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [collectorSummary, setCollectorSummary] = useState<CollectorSummary | null>(null);
+  const [cashCustodySummary, setCashCustodySummary] = useState<CashCustodySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -143,6 +156,13 @@ export default function DashboardPage() {
         setCollectorSummary(collectorRes);
       } else {
         setCollectorSummary(null);
+      }
+
+      if (canViewPayments) {
+        const custodyRes = await fetchApi<CashCustodySummary>('/payments/cash-custody-summary').catch(() => null);
+        setCashCustodySummary(custodyRes);
+      } else {
+        setCashCustodySummary(null);
       }
     } catch (err) {
       console.error('Failed to load dashboard stats:', err);
@@ -327,6 +347,31 @@ export default function DashboardPage() {
             </>
           )}
         </div>
+
+        {cashCustodySummary && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+            <div className={`rounded-xl p-5 border ${darkMode ? 'bg-black border-gray-700' : 'bg-white border-gray-200'}`}>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tenant tasdig‘i kutilmoqda</div>
+              <div className={`text-2xl font-bold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{cashCustodySummary.totals.awaitingTenant.count}</div>
+              <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>{formatCurrency(cashCustodySummary.totals.awaitingTenant.amount)}</div>
+            </div>
+            <div className={`rounded-xl p-5 border ${darkMode ? 'bg-black border-blue-700/40' : 'bg-white border-blue-200'}`}>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tenant berdi</div>
+              <div className="text-2xl font-bold mt-1 text-blue-600">{cashCustodySummary.totals.declaredByTenant.count}</div>
+              <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>{formatCurrency(cashCustodySummary.totals.declaredByTenant.amount)}</div>
+            </div>
+            <div className={`rounded-xl p-5 border ${darkMode ? 'bg-black border-orange-700/40' : 'bg-white border-orange-200'}`}>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Pul yig‘uvchida</div>
+              <div className="text-2xl font-bold mt-1 text-orange-600">{cashCustodySummary.totals.withCollector.count}</div>
+              <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>{formatCurrency(cashCustodySummary.totals.withCollector.amount)}</div>
+            </div>
+            <div className={`rounded-xl p-5 border ${darkMode ? 'bg-black border-red-700/40' : 'bg-white border-red-200'}`}>
+              <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tafovutli to‘lovlar</div>
+              <div className="text-2xl font-bold mt-1 text-red-600">{cashCustodySummary.totals.disputed.count}</div>
+              <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>{formatCurrency(cashCustodySummary.totals.disputed.amount)}</div>
+            </div>
+          </div>
+        )}
 
         {isPaymentCollector && collectorSummary && (
           <div className={`rounded-xl p-6 shadow-md border mb-8 ${
