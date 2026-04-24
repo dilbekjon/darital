@@ -248,6 +248,22 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           );
         }
       }
+
+      void this.bot
+        .launch({
+          dropPendingUpdates: true,
+          allowedUpdates: ['message', 'callback_query'],
+        })
+        .then(() => {
+          this.logger.log('Tenant Telegram bot polling started.');
+        })
+        .catch((err: any) => {
+          if (err?.response?.error_code === 409) {
+            this.logger.warn(`Telegram bot polling conflict detected: ${err?.response?.description || err?.message}`);
+            return;
+          }
+          this.logger.error(`Failed to launch Telegram bot polling: ${err?.message || err}`);
+        });
     } catch (error: any) {
       // Handle conflict error gracefully - another instance might be running
       if (error?.response?.error_code === 409) {

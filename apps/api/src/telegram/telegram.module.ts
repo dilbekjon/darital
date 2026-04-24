@@ -28,7 +28,7 @@ import { AuthModule } from '../auth/auth.module';
           logger.warn('Telegram bot is DISABLED - TELEGRAM_ENABLE must be "true" and TELEGRAM_BOT_TOKEN must be set');
           return {
             token: 'disabled',
-            launchOptions: { polling: false },
+            launchOptions: false,
             skipUpdates: true,
           } as any;
         }
@@ -49,14 +49,7 @@ import { AuthModule } from '../auth/auth.module';
         
         return {
           token,
-          launchOptions: {
-            polling: {
-              timeout: 30,
-              limit: 100,
-              allowedUpdates: ['message', 'callback_query'],
-              dropPendingUpdates: true, // Drop pending updates to avoid conflicts
-            },
-          },
+          launchOptions: false,
         } as any;
       },
     }),
