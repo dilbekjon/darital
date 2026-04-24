@@ -132,31 +132,38 @@ async function bootstrap() {
   // Set global prefix for all routes
   app.setGlobalPrefix('api');
   
-  // Setup Swagger documentation
-  const config = new DocumentBuilder()
-    .setTitle('Darital API')
-    .setDescription('Darital Final - API Documentation')
-    .setVersion('1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
-    .addTag('health', 'Health check endpoints')
-    .addTag('auth', 'Authentication endpoints')
-    .addTag('units', 'Unit management')
-    .addTag('tenants', 'Tenant management')
-    .addTag('contracts', 'Contract management')
-    .addTag('invoices', 'Invoice management')
-    .addTag('payments', 'Payment management')
-    .addTag('balances', 'Balance overview and adjustments')
-    .addTag('notifications', 'Notifications')
-    .build();
-  
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
-
-  // Map root to docs for convenience
   const httpAdapter = app.getHttpAdapter();
-  httpAdapter.get('/', (req: any, res: any) => {
-    res.redirect(302, '/docs');
-  });
+  const swaggerEnabled =
+    process.env.ENABLE_SWAGGER === 'true' ||
+    process.env.NODE_ENV !== 'production';
+
+  if (swaggerEnabled) {
+    const config = new DocumentBuilder()
+      .setTitle('Darital API')
+      .setDescription('Darital Final - API Documentation')
+      .setVersion('1.0')
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
+      .addTag('health', 'Health check endpoints')
+      .addTag('auth', 'Authentication endpoints')
+      .addTag('units', 'Unit management')
+      .addTag('tenants', 'Tenant management')
+      .addTag('contracts', 'Contract management')
+      .addTag('invoices', 'Invoice management')
+      .addTag('payments', 'Payment management')
+      .addTag('balances', 'Balance overview and adjustments')
+      .addTag('notifications', 'Notifications')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('docs', app, document);
+    httpAdapter.get('/', (req: any, res: any) => {
+      res.redirect(302, '/docs');
+    });
+  } else {
+    httpAdapter.get('/', (req: any, res: any) => {
+      res.redirect(302, '/api/health');
+    });
+  }
   
   // Use Render-provided port or fallback to 3001 (mobile app expects 3001)
   const port = process.env.PORT || 3001;
