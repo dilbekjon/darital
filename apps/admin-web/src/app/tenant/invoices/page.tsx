@@ -69,6 +69,8 @@ const InvoicePage = () => {
     }
   };
 
+  const getInvoiceStatus = (invoice: any) => invoice.derivedStatus || invoice.status;
+
   return (
     <div className={`min-h-screen transition-colors duration-500 ${
       darkMode 
@@ -103,6 +105,13 @@ const InvoicePage = () => {
             </svg>
             {t.home}
           </a>
+          <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+            darkMode
+              ? 'bg-blue-900/20 border-blue-600/40 text-blue-200'
+              : 'bg-blue-50 border-blue-200 text-blue-800'
+          }`}>
+            `Invoices` bu qarzdorlik jadvali (oylik to‘lovlar). `Payments` bo‘limida esa faqat yaratilgan to‘lov operatsiyalari chiqadi.
+          </div>
         </div>
 
         {/* Invoices Grid */}
@@ -150,6 +159,9 @@ const InvoicePage = () => {
                     <p className={`text-2xl font-bold ${darkMode ? 'text-yellow-400' : 'text-blue-600'}`}>
                       UZS {invoice.amount.toLocaleString()}
                     </p>
+                    <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      To‘langan: UZS {(invoice.totalPaid || 0).toLocaleString()} • Qolgan: UZS {(invoice.totalRemaining || 0).toLocaleString()}
+                    </p>
                   </div>
 
                   {/* Due Date */}
@@ -163,10 +175,19 @@ const InvoicePage = () => {
                   {/* Status */}
                   <div>
                     <p className={`text-sm font-medium mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.status}</p>
-                    <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold border-2 ${getStatusColor(invoice.status)}`}>
-                      {getStatusText(invoice.status)}
+                    <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold border-2 ${getStatusColor(getInvoiceStatus(invoice))}`}>
+                      {getStatusText(getInvoiceStatus(invoice))}
                     </span>
+                    <div className={`text-xs mt-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      To‘lovlar: {invoice.paymentSummary?.confirmed || 0} tasdiqlangan, {invoice.paymentSummary?.pending || 0} kutilmoqda
+                    </div>
                   </div>
+                </div>
+
+                <div className={`mt-4 pt-3 border-t text-xs ${darkMode ? 'border-gray-700 text-gray-400' : 'border-gray-200 text-gray-600'}`}>
+                  {invoice.paymentSummary?.hasAnyPayments
+                    ? `Oxirgi to‘lov: ${invoice.latestPayment?.status || '-'} (${invoice.latestPayment?.method || '-'})`
+                    : 'Bu invoice uchun hali to‘lov yozuvi yaratilmagan.'}
                 </div>
               </div>
             ))}

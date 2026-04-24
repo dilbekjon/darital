@@ -10,8 +10,28 @@ interface Invoice {
   id: string;
   unitName: string;
   amount: number;
+  bankAmount?: number;
+  cashAmount?: number;
   dueDate: string;
   status: 'PENDING' | 'PAID' | 'OVERDUE';
+  derivedStatus?: 'PENDING' | 'PAID' | 'OVERDUE';
+  totalPaid?: number;
+  totalRemaining?: number;
+  paymentSummary?: {
+    total: number;
+    pending: number;
+    confirmed: number;
+    cancelled: number;
+    hasPending: boolean;
+    hasAnyPayments: boolean;
+  };
+  latestPayment?: {
+    id: string;
+    status: string;
+    method: 'ONLINE' | 'OFFLINE';
+    source?: 'ONLINE' | 'BANK' | 'CASH';
+    createdAt?: string | null;
+  } | null;
 }
 
 interface Payment {
@@ -23,6 +43,8 @@ interface Payment {
   status: 'PENDING' | 'CONFIRMED';
   paidAt: string;
   createdAt?: string;
+  invoiceDueDate?: string | null;
+  invoiceStatus?: string | null;
   collectedAt?: string | null;
   tenantConfirmedAt?: string | null;
   tenantConfirmedAmount?: number | null;

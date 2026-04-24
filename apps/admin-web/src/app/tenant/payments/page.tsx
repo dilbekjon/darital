@@ -105,6 +105,9 @@ const PaymentsPage = () => {
     }
   };
 
+  const pendingPayments = payments.filter((payment) => payment.status === 'PENDING');
+  const confirmedPayments = payments.filter((payment) => payment.status === 'CONFIRMED');
+
   return (
     <div className={`min-h-screen transition-colors duration-500 ${
       darkMode 
@@ -139,6 +142,24 @@ const PaymentsPage = () => {
             </svg>
             {t.home}
           </a>
+          <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+            darkMode
+              ? 'bg-yellow-900/20 border-yellow-700/40 text-yellow-200'
+              : 'bg-yellow-50 border-yellow-200 text-yellow-800'
+          }`}>
+            Bu bo‘lim faqat yaratilgan to‘lov operatsiyalarini ko‘rsatadi. Invoice bo‘limida esa qarzdorlik holati ko‘rinadi.
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div className={`rounded-xl border p-4 ${darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Kutilayotgan to‘lovlar</p>
+            <p className={`text-2xl font-bold ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>{pendingPayments.length}</p>
+          </div>
+          <div className={`rounded-xl border p-4 ${darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tasdiqlangan to‘lovlar</p>
+            <p className={`text-2xl font-bold ${darkMode ? 'text-green-300' : 'text-green-700'}`}>{confirmedPayments.length}</p>
+          </div>
         </div>
 
         {/* Payments Grid */}
@@ -268,6 +289,11 @@ const PaymentsPage = () => {
                   <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>
                     {t.invoiceId}: <span className="font-mono">{payment.invoiceId}</span>
                   </p>
+                  {(payment.invoiceDueDate || payment.invoiceStatus) && (
+                    <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+                      Invoice: {payment.invoiceStatus || '-'}{payment.invoiceDueDate ? ` • Muddat: ${new Date(payment.invoiceDueDate).toLocaleDateString('en-GB')}` : ''}
+                    </p>
+                  )}
                 </div>
               </div>
             ))}

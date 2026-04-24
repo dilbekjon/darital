@@ -21,6 +21,14 @@ export class TenantPortalService {
     private readonly paymentsService: PaymentsService,
   ) {}
 
+  private toNumber(value: any): number {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number') return value;
+    if (typeof value?.toNumber === 'function') return value.toNumber();
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
   async getProfileForUser(user: any) {
     // Resolve tenant by id from JWT (payload.sub mapped to user.id in JwtStrategy)
     const tenant = await this.prisma.tenant.findUnique({
@@ -58,44 +66,86 @@ export class TenantPortalService {
           },
         },
         payments: {
+          where: { isArchived: false },
           orderBy: { createdAt: 'desc' },
-          take: 1, // Get the latest payment
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            method: true,
+            source: true,
+            provider: true,
+            providerPaymentId: true,
+            rawPayload: true,
+            createdAt: true,
+          },
         },
       },
       orderBy: { dueDate: 'asc' },
     });
 
-    // Sort by importance: OVERDUE > PENDING > PAID
+    const now = new Date();
+    const mappedInvoices = invoices.map((invoice: any) => {
+      const amount = this.toNumber(invoice.amount);
+      const bankAmount = this.toNumber(invoice.bankAmount);
+      const cashAmount = this.toNumber(invoice.cashAmount);
+
+      const confirmedPayments = (invoice.payments || []).filter((payment: any) => payment.status === PaymentStatus.CONFIRMED);
+      const pendingPayments = (invoice.payments || []).filter((payment: any) => payment.status === PaymentStatus.PENDING);
+      const cancelledPayments = (invoice.payments || []).filter((payment: any) => payment.status === PaymentStatus.CANCELLED);
+
+      const totalPaid = confirmedPayments.reduce((sum: number, payment: any) => sum + this.toNumber(payment.amount), 0);
+      const totalRemaining = Math.max(0, amount - totalPaid);
+
+      const derivedStatus: 'PAID' | 'PENDING' | 'OVERDUE' = totalRemaining <= 0
+        ? 'PAID'
+        : new Date(invoice.dueDate) < now
+          ? 'OVERDUE'
+          : 'PENDING';
+
+      return {
+        id: invoice.id,
+        unitName: invoice.contract.unit.name,
+        amount,
+        bankAmount,
+        cashAmount,
+        dueDate: invoice.dueDate.toISOString(),
+        status: invoice.status,
+        derivedStatus,
+        totalPaid,
+        totalRemaining,
+        paymentSummary: {
+          total: invoice.payments.length,
+          pending: pendingPayments.length,
+          confirmed: confirmedPayments.length,
+          cancelled: cancelledPayments.length,
+          hasPending: pendingPayments.length > 0,
+          hasAnyPayments: invoice.payments.length > 0,
+        },
+        latestPayment: invoice.payments && invoice.payments.length > 0 ? {
+          id: invoice.payments[0].id,
+          status: invoice.payments[0].status,
+          method: invoice.payments[0].method,
+          source: (invoice.payments[0] as any).source,
+          provider: (invoice.payments[0] as any).provider,
+          providerPaymentId: (invoice.payments[0] as any).providerPaymentId,
+          rawPayload: (invoice.payments[0] as any).rawPayload,
+          createdAt: invoice.payments[0].createdAt?.toISOString?.() || null,
+        } : null,
+      };
+    });
+
+    // Sort by real payment obligation status: OVERDUE > PENDING > PAID
     const statusPriority = { OVERDUE: 0, PENDING: 1, PAID: 2 };
-    const sortedInvoices = [...invoices].sort((a, b) => {
-      const priorityA = statusPriority[a.status] ?? 3;
-      const priorityB = statusPriority[b.status] ?? 3;
+    return mappedInvoices.sort((a, b) => {
+      const priorityA = statusPriority[a.derivedStatus] ?? 3;
+      const priorityB = statusPriority[b.derivedStatus] ?? 3;
       if (priorityA !== priorityB) return priorityA - priorityB;
-      // Within same status, sort by due date (earlier first for overdue/pending)
-      if (a.status === 'PAID') {
+      if (a.derivedStatus === 'PAID') {
         return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
       }
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
-
-    return sortedInvoices.map((invoice: any) => ({
-      id: invoice.id,
-      unitName: invoice.contract.unit.name,
-      amount: invoice.amount.toNumber(),
-      bankAmount: invoice.bankAmount.toNumber(),
-      cashAmount: invoice.cashAmount.toNumber(),
-      dueDate: invoice.dueDate.toISOString(),
-      status: invoice.status,
-      latestPayment: invoice.payments && invoice.payments.length > 0 ? {
-        id: invoice.payments[0].id,
-        status: invoice.payments[0].status,
-        method: invoice.payments[0].method,
-        source: (invoice.payments[0] as any).source,
-        provider: (invoice.payments[0] as any).provider,
-        providerPaymentId: (invoice.payments[0] as any).providerPaymentId,
-        rawPayload: (invoice.payments[0] as any).rawPayload,
-      } : null,
-    }));
   }
 
   async getPaymentsForUser(user: any) {
@@ -158,6 +208,8 @@ export class TenantPortalService {
       custodyStatus: this.paymentsService.getCashCustodyStatus(payment as any),
       custodySummary: this.paymentsService.getCashCustodySummaryForPayment(payment as any),
       unitName: payment.invoice?.contract?.unit?.name || null,
+      invoiceDueDate: payment.invoice?.dueDate ? payment.invoice.dueDate.toISOString() : null,
+      invoiceStatus: payment.invoice?.status ?? null,
     }));
   }
 
