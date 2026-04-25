@@ -52,7 +52,7 @@ services:
     image: darital-api
     container_name: darital-api
     restart: unless-stopped
-    env_file: .env.production
+    env_file: env.production
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-darital}
       REDIS_URL: redis://redis:6379

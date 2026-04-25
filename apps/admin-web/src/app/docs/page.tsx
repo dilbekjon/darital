@@ -228,9 +228,6 @@ export default function DocsPage() {
             })}
           </div>
 
-          <footer className={`mt-16 pt-8 border-t ${darkMode ? 'border-gray-800 text-gray-500' : 'border-gray-200 text-gray-400'} text-sm`}>
-            <p>Darital Admin · <a href="https://darital-admin-web.onrender.com/" className={darkMode ? 'text-blue-400 hover:underline' : 'text-blue-600 hover:underline'}>darital-admin-web.onrender.com</a></p>
-          </footer>
         </main>
       </div>
 
