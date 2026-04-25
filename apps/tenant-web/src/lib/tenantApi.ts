@@ -10,21 +10,66 @@ interface Invoice {
   id: string;
   unitName: string;
   amount: number;
+  bankAmount?: number;
+  cashAmount?: number;
   dueDate: string;
   status: 'PENDING' | 'PAID' | 'OVERDUE';
+  derivedStatus?: 'PENDING' | 'PAID' | 'OVERDUE';
+  totalPaid?: number;
+  totalRemaining?: number;
+  paymentSummary?: {
+    total: number;
+    pending: number;
+    confirmed: number;
+    cancelled: number;
+    hasPending: boolean;
+    hasAnyPayments: boolean;
+  };
+  latestPayment?: {
+    id: string;
+    status: string;
+    method: 'ONLINE' | 'OFFLINE';
+    source?: 'ONLINE' | 'BANK' | 'CASH';
+    createdAt?: string | null;
+  } | null;
 }
 
 interface Payment {
   id: string;
   invoiceId: string;
   method: 'ONLINE' | 'OFFLINE';
+  source?: 'ONLINE' | 'BANK' | 'CASH';
   amount: number;
-  status: 'PENDING' | 'CONFIRMED';
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
   paidAt: string | null;
   provider?: string | null;
   providerPaymentId?: string | null;
   rawPayload?: any;
   createdAt?: string;
+  unitName?: string | null;
+  invoiceDueDate?: string | null;
+  invoiceStatus?: string | null;
+  collectedAt?: string | null;
+  tenantConfirmedAt?: string | null;
+  tenantConfirmedAmount?: number | null;
+  collectorReceivedAmount?: number | null;
+  custodyStatus?:
+    | 'NOT_APPLICABLE'
+    | 'AWAITING_TENANT_CONFIRMATION'
+    | 'DECLARED_BY_TENANT'
+    | 'WITH_COLLECTOR'
+    | 'DISPUTED'
+    | 'RECEIVED_BY_COMPANY'
+    | 'CANCELLED';
+  custodySummary?: {
+    differenceFromRecorded?: number | null;
+    differenceBetweenTenantAndCollector?: number | null;
+    steps?: {
+      tenantConfirmedAt?: string | null;
+      collectorConfirmedAt?: string | null;
+      cashierApprovedAt?: string | null;
+    };
+  };
 }
 
 interface PaymentIntentResponse {
@@ -64,6 +109,13 @@ export async function getTenantInvoices(): Promise<Invoice[]> {
 
 export async function getTenantPayments(): Promise<Payment[]> {
   return fetchApi<Payment[]>('/tenant/payments');
+}
+
+export async function confirmTenantCashGiven(paymentId: string, amount?: string): Promise<any> {
+  return fetchApi(`/tenant/payments/${paymentId}/confirm-cash-given`, {
+    method: 'POST',
+    body: JSON.stringify(amount ? { amount } : {}),
+  });
 }
 
 export async function createTenantPaymentIntent(

@@ -34,8 +34,10 @@ export default function TenantInvoicesPage() {
   const sortedInvoices = useMemo(() => {
     const statusPriority: Record<string, number> = { OVERDUE: 0, PENDING: 1, PAID: 2 };
     return [...invoices].sort((a, b) => {
-      const priorityA = statusPriority[a.status] ?? 3;
-      const priorityB = statusPriority[b.status] ?? 3;
+      const statusA = a.derivedStatus || a.status;
+      const statusB = b.derivedStatus || b.status;
+      const priorityA = statusPriority[statusA] ?? 3;
+      const priorityB = statusPriority[statusB] ?? 3;
       if (priorityA !== priorityB) return priorityA - priorityB;
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     });
@@ -54,7 +56,7 @@ export default function TenantInvoicesPage() {
           <div className="mb-8">
             <h1 className="text-3xl font-semibold">{t.invoicesList}</h1>
             <p className={darkMode ? 'mt-2 text-sm text-slate-400' : 'mt-2 text-sm text-slate-600'}>
-              To‘lov portal orqali qilinmaydi. Bu sahifa faqat muddat, summa va bo‘linishni ko‘rsatadi.
+              Bu bo‘lim qarzdorlikni ko‘rsatadi (qancha to‘langan, qancha qolgan). To‘lov operatsiyalari alohida `Payments` bo‘limida.
             </p>
           </div>
 
@@ -66,6 +68,7 @@ export default function TenantInvoicesPage() {
             <div className="grid gap-4">
               {sortedInvoices.map((invoice) => {
                 const days = getDaysRemaining(invoice.dueDate);
+                const status = invoice.derivedStatus || invoice.status;
                 return (
                   <div
                     key={invoice.id}
@@ -80,12 +83,12 @@ export default function TenantInvoicesPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-semibold">{Number(invoice.amount).toLocaleString()} UZS</p>
-                        <span className={invoice.status === 'PAID'
+                        <span className={status === 'PAID'
                           ? darkMode ? 'mt-2 inline-block rounded-full bg-green-500/15 px-3 py-1 text-xs text-green-300' : 'mt-2 inline-block rounded-full bg-green-100 px-3 py-1 text-xs text-green-700'
-                          : invoice.status === 'OVERDUE'
+                          : status === 'OVERDUE'
                             ? darkMode ? 'mt-2 inline-block rounded-full bg-red-500/15 px-3 py-1 text-xs text-red-300' : 'mt-2 inline-block rounded-full bg-red-100 px-3 py-1 text-xs text-red-700'
                             : darkMode ? 'mt-2 inline-block rounded-full bg-amber-500/15 px-3 py-1 text-xs text-amber-300' : 'mt-2 inline-block rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-700'}>
-                          {invoice.status === 'PAID' ? t.paid : invoice.status === 'OVERDUE' ? t.overdue : t.pending}
+                          {status === 'PAID' ? t.paid : status === 'OVERDUE' ? t.overdue : t.pending}
                         </span>
                       </div>
                     </div>
@@ -105,7 +108,17 @@ export default function TenantInvoicesPage() {
                       </div>
                     </div>
 
-                    {invoice.status !== 'PAID' && (
+                    <div className={darkMode ? 'mt-3 rounded-xl bg-slate-900 p-4 text-sm text-slate-200' : 'mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700'}>
+                      <p>
+                        To‘langan: <span className="font-semibold">{Number(invoice.totalPaid || 0).toLocaleString()} UZS</span>
+                        {' '}• Qolgan: <span className="font-semibold">{Number(invoice.totalRemaining ?? invoice.amount).toLocaleString()} UZS</span>
+                      </p>
+                      <p className={darkMode ? 'mt-1 text-xs text-slate-400' : 'mt-1 text-xs text-slate-600'}>
+                        To‘lovlar: {invoice.paymentSummary?.confirmed || 0} tasdiqlangan, {invoice.paymentSummary?.pending || 0} kutilmoqda
+                      </p>
+                    </div>
+
+                    {status !== 'PAID' && (
                       <div className={darkMode ? 'mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200' : 'mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800'}>
                         {days < 0
                           ? `${Math.abs(days)} kun kechikkan. To‘lov kassir yoki bank orqali rasmiylashtiriladi.`
