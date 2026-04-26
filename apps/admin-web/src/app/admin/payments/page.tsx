@@ -581,9 +581,7 @@ export default function AdminPaymentsPage() {
   const handleCollectorCapture = async (paymentId: string) => {
     const payment = payments.find((item) => item.id === paymentId);
     const suggestedAmount = payment?.tenantConfirmedAmount ?? payment?.amount ?? 0;
-    const rawAmount = window.prompt('Olingan summani kiriting', String(suggestedAmount));
-    if (rawAmount === null) return;
-    const normalizedAmount = rawAmount.trim();
+    const normalizedAmount = String(suggestedAmount ?? '').trim();
     if (!normalizedAmount || Number.isNaN(Number(normalizedAmount)) || Number(normalizedAmount) <= 0) {
       setError('To‘g‘ri summa kiriting');
       return;

@@ -93,7 +93,9 @@ export default function TenantPaymentsPage() {
   };
 
   const handleConfirmCashGiven = async (paymentId: string) => {
-    const amount = String(cashAmounts[paymentId] ?? '').trim();
+    const payment = payments.find((item) => item.id === paymentId);
+    const defaultAmount = payment ? String(payment.amount ?? '') : '';
+    const amount = String(cashAmounts[paymentId] ?? defaultAmount).trim();
     if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) {
       alert('Summani to‘g‘ri kiriting');
       return;
@@ -198,7 +200,7 @@ export default function TenantPaymentsPage() {
                             type="number"
                             min="0"
                             step="1000"
-                            value={cashAmounts[payment.id] ?? String(payment.amount)}
+                            value={cashAmounts[payment.id] ?? String(payment.amount ?? '')}
                             onChange={(e) => setCashAmounts((prev) => ({ ...prev, [payment.id]: e.target.value }))}
                             placeholder="Bergan summangiz"
                             className={darkMode
