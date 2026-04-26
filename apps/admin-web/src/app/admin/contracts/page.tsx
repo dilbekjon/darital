@@ -568,6 +568,11 @@ export default function AdminContractsPage() {
                       <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         {t.unit}: {contract.unit.name}
                       </p>
+                      {(contract.tenant.phone || contract.tenant.email) && (
+                        <p className={`text-xs mb-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                          {contract.tenant.phone || contract.tenant.email}
+                        </p>
+                      )}
                       <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         {formatDate(contract.startDate)} - {formatDate(contract.endDate)}
                       </p>
@@ -582,9 +587,14 @@ export default function AdminContractsPage() {
                   <div className={`flex items-center justify-between pt-3 border-t ${
                     darkMode ? 'border-blue-600/30' : 'border-gray-200'
                   }`}>
-                    <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                      UZS {contract.amount.toLocaleString()}<span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>/mo</span>
-                    </span>
+                    <div>
+                      <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        UZS {contract.amount.toLocaleString()}<span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>/mo</span>
+                      </span>
+                      <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Bank: {contract.bankAmount.toLocaleString()} · Naqd: {contract.cashAmount.toLocaleString()}
+                      </p>
+                    </div>
                     <div className="flex items-center gap-3 flex-wrap">
                       <button
                         type="button"

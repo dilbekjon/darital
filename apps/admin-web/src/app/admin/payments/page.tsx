@@ -128,6 +128,7 @@ export default function AdminPaymentsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [methodFilter, setMethodFilter] = useState<string>('ALL');
+  const [collectorStageFilter, setCollectorStageFilter] = useState<string>('ALL');
   const [overdueFilter, setOverdueFilter] = useState<boolean>(false);
   const [verifyingPaymentId, setVerifyingPaymentId] = useState<string | null>(null);
   const [capturingPaymentId, setCapturingPaymentId] = useState<string | null>(null);
@@ -758,6 +759,16 @@ export default function AdminPaymentsPage() {
     }
   };
 
+  const isPaymentCollector = user?.role === 'PAYMENT_COLLECTOR';
+
+  function getCollectorStage(payment: Payment): 'WAITING_TENANT' | 'TO_COLLECT' | 'TO_SUBMIT' | 'DONE' | 'OTHER' {
+    if (payment.method !== 'OFFLINE' || payment.source !== 'CASH') return 'OTHER';
+    if (payment.status === 'CONFIRMED') return 'DONE';
+    if (!payment.tenantConfirmedAt) return 'WAITING_TENANT';
+    if (!payment.collectedAt) return 'TO_COLLECT';
+    return 'TO_SUBMIT';
+  }
+
   // Calculate statistics
   const stats: PaymentStats = useMemo(() => {
     const stats: PaymentStats = {
@@ -820,6 +831,10 @@ export default function AdminPaymentsPage() {
       filtered = filtered.filter(p => p.method === methodFilter);
     }
 
+    if (isPaymentCollector && collectorStageFilter !== 'ALL') {
+      filtered = filtered.filter((payment) => getCollectorStage(payment) === collectorStageFilter);
+    }
+
     // Filter by overdue
     if (overdueFilter) {
       filtered = filtered.filter((payment) => {
@@ -866,7 +881,7 @@ export default function AdminPaymentsPage() {
       // Within same status, most recent first
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [payments, searchQuery, statusFilter, methodFilter, overdueFilter]);
+  }, [payments, searchQuery, statusFilter, methodFilter, overdueFilter, isPaymentCollector, collectorStageFilter]);
 
   const cashCustodyStats = useMemo(() => {
     const cashPayments = payments.filter((payment) => payment.method === 'OFFLINE' && payment.source === 'CASH');
@@ -886,6 +901,33 @@ export default function AdminPaymentsPage() {
       disputedAmount: sumBy('DISPUTED'),
     };
   }, [payments]);
+
+  const collectorSummary = useMemo(() => {
+    const collectorPayments = filteredPayments.filter((payment) => payment.method === 'OFFLINE' && payment.source === 'CASH');
+    return {
+      toCollect: collectorPayments.filter((payment) => getCollectorStage(payment) === 'TO_COLLECT').length,
+      toSubmit: collectorPayments.filter((payment) => getCollectorStage(payment) === 'TO_SUBMIT').length,
+      done: collectorPayments.filter((payment) => getCollectorStage(payment) === 'DONE').length,
+    };
+  }, [filteredPayments]);
+
+  const collectorGroupedPayments = useMemo(() => {
+    if (!isPaymentCollector) return [];
+    const groups = [
+      { key: 'TO_COLLECT', title: 'Hozir olish kerak', items: [] as Payment[] },
+      { key: 'TO_SUBMIT', title: 'Kassirga topshirish kerak', items: [] as Payment[] },
+      { key: 'WAITING_TENANT', title: 'Tenant tasdig‘i kutilmoqda', items: [] as Payment[] },
+      { key: 'DONE', title: 'Yakunlangan', items: [] as Payment[] },
+      { key: 'OTHER', title: 'Boshqalar', items: [] as Payment[] },
+    ];
+    const indexByKey = new Map(groups.map((group, index) => [group.key, index]));
+    filteredPayments.forEach((payment) => {
+      const key = getCollectorStage(payment);
+      const index = indexByKey.get(key) ?? groups.length - 1;
+      groups[index].items.push(payment);
+    });
+    return groups.filter((group) => group.items.length > 0);
+  }, [filteredPayments, isPaymentCollector]);
 
   // Set up WebSocket connection for real-time payment updates
   useEffect(() => {
@@ -1006,6 +1048,14 @@ export default function AdminPaymentsPage() {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
+  const collectorStageOptions: Array<{ value: string; label: string }> = [
+    { value: 'ALL', label: 'Barchasi' },
+    { value: 'TO_COLLECT', label: 'Pulni olish' },
+    { value: 'TO_SUBMIT', label: 'Topshirish' },
+    { value: 'WAITING_TENANT', label: 'Tenant kutilyapti' },
+    { value: 'DONE', label: 'Yakunlangan' },
+  ];
+
   return (
     <div className={`p-4 sm:p-6 lg:p-8 h-full overflow-y-auto ${
       darkMode ? 'bg-black' : 'bg-gray-100'
@@ -1029,10 +1079,12 @@ export default function AdminPaymentsPage() {
       </div>
 
       {hasPermission('payments.record_offline') && (
-        <div className="mb-4 flex justify-end">
+        <div className={`mb-4 flex ${isPaymentCollector ? 'justify-stretch' : 'justify-end'}`}>
           <button
             onClick={() => { void openRecordOfflineModal(); }}
-            className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 shadow-sm ${
+            className={`px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-sm ${
+              isPaymentCollector ? 'w-full sm:w-auto' : ''
+            } ${
               darkMode
                 ? 'bg-green-600 hover:bg-green-500 text-white'
                 : 'bg-green-600 hover:bg-green-700 text-white'
@@ -1053,6 +1105,7 @@ export default function AdminPaymentsPage() {
       )}
 
       {/* Statistics Cards */}
+      {!isPaymentCollector && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {/* Total Payments */}
         <div className={`p-4 rounded-lg border ${
@@ -1114,7 +1167,9 @@ export default function AdminPaymentsPage() {
           </div>
         </div>
       </div>
+      )}
 
+      {!isPaymentCollector && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
           <div className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tenant tasdig‘i kutilmoqda</div>
@@ -1137,6 +1192,24 @@ export default function AdminPaymentsPage() {
           <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.disputedAmount.toLocaleString()}</div>
         </div>
       </div>
+      )}
+
+      {isPaymentCollector && (
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className={`p-3 rounded-lg border ${darkMode ? 'bg-gray-900 border-blue-700/40' : 'bg-white border-blue-200'}`}>
+            <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Olish kerak</p>
+            <p className={`text-xl font-bold mt-1 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>{collectorSummary.toCollect}</p>
+          </div>
+          <div className={`p-3 rounded-lg border ${darkMode ? 'bg-gray-900 border-orange-700/40' : 'bg-white border-orange-200'}`}>
+            <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Topshirish</p>
+            <p className={`text-xl font-bold mt-1 ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>{collectorSummary.toSubmit}</p>
+          </div>
+          <div className={`p-3 rounded-lg border ${darkMode ? 'bg-gray-900 border-green-700/40' : 'bg-white border-green-200'}`}>
+            <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Yakunlangan</p>
+            <p className={`text-xl font-bold mt-1 ${darkMode ? 'text-green-300' : 'text-green-700'}`}>{collectorSummary.done}</p>
+          </div>
+        </div>
+      )}
 
       {/* Search and Filter Bar */}
       {payments.length > 0 && (
@@ -1149,7 +1222,11 @@ export default function AdminPaymentsPage() {
             </div>
             <input
               type="text"
-              placeholder={t.searchByTenantInvoice || 'Ijara oluvchi, hisob-faktura, summa, holat bo\'yicha qidirish...'}
+              placeholder={
+                isPaymentCollector
+                  ? 'Tenant, xona yoki invoice bo‘yicha qidiring...'
+                  : (t.searchByTenantInvoice || 'Ijara oluvchi, hisob-faktura, summa, holat bo\'yicha qidirish...')
+              }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`block w-full pl-10 pr-3 py-2 border rounded-lg ${
@@ -1159,7 +1236,7 @@ export default function AdminPaymentsPage() {
               } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
             />
           </div>
-          <div className="sm:w-40">
+          <div className={`sm:w-40 ${isPaymentCollector ? 'hidden' : ''}`}>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -1175,7 +1252,7 @@ export default function AdminPaymentsPage() {
               <option value="CANCELLED">{t.cancelled || 'Bekor qilingan'}</option>
             </select>
           </div>
-          <div className="sm:w-40">
+          <div className={`sm:w-40 ${isPaymentCollector ? 'hidden' : ''}`}>
             <select
               value={methodFilter}
               onChange={(e) => setMethodFilter(e.target.value)}
@@ -1190,7 +1267,34 @@ export default function AdminPaymentsPage() {
               <option value="OFFLINE">Offline</option>
             </select>
           </div>
-          <div className="sm:w-40">
+          {isPaymentCollector && (
+            <div className="sm:w-full">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {collectorStageOptions.map((option) => {
+                  const isActive = collectorStageFilter === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setCollectorStageFilter(option.value)}
+                      className={`whitespace-nowrap px-3 py-2 rounded-full text-xs font-semibold border transition-colors ${
+                        isActive
+                          ? (darkMode
+                              ? 'bg-blue-600 text-white border-blue-500'
+                              : 'bg-blue-600 text-white border-blue-600')
+                          : (darkMode
+                              ? 'bg-gray-900 text-gray-300 border-blue-600/30'
+                              : 'bg-white text-gray-700 border-gray-300')
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <div className={`sm:w-40 ${isPaymentCollector ? 'hidden' : ''}`}>
             <label className={`flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer ${
               darkMode
                 ? 'bg-gray-900 border-blue-600/30'
@@ -1212,6 +1316,125 @@ export default function AdminPaymentsPage() {
       )}
 
       {/* Table */}
+      {isPaymentCollector && (
+        <div className="mb-6 space-y-3">
+          {filteredPayments.length === 0 ? (
+            <EmptyState
+              icon={
+                <svg className={`w-14 h-14 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              }
+              title={payments.length === 0 ? t.noPayments : t.noResultsFound}
+              description={payments.length === 0 ? t.paymentRecordsWillAppear : t.tryAdjustingFilters}
+            />
+          ) : (
+            collectorGroupedPayments.map((group) => (
+              <div key={group.key} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className={`text-sm font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>{group.title}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${darkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>{group.items.length}</span>
+                </div>
+                {group.items.map((payment) => {
+                  const isOfflineCash = payment.method === 'OFFLINE' && payment.source === 'CASH';
+                  const canCollectorCapture =
+                    hasPermission('payments.record_offline') &&
+                    isOfflineCash &&
+                    payment.status === 'PENDING' &&
+                    !!payment.tenantConfirmedAt &&
+                    !payment.collectedAt;
+                  const stage = getCollectorStage(payment);
+                  const captureButtonText =
+                    stage === 'TO_COLLECT'
+                      ? 'Pulni oldim'
+                      : stage === 'TO_SUBMIT'
+                        ? 'Kassir tasdiqlashi kutilmoqda'
+                        : stage === 'WAITING_TENANT'
+                          ? 'Tenant tasdig‘i kutilmoqda'
+                          : 'Yakunlangan';
+
+                  return (
+                    <div
+                      key={payment.id}
+                      className={`rounded-xl border p-4 ${darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-white border-gray-200'}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className={`text-base font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {payment.tenant?.fullName || 'Tenant'}
+                          </p>
+                          <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {payment.unit?.name || 'Unit'} • {payment.tenant?.phone || payment.tenant?.email || '-'}
+                          </p>
+                        </div>
+                        <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {Math.round(payment.amount).toLocaleString()} UZS
+                        </p>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(payment.status, payment)}`}>
+                          {getStatusText(payment.status, payment)}
+                        </span>
+                        {isOfflineCash && (
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getCashCustodyClass(payment)}`}>
+                            {getCashCustodyLabel(payment)}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className={`mt-3 grid grid-cols-2 gap-2 text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <div className={`rounded-lg p-2 ${darkMode ? 'bg-black/40' : 'bg-gray-50'}`}>
+                          <p className="text-[11px] opacity-80">Invoice</p>
+                          <p className="font-medium truncate">{payment.invoiceId}</p>
+                        </div>
+                        <div className={`rounded-lg p-2 ${darkMode ? 'bg-black/40' : 'bg-gray-50'}`}>
+                          <p className="text-[11px] opacity-80">Muddat</p>
+                          <p className="font-medium">{payment.invoice?.dueDate ? new Date(payment.invoice.dueDate).toLocaleDateString('uz-UZ') : '-'}</p>
+                        </div>
+                        {payment.tenantConfirmedAmount != null && (
+                          <div className={`rounded-lg p-2 ${darkMode ? 'bg-black/40' : 'bg-gray-50'}`}>
+                            <p className="text-[11px] opacity-80">Tenant berdi</p>
+                            <p className="font-medium">{Math.round(payment.tenantConfirmedAmount).toLocaleString()} UZS</p>
+                          </div>
+                        )}
+                        {payment.collectorReceivedAmount != null && (
+                          <div className={`rounded-lg p-2 ${darkMode ? 'bg-black/40' : 'bg-gray-50'}`}>
+                            <p className="text-[11px] opacity-80">Yig‘uvchi oldi</p>
+                            <p className="font-medium">{Math.round(payment.collectorReceivedAmount).toLocaleString()} UZS</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => canCollectorCapture && handleCollectorCapture(payment.id)}
+                        disabled={!canCollectorCapture || capturingPaymentId === payment.id}
+                        className={`mt-4 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${
+                          !canCollectorCapture
+                            ? (darkMode ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700' : 'bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-200')
+                            : capturingPaymentId === payment.id
+                              ? (darkMode ? 'bg-gray-700 text-gray-400 cursor-not-allowed border border-gray-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300')
+                              : (darkMode ? 'bg-blue-600 text-white border border-blue-500 hover:bg-blue-500' : 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700')
+                        }`}
+                      >
+                        {capturingPaymentId === payment.id ? 'Saqlanmoqda...' : captureButtonText}
+                      </button>
+
+                      {stage === 'TO_SUBMIT' && (
+                        <p className={`mt-3 text-xs font-medium ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>
+                          Pul olindi. Endi kassir tasdiqlaydi.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {!isPaymentCollector && (
       <div className={`shadow-md rounded-lg overflow-hidden border ${
         darkMode ? 'bg-black border-blue-600/30' : 'bg-white border-gray-200'
       }`}>
@@ -1606,6 +1829,7 @@ export default function AdminPaymentsPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmOpen && (() => {

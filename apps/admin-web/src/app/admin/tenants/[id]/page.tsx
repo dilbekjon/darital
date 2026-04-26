@@ -613,7 +613,41 @@ export default function AdminTenantDetailsPage() {
               </button>
             )}
           </div>
-          <div className="overflow-x-auto">
+
+          <div className="space-y-3 md:hidden">
+            {sortedPayments.map((payment) => (
+              <div key={payment.id} className={`rounded-lg border p-3 ${darkMode ? 'border-gray-700 bg-gray-800/40' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(payment.amount)}</p>
+                    <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{payment.source || payment.method}</p>
+                  </div>
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    payment.status === 'CONFIRMED'
+                      ? 'bg-green-100 text-green-800'
+                      : payment.status === 'PENDING'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                  }`}>
+                    {payment.status}
+                  </span>
+                </div>
+                <div className={`mt-2 text-xs space-y-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p>Sana: {new Date(payment.createdAt).toLocaleString('en-GB')}</p>
+                  <p>Invoice: {payment.invoiceId}</p>
+                  {payment.method === 'OFFLINE' && payment.source === 'CASH' && (
+                    <>
+                      <p>Holat: {payment.cashCustody?.status || '-'}</p>
+                      <p>Tenant: {payment.tenantConfirmedAmount ? formatCurrency(payment.tenantConfirmedAmount) : '-'}</p>
+                      <p>Yig‘uvchi: {payment.collectorReceivedAmount ? formatCurrency(payment.collectorReceivedAmount) : '-'}</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>

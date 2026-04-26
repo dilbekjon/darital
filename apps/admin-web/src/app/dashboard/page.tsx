@@ -415,7 +415,38 @@ export default function DashboardPage() {
               Siz yozgan to‘lovlar: <span className="font-semibold">{collectorSummary.totals.myCollectedInvoiceCount} ta invoice</span> • {formatCurrency(collectorSummary.totals.myCollectedAmount)}
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="space-y-3 md:hidden">
+              {collectorSummary.items.remaining.slice(0, 12).map((item) => (
+                <div
+                  key={item.invoiceId}
+                  className={`rounded-lg border p-3 ${darkMode ? 'border-blue-600/20 bg-black' : 'border-gray-200 bg-gray-50'}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{item.tenantName}</p>
+                      <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{item.tenantPhone || '-'} • {item.unitName || '—'}</p>
+                    </div>
+                    <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{new Date(item.dueDate).toLocaleDateString('en-GB')}</p>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <p className={darkMode ? 'text-gray-500' : 'text-gray-500'}>Kerak</p>
+                      <p className={`font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{formatCurrency(item.cashTarget)}</p>
+                    </div>
+                    <div>
+                      <p className={darkMode ? 'text-gray-500' : 'text-gray-500'}>Olingan</p>
+                      <p className={`font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{formatCurrency(item.cashCollected)}</p>
+                    </div>
+                    <div>
+                      <p className={darkMode ? 'text-gray-500' : 'text-gray-500'}>Qolgan</p>
+                      <p className={`font-semibold ${darkMode ? 'text-orange-300' : 'text-orange-700'}`}>{formatCurrency(item.remaining)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className={`${darkMode ? 'text-gray-400 border-b border-blue-600/20' : 'text-gray-600 border-b border-gray-200'}`}>
@@ -440,12 +471,12 @@ export default function DashboardPage() {
                   ))}
                 </tbody>
               </table>
-              {collectorSummary.items.remaining.length === 0 && (
-                <p className={`py-4 text-sm ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
-                  Ajoyib — shu oy uchun naqd yig‘imda qolgan invoice yo‘q.
-                </p>
-              )}
             </div>
+            {collectorSummary.items.remaining.length === 0 && (
+              <p className={`py-4 text-sm ${darkMode ? 'text-green-400' : 'text-green-700'}`}>
+                Ajoyib — shu oy uchun naqd yig‘imda qolgan invoice yo‘q.
+              </p>
+            )}
           </div>
         )}
 
