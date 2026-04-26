@@ -8,6 +8,7 @@ import { UpdateNotificationPreferencesDto } from './dto/update-notification-pref
 import { AdminRole } from '@prisma/client'; // Import AdminRole
 import { PaymentIntentDto } from '../payments/dto/payment-intent.dto';
 import { ConfirmCashDto } from '../payments/dto/confirm-cash.dto';
+import { CreateUtilityBillPaymentDto } from '../utility-bills/dto/create-utility-bill-payment.dto';
 
 @ApiTags('Tenant Portal')
 @ApiBearerAuth()
@@ -56,6 +57,21 @@ export class TenantPortalController {
   async getTenantPayments(@Req() req) {
     this.ensureTenantAccess(req.user);
     return this.tenantPortalService.getPaymentsForUser(req.user);
+  }
+
+  @Get('utility-bills')
+  @ApiOperation({ summary: 'Get tenant utility bills (water/electricity/gas)' })
+  async getTenantUtilityBills(@Req() req) {
+    this.ensureTenantAccess(req.user);
+    return this.tenantPortalService.getUtilityBillsForUser(req.user);
+  }
+
+  @Post('utility-bills/:id/pay')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @ApiOperation({ summary: 'Create tenant payment for a utility bill (BANK or CASH)' })
+  async payUtilityBill(@Req() req, @Param('id') id: string, @Body() body: CreateUtilityBillPaymentDto) {
+    this.ensureTenantAccess(req.user);
+    return this.tenantPortalService.payUtilityBill(req.user, id, body);
   }
 
   @Post('payments/intent')

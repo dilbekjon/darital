@@ -39,6 +39,7 @@ import { AllExceptionsFilter } from './filters/all-exceptions.filter';
 import { PrismaModule } from './prisma.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { HealthController } from './health.controller';
+import { UtilityBillsModule } from './utility-bills/utility-bills.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { HealthController } from './health.controller';
     ArchiveModule,
     AdminModule, // Temporary admin creation module - can be removed after use
     AlertsModule,
+    UtilityBillsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

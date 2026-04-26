@@ -99,6 +99,31 @@ interface Contract {
   };
 }
 
+export interface TenantUtilityBillPayment {
+  id: string;
+  source: 'BANK' | 'CASH';
+  amount: number;
+  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+  createdAt: string;
+  confirmedAt?: string | null;
+}
+
+export interface TenantUtilityBill {
+  id: string;
+  type: 'WATER' | 'ELECTRICITY' | 'GAS';
+  month: string;
+  unitName?: string | null;
+  startReading: number | null;
+  endReading: number | null;
+  consumption: number;
+  unitPrice: number;
+  amount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  status: 'DRAFT' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
+  payments: TenantUtilityBillPayment[];
+}
+
 export async function getTenantProfile(): Promise<TenantProfile> {
   return fetchApi<TenantProfile>('/tenant/me');
 }
@@ -159,6 +184,20 @@ export async function getTenantContracts(): Promise<Contract[]> {
   }
   
   return [];
+}
+
+export async function getTenantUtilityBills(): Promise<TenantUtilityBill[]> {
+  return fetchApi<TenantUtilityBill[]>('/tenant/utility-bills');
+}
+
+export async function payTenantUtilityBill(
+  utilityBillId: string,
+  payload: { source: 'BANK' | 'CASH'; amount?: string; note?: string },
+) {
+  return fetchApi(`/tenant/utility-bills/${utilityBillId}/pay`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function getContractById(contractId: string): Promise<Contract> {

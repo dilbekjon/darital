@@ -8,6 +8,8 @@ import { CheckoutUzService } from '../payments/checkout-uz.service';
 import { ClickService } from '../payments/click.service';
 import { PaymentsService } from '../payments/payments.service';
 import { ConfirmCashDto } from '../payments/dto/confirm-cash.dto';
+import { CreateUtilityBillPaymentDto } from '../utility-bills/dto/create-utility-bill-payment.dto';
+import { UtilityBillsService } from '../utility-bills/utility-bills.service';
 
 @Injectable()
 export class TenantPortalService {
@@ -19,6 +21,7 @@ export class TenantPortalService {
     private readonly clickService: ClickService,
     @Inject(forwardRef(() => PaymentsService))
     private readonly paymentsService: PaymentsService,
+    private readonly utilityBillsService: UtilityBillsService,
   ) {}
 
   private toNumber(value: any): number {
@@ -284,6 +287,26 @@ export class TenantPortalService {
     }
 
     return this.paymentsService.tenantConfirmCashGiven(paymentId, tenant.id, dto);
+  }
+
+  async getUtilityBillsForUser(user: any) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
+      select: { id: true },
+    });
+    if (!tenant) return [];
+    return this.utilityBillsService.getTenantBills(tenant.id);
+  }
+
+  async payUtilityBill(user: any, utilityBillId: string, dto: CreateUtilityBillPaymentDto) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
+      select: { id: true },
+    });
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+    return this.utilityBillsService.tenantCreatePayment(tenant.id, utilityBillId, dto);
   }
 
   async getBalanceForUser(user: any) {

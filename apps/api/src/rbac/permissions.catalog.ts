@@ -30,6 +30,13 @@ export const PERMISSIONS = {
   'payments.approve': 'Approve payments (online and offline)',
   'payments.capture_offline': 'Mark offline payment as received',
   'payments.refund': 'Refund payment',
+  // Utility bills
+  'utility.bills.read': 'View utility bills and utility bill payments',
+  'utility.bills.manage.water': 'Manage monthly water meter readings and bills',
+  'utility.bills.manage.electricity': 'Manage monthly electricity meter readings and bills',
+  'utility.bills.manage.gas': 'Manage monthly gas meter readings and bills',
+  'utility.bills.payments.record': 'Record utility bill payments',
+  'utility.bills.payments.approve': 'Approve utility bill payments',
   // Invoices
   'invoices.read': 'View invoices',
   'invoices.create': 'Create invoices',
@@ -65,6 +72,12 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
     'tenants.read', 'tenants.create', 'tenants.update', 'tenants.delete',
     'invoices.read', 'invoices.create', 'invoices.update', 'invoices.delete',
     'payments.read', 'payments.capture_offline', 'payments.approve',
+    'utility.bills.read',
+    'utility.bills.manage.water',
+    'utility.bills.manage.electricity',
+    'utility.bills.manage.gas',
+    'utility.bills.payments.record',
+    'utility.bills.payments.approve',
     'reports.view', 'chat.read', 'chat.reply', 'notifications.manage'
   ],
   
@@ -85,6 +98,9 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
     'payments.record_offline',
     'payments.approve',
     'payments.capture_offline',
+    'utility.bills.read',
+    'utility.bills.payments.record',
+    'utility.bills.payments.approve',
     'invoices.read',
     'tenants.read',
     'contracts.read',
@@ -96,6 +112,8 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
   PAYMENT_COLLECTOR: [
     'payments.read',
     'payments.record_offline',
+    'utility.bills.read',
+    'utility.bills.payments.record',
     'invoices.read',
     'tenants.read',
     'contracts.read',
@@ -124,5 +142,35 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
     'payments.read',
     'invoices.read',
     'audit.read'
+  ],
+
+  WATER_OPERATOR: [
+    'utility.bills.read',
+    'utility.bills.manage.water',
+    'utility.bills.payments.record',
+    'tenants.read',
+    'units.read',
+    'contracts.read',
+    'companies.read',
+  ],
+
+  ELECTRICITY_OPERATOR: [
+    'utility.bills.read',
+    'utility.bills.manage.electricity',
+    'utility.bills.payments.record',
+    'tenants.read',
+    'units.read',
+    'contracts.read',
+    'companies.read',
+  ],
+
+  GAS_OPERATOR: [
+    'utility.bills.read',
+    'utility.bills.manage.gas',
+    'utility.bills.payments.record',
+    'tenants.read',
+    'units.read',
+    'contracts.read',
+    'companies.read',
   ],
 };

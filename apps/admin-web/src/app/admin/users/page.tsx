@@ -17,6 +17,9 @@ enum AdminRole {
   USER_MANAGER = 'USER_MANAGER',
   CASHIER = 'CASHIER',
   PAYMENT_COLLECTOR = 'PAYMENT_COLLECTOR',
+  WATER_OPERATOR = 'WATER_OPERATOR',
+  ELECTRICITY_OPERATOR = 'ELECTRICITY_OPERATOR',
+  GAS_OPERATOR = 'GAS_OPERATOR',
   SUPPORT = 'SUPPORT',
   ANALYST = 'ANALYST',
   TENANT_USER = 'TENANT_USER',
@@ -81,6 +84,18 @@ export default function AdminUsersPage() {
 
     return filtered;
   }, [users, searchQuery, roleFilter]);
+
+  const getRoleLabel = (role: AdminRole | string) =>
+    role === AdminRole.SUPER_ADMIN ? (t.superAdmin || 'Bosh Direktor') :
+    role === AdminRole.ADMIN ? (t.admin || 'Admin') :
+    role === AdminRole.USER_MANAGER ? (t.userManager || 'Foydalanuvchi Menejeri') :
+    role === AdminRole.CASHIER ? (t.cashier || 'Kassir') :
+    role === AdminRole.PAYMENT_COLLECTOR ? (t.paymentCollector || 'To\'lov Yig\'uvchi') :
+    role === AdminRole.WATER_OPERATOR ? ('Suv Operatori') :
+    role === AdminRole.ELECTRICITY_OPERATOR ? ('Elektr Operatori') :
+    role === AdminRole.GAS_OPERATOR ? ('Gaz Operatori') :
+    role === AdminRole.SUPPORT ? (t.support || 'Qo\'llab-quvvatlash') :
+    role === AdminRole.ANALYST ? (t.analyst || 'Tahlilchi') : role;
 
   useEffect(() => {
     if (!loading) {
@@ -347,6 +362,9 @@ export default function AdminUsersPage() {
               <option value="USER_MANAGER">{t.userManager || 'Foydalanuvchi Menejeri'}</option>
               <option value="CASHIER">{t.cashier || 'Kassir'}</option>
               <option value="PAYMENT_COLLECTOR">{t.paymentCollector || 'To\'lov Yig\'uvchi'}</option>
+              <option value="WATER_OPERATOR">Suv Operatori</option>
+              <option value="ELECTRICITY_OPERATOR">Elektr Operatori</option>
+              <option value="GAS_OPERATOR">Gaz Operatori</option>
               <option value="SUPPORT">{t.support || 'Qo\'llab-quvvatlash'}</option>
               <option value="ANALYST">{t.analyst || 'Tahlilchi'}</option>
             </select>
@@ -426,13 +444,7 @@ export default function AdminUsersPage() {
                   }`}>{u.phone || '—'}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
-                  }`}>{u.role === 'SUPER_ADMIN' ? (t.superAdmin || 'Bosh Direktor') :
-                         u.role === 'ADMIN' ? (t.admin || 'Admin') :
-                         u.role === 'USER_MANAGER' ? (t.userManager || 'Foydalanuvchi Menejeri') :
-                         u.role === 'CASHIER' ? (t.cashier || 'Kassir') :
-                         u.role === 'PAYMENT_COLLECTOR' ? (t.paymentCollector || 'To\'lov Yig\'uvchi') :
-                         u.role === 'SUPPORT' ? (t.support || 'Qo\'llab-quvvatlash') :
-                         u.role === 'ANALYST' ? (t.analyst || 'Tahlilchi') : u.role}</td>
+                  }`}>{getRoleLabel(u.role)}</td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                     darkMode ? 'text-gray-300' : 'text-gray-500'
                   }`}>{new Date(u.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</td>
@@ -553,13 +565,7 @@ export default function AdminUsersPage() {
                     .filter(role => role !== AdminRole.TENANT_USER)
                     .map((role) => (
                       <option key={role} value={role}>
-                        {role === AdminRole.SUPER_ADMIN ? (t.superAdmin || 'Bosh Direktor') :
-                         role === AdminRole.ADMIN ? (t.admin || 'Admin') :
-                         role === AdminRole.USER_MANAGER ? (t.userManager || 'Foydalanuvchi Menejeri') :
-                         role === AdminRole.CASHIER ? (t.cashier || 'Kassir') :
-                         role === AdminRole.PAYMENT_COLLECTOR ? (t.paymentCollector || 'To\'lov Yig\'uvchi') :
-                         role === AdminRole.SUPPORT ? (t.support || 'Qo\'llab-quvvatlash') :
-                         role === AdminRole.ANALYST ? (t.analyst || 'Tahlilchi') : role}
+                        {getRoleLabel(role)}
                       </option>
                     ))}
                 </select>
@@ -686,13 +692,7 @@ export default function AdminUsersPage() {
                   .filter(role => role !== AdminRole.TENANT_USER) // Cannot assign TENANT_USER role here
                   .map((role) => (
                     <option key={role} value={role}>
-                      {role === AdminRole.SUPER_ADMIN ? (t.superAdmin || 'Bosh Direktor') :
-                       role === AdminRole.ADMIN ? (t.admin || 'Admin') :
-                       role === AdminRole.USER_MANAGER ? (t.userManager || 'Foydalanuvchi Menejeri') :
-                       role === AdminRole.CASHIER ? (t.cashier || 'Kassir') :
-                       role === AdminRole.PAYMENT_COLLECTOR ? (t.paymentCollector || 'To\'lov Yig\'uvchi') :
-                       role === AdminRole.SUPPORT ? (t.support || 'Qo\'llab-quvvatlash') :
-                       role === AdminRole.ANALYST ? (t.analyst || 'Tahlilchi') : role}
+                      {getRoleLabel(role)}
                     </option>
                   ))}
               </select>

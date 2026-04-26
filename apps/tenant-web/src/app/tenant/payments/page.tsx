@@ -21,6 +21,15 @@ export default function TenantPaymentsPage() {
   const t = useUntypedTranslations();
   const { darkMode } = useTheme();
 
+  const parseMoneyInput = (value: string): number | null => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const normalized = trimmed.replace(/\s+/g, '').replace(/,/g, '.');
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed)) return null;
+    return parsed;
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -94,12 +103,14 @@ export default function TenantPaymentsPage() {
 
   const handleConfirmCashGiven = async (paymentId: string) => {
     const payment = payments.find((item) => item.id === paymentId);
-    const defaultAmount = payment ? String(payment.amount ?? '') : '';
-    const amount = String(cashAmounts[paymentId] ?? defaultAmount).trim();
-    if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) {
+    const fallbackAmount = payment?.tenantConfirmedAmount ?? payment?.amount ?? null;
+    const rawAmount = String(cashAmounts[paymentId] ?? (fallbackAmount != null ? String(fallbackAmount) : '')).trim();
+    const parsedAmount = parseMoneyInput(rawAmount);
+    if (!parsedAmount || parsedAmount <= 0) {
       alert('Summani to‘g‘ri kiriting');
       return;
     }
+    const amount = String(parsedAmount);
 
     setConfirmingPaymentId(paymentId);
     try {

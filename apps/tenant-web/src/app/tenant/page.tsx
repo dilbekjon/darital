@@ -259,6 +259,24 @@ const TenantDashboard = () => {
               </div>
             </a>
 
+            <a href="/tenant/utility-bills" className={`group flex items-center gap-4 p-4 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border ${
+              darkMode
+                ? 'bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 hover:from-yellow-500/20 hover:to-yellow-600/20 border-yellow-500/40 hover:border-yellow-400'
+                : 'bg-gradient-to-r from-cyan-50 to-cyan-100 hover:from-cyan-100 hover:to-cyan-200 border-transparent'
+            }`}>
+              <div className={`p-3 rounded-lg group-hover:scale-110 transition-transform duration-300 border ${
+                darkMode ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-white border-transparent'
+              }`}>
+                <svg className={`w-6 h-6 ${darkMode ? 'text-yellow-400' : 'text-cyan-700'}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div>
+                <p className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Kommunal to‘lovlar</p>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Suv, elektr, gaz</p>
+              </div>
+            </a>
+
             <a href="/tenant/contracts" className={`group flex items-center gap-4 p-4 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border ${
               darkMode
                 ? 'bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 hover:from-yellow-500/20 hover:to-yellow-600/20 border-yellow-500/40 hover:border-yellow-400'

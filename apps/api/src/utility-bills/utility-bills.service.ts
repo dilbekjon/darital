@@ -1,0 +1,362 @@
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { AdminRole, PaymentMethod, PaymentSource, PaymentStatus, Prisma, UtilityBillStatus, UtilityType } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
+import { PrismaService } from '../prisma.service';
+import { CreateUtilityBillPaymentDto } from './dto/create-utility-bill-payment.dto';
+import { ListUtilityBillsQueryDto } from './dto/list-utility-bills-query.dto';
+import { UpdateUtilityBillDto } from './dto/update-utility-bill.dto';
+import { UpsertUtilityReadingDto } from './dto/upsert-utility-reading.dto';
+
+@Injectable()
+export class UtilityBillsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  private parseMonth(month: string): Date {
+    const [y, m] = month.split('-').map(Number);
+    if (!y || !m || m < 1 || m > 12) {
+      throw new BadRequestException('month must be in YYYY-MM format');
+    }
+    return new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
+  }
+
+  private decimal(value: string | number | Decimal | null | undefined, fallback = '0'): Decimal {
+    if (value === null || value === undefined || value === '') return new Decimal(fallback);
+    return new Decimal(value);
+  }
+
+  private normalizeReadingFields(startReading: Decimal | null, endReading: Decimal | null, unitPrice: Decimal) {
+    if (startReading && endReading && endReading.lessThan(startReading)) {
+      throw new BadRequestException('endReading must be greater than or equal to startReading');
+    }
+    const consumption = startReading && endReading ? endReading.minus(startReading) : new Decimal(0);
+    const amount = consumption.mul(unitPrice);
+    return { consumption, amount };
+  }
+
+  private validateSource(source: PaymentSource) {
+    if (source !== PaymentSource.BANK && source !== PaymentSource.CASH) {
+      throw new BadRequestException('Only BANK or CASH source is allowed for utility bill payments');
+    }
+  }
+
+  private canManageType(role: AdminRole, type: UtilityType): boolean {
+    if (role === AdminRole.SUPER_ADMIN || role === AdminRole.ADMIN) return true;
+    if (role === AdminRole.WATER_OPERATOR && type === UtilityType.WATER) return true;
+    if (role === AdminRole.ELECTRICITY_OPERATOR && type === UtilityType.ELECTRICITY) return true;
+    if (role === AdminRole.GAS_OPERATOR && type === UtilityType.GAS) return true;
+    return false;
+  }
+
+  private deriveStatus(amount: Decimal, paidAmount: Decimal, currentStatus?: UtilityBillStatus): UtilityBillStatus {
+    if (currentStatus === UtilityBillStatus.CANCELLED) return UtilityBillStatus.CANCELLED;
+    if (amount.lessThanOrEqualTo(0)) return UtilityBillStatus.DRAFT;
+    if (paidAmount.greaterThanOrEqualTo(amount)) return UtilityBillStatus.PAID;
+    if (paidAmount.greaterThan(0)) return UtilityBillStatus.PARTIALLY_PAID;
+    return UtilityBillStatus.PENDING;
+  }
+
+  private mapBill(bill: any) {
+    return {
+      id: bill.id,
+      tenantId: bill.tenantId,
+      tenantName: bill.tenant?.fullName || null,
+      unitName: bill.unit?.name || bill.tenant?.contracts?.[0]?.unit?.name || null,
+      type: bill.type,
+      month: new Date(bill.billingMonth).toISOString().slice(0, 7),
+      startReading: bill.startReading ? Number(bill.startReading) : null,
+      endReading: bill.endReading ? Number(bill.endReading) : null,
+      consumption: Number(bill.consumption ?? 0),
+      unitPrice: Number(bill.unitPrice ?? 0),
+      amount: Number(bill.amount ?? 0),
+      paidAmount: Number(bill.paidAmount ?? 0),
+      remainingAmount: Math.max(0, Number(bill.amount ?? 0) - Number(bill.paidAmount ?? 0)),
+      status: bill.status,
+      note: bill.note || null,
+      createdAt: bill.createdAt,
+      updatedAt: bill.updatedAt,
+      payments: (bill.payments || []).map((payment: any) => ({
+        id: payment.id,
+        source: payment.source,
+        method: payment.method,
+        amount: Number(payment.amount ?? 0),
+        status: payment.status,
+        note: payment.note || null,
+        createdAt: payment.createdAt,
+        confirmedAt: payment.confirmedAt || null,
+      })),
+    };
+  }
+
+  async findAll(query: ListUtilityBillsQueryDto) {
+    const where: Prisma.UtilityBillWhereInput = {};
+    if (query.tenantId) where.tenantId = query.tenantId;
+    if (query.type) where.type = query.type;
+    if (query.status) where.status = query.status;
+    if (query.month) where.billingMonth = this.parseMonth(query.month);
+    if (query.q?.trim()) {
+      const q = query.q.trim();
+      where.OR = [
+        { tenant: { fullName: { contains: q, mode: 'insensitive' } } },
+        { tenant: { phone: { contains: q, mode: 'insensitive' } } },
+        { tenant: { email: { contains: q, mode: 'insensitive' } } },
+        { unit: { name: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
+
+    const bills = await this.prisma.utilityBill.findMany({
+      where,
+      include: {
+        tenant: { select: { id: true, fullName: true, phone: true, email: true } },
+        unit: { select: { id: true, name: true } },
+        payments: { orderBy: { createdAt: 'desc' } },
+      },
+      orderBy: [{ billingMonth: 'desc' }, { createdAt: 'desc' }],
+    });
+
+    return bills.map((bill) => this.mapBill(bill));
+  }
+
+  async upsertReading(dto: UpsertUtilityReadingDto, actor: { id: string; role: AdminRole }) {
+    if (!this.canManageType(actor.role, dto.type)) {
+      throw new ForbiddenException('You cannot manage this utility type');
+    }
+
+    const billingMonth = this.parseMonth(dto.month);
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: dto.tenantId },
+      include: {
+        contracts: {
+          where: { status: 'ACTIVE' },
+          include: { unit: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const startReading = dto.startReading ? this.decimal(dto.startReading) : null;
+    const endReading = dto.endReading ? this.decimal(dto.endReading) : null;
+    const unitPrice = this.decimal(dto.unitPrice);
+    const { consumption, amount } = this.normalizeReadingFields(startReading, endReading, unitPrice);
+
+    const existing = await this.prisma.utilityBill.findUnique({
+      where: {
+        tenantId_type_billingMonth: {
+          tenantId: dto.tenantId,
+          type: dto.type,
+          billingMonth,
+        },
+      },
+    });
+
+    const paidAmount = existing?.paidAmount ?? new Decimal(0);
+    const targetStatus = this.deriveStatus(amount, paidAmount, existing?.status);
+    const activeUnitId = tenant.contracts[0]?.unitId || null;
+
+    const bill = existing
+      ? await this.prisma.utilityBill.update({
+          where: { id: existing.id },
+          data: {
+            unitId: activeUnitId,
+            startReading,
+            endReading,
+            unitPrice,
+            consumption,
+            amount,
+            status: targetStatus,
+            note: dto.note ?? existing.note,
+            updatedBy: actor.id,
+          },
+          include: {
+            tenant: { select: { id: true, fullName: true } },
+            unit: { select: { id: true, name: true } },
+            payments: { orderBy: { createdAt: 'desc' } },
+          },
+        })
+      : await this.prisma.utilityBill.create({
+          data: {
+            tenantId: dto.tenantId,
+            unitId: activeUnitId,
+            type: dto.type,
+            billingMonth,
+            startReading,
+            endReading,
+            unitPrice,
+            consumption,
+            amount,
+            status: targetStatus,
+            note: dto.note,
+            createdBy: actor.id,
+            updatedBy: actor.id,
+          },
+          include: {
+            tenant: { select: { id: true, fullName: true } },
+            unit: { select: { id: true, name: true } },
+            payments: { orderBy: { createdAt: 'desc' } },
+          },
+        });
+
+    return this.mapBill(bill);
+  }
+
+  async updateBill(id: string, dto: UpdateUtilityBillDto, actor: { id: string; role: AdminRole }) {
+    const bill = await this.prisma.utilityBill.findUnique({ where: { id } });
+    if (!bill) throw new NotFoundException('Utility bill not found');
+    if (!this.canManageType(actor.role, bill.type)) {
+      throw new ForbiddenException('You cannot update this utility type');
+    }
+
+    const startReading = dto.startReading !== undefined ? this.decimal(dto.startReading) : bill.startReading;
+    const endReading = dto.endReading !== undefined ? this.decimal(dto.endReading) : bill.endReading;
+    const unitPrice = dto.unitPrice !== undefined ? this.decimal(dto.unitPrice) : bill.unitPrice;
+    const { consumption, amount } = this.normalizeReadingFields(startReading, endReading, unitPrice);
+    const paidAmount = bill.paidAmount ?? new Decimal(0);
+    const status = dto.status ?? this.deriveStatus(amount, paidAmount, bill.status);
+
+    const updated = await this.prisma.utilityBill.update({
+      where: { id },
+      data: {
+        startReading,
+        endReading,
+        unitPrice,
+        consumption,
+        amount,
+        status,
+        note: dto.note !== undefined ? dto.note : bill.note,
+        updatedBy: actor.id,
+      },
+      include: {
+        tenant: { select: { id: true, fullName: true } },
+        unit: { select: { id: true, name: true } },
+        payments: { orderBy: { createdAt: 'desc' } },
+      },
+    });
+    return this.mapBill(updated);
+  }
+
+  async createPayment(utilityBillId: string, dto: CreateUtilityBillPaymentDto, actor: { id: string; role: string }) {
+    this.validateSource(dto.source);
+    const bill = await this.prisma.utilityBill.findUnique({ where: { id: utilityBillId } });
+    if (!bill) throw new NotFoundException('Utility bill not found');
+    if (bill.status === UtilityBillStatus.CANCELLED) {
+      throw new BadRequestException('Cancelled utility bill cannot be paid');
+    }
+
+    const remaining = this.decimal(bill.amount).minus(this.decimal(bill.paidAmount));
+    if (remaining.lessThanOrEqualTo(0)) {
+      throw new BadRequestException('Utility bill is already fully paid');
+    }
+
+    const amount = dto.amount ? this.decimal(dto.amount) : remaining;
+    if (amount.lessThanOrEqualTo(0)) throw new BadRequestException('Payment amount must be greater than 0');
+    if (amount.greaterThan(remaining)) throw new BadRequestException('Payment amount cannot exceed remaining amount');
+
+    const payment = await this.prisma.utilityBillPayment.create({
+      data: {
+        utilityBillId,
+        method: PaymentMethod.OFFLINE,
+        source: dto.source,
+        amount,
+        status: PaymentStatus.PENDING,
+        createdBy: actor.id,
+        createdByRole: actor.role,
+        note: dto.note,
+      },
+    });
+    return {
+      id: payment.id,
+      utilityBillId: payment.utilityBillId,
+      amount: Number(payment.amount),
+      status: payment.status,
+      source: payment.source,
+      createdAt: payment.createdAt,
+    };
+  }
+
+  async approvePayment(paymentId: string, actorId: string) {
+    const payment = await this.prisma.utilityBillPayment.findUnique({
+      where: { id: paymentId },
+      include: { utilityBill: true },
+    });
+    if (!payment) throw new NotFoundException('Utility payment not found');
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException('Only pending utility payment can be approved');
+    }
+
+    const bill = await this.prisma.$transaction(async (tx) => {
+      await tx.utilityBillPayment.update({
+        where: { id: paymentId },
+        data: {
+          status: PaymentStatus.CONFIRMED,
+          confirmedBy: actorId,
+          confirmedAt: new Date(),
+        },
+      });
+
+      const current = await tx.utilityBill.findUniqueOrThrow({ where: { id: payment.utilityBillId } });
+      const paidAmount = this.decimal(current.paidAmount).plus(payment.amount);
+      const amount = this.decimal(current.amount);
+      const status = this.deriveStatus(amount, paidAmount, current.status);
+
+      return tx.utilityBill.update({
+        where: { id: current.id },
+        data: {
+          paidAmount,
+          status,
+          updatedBy: actorId,
+        },
+        include: {
+          tenant: { select: { id: true, fullName: true } },
+          unit: { select: { id: true, name: true } },
+          payments: { orderBy: { createdAt: 'desc' } },
+        },
+      });
+    });
+
+    return this.mapBill(bill);
+  }
+
+  async declinePayment(paymentId: string, actorId: string) {
+    const payment = await this.prisma.utilityBillPayment.findUnique({
+      where: { id: paymentId },
+      include: { utilityBill: true },
+    });
+    if (!payment) throw new NotFoundException('Utility payment not found');
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException('Only pending utility payment can be declined');
+    }
+
+    await this.prisma.utilityBillPayment.update({
+      where: { id: paymentId },
+      data: {
+        status: PaymentStatus.CANCELLED,
+        confirmedBy: actorId,
+        confirmedAt: new Date(),
+      },
+    });
+
+    return { success: true };
+  }
+
+  async getTenantBills(tenantId: string) {
+    const bills = await this.prisma.utilityBill.findMany({
+      where: { tenantId },
+      include: {
+        unit: { select: { id: true, name: true } },
+        payments: { orderBy: { createdAt: 'desc' } },
+      },
+      orderBy: [{ billingMonth: 'desc' }, { createdAt: 'desc' }],
+    });
+    return bills.map((bill) => this.mapBill(bill));
+  }
+
+  async tenantCreatePayment(tenantId: string, utilityBillId: string, dto: CreateUtilityBillPaymentDto) {
+    const bill = await this.prisma.utilityBill.findUnique({ where: { id: utilityBillId } });
+    if (!bill || bill.tenantId !== tenantId) {
+      throw new NotFoundException('Utility bill not found');
+    }
+    return this.createPayment(utilityBillId, dto, { id: tenantId, role: 'TENANT_USER' });
+  }
+}
