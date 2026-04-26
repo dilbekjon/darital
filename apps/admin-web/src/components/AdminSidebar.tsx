@@ -26,7 +26,8 @@ export function AdminSidebar() {
   const { darkMode } = useTheme();
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const canAccessChat = hasPermission('chat.read') && user?.role !== 'PAYMENT_COLLECTOR';
+  const isCollectorRole = ['PAYMENT_COLLECTOR', 'WATER_COLLECTOR', 'ELECTRICITY_COLLECTOR', 'GAS_COLLECTOR'].includes(user?.role || '');
+  const canAccessChat = hasPermission('chat.read') && !isCollectorRole;
   const { count: unreadCount } = useUnreadChatCount(canAccessChat);
   const { count: pendingPaymentsCount } = usePendingPaymentsCount();
 
@@ -265,8 +266,8 @@ export function AdminSidebar() {
   // Filter items based on user permissions
   const visibleMenuItems = allMenuItems.filter(item => {
     const hasPerms = item.permissionCodes.every(perm => hasPermission(perm));
-    // Hide Chat tab for PAYMENT_COLLECTOR (tolovyiguvchi)
-    if (item.href === '/admin/chat' && user?.role === 'PAYMENT_COLLECTOR') return false;
+    // Hide Chat tab for collector roles (tolovyiguvchi)
+    if (item.href === '/admin/chat' && isCollectorRole) return false;
     return hasPerms;
   });
 

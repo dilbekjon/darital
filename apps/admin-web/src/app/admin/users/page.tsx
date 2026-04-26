@@ -17,6 +17,9 @@ enum AdminRole {
   USER_MANAGER = 'USER_MANAGER',
   CASHIER = 'CASHIER',
   PAYMENT_COLLECTOR = 'PAYMENT_COLLECTOR',
+  WATER_COLLECTOR = 'WATER_COLLECTOR',
+  ELECTRICITY_COLLECTOR = 'ELECTRICITY_COLLECTOR',
+  GAS_COLLECTOR = 'GAS_COLLECTOR',
   WATER_OPERATOR = 'WATER_OPERATOR',
   ELECTRICITY_OPERATOR = 'ELECTRICITY_OPERATOR',
   GAS_OPERATOR = 'GAS_OPERATOR',
@@ -91,6 +94,9 @@ export default function AdminUsersPage() {
     role === AdminRole.USER_MANAGER ? (t.userManager || 'Foydalanuvchi Menejeri') :
     role === AdminRole.CASHIER ? (t.cashier || 'Kassir') :
     role === AdminRole.PAYMENT_COLLECTOR ? (t.paymentCollector || 'To\'lov Yig\'uvchi') :
+    role === AdminRole.WATER_COLLECTOR ? ('Suv Pul Yig\'uvchi') :
+    role === AdminRole.ELECTRICITY_COLLECTOR ? ('Elektr Pul Yig\'uvchi') :
+    role === AdminRole.GAS_COLLECTOR ? ('Gaz Pul Yig\'uvchi') :
     role === AdminRole.WATER_OPERATOR ? ('Suv Operatori') :
     role === AdminRole.ELECTRICITY_OPERATOR ? ('Elektr Operatori') :
     role === AdminRole.GAS_OPERATOR ? ('Gaz Operatori') :
@@ -362,6 +368,9 @@ export default function AdminUsersPage() {
               <option value="USER_MANAGER">{t.userManager || 'Foydalanuvchi Menejeri'}</option>
               <option value="CASHIER">{t.cashier || 'Kassir'}</option>
               <option value="PAYMENT_COLLECTOR">{t.paymentCollector || 'To\'lov Yig\'uvchi'}</option>
+              <option value="WATER_COLLECTOR">Suv Pul Yig‘uvchi</option>
+              <option value="ELECTRICITY_COLLECTOR">Elektr Pul Yig‘uvchi</option>
+              <option value="GAS_COLLECTOR">Gaz Pul Yig‘uvchi</option>
               <option value="WATER_OPERATOR">Suv Operatori</option>
               <option value="ELECTRICITY_OPERATOR">Elektr Operatori</option>
               <option value="GAS_OPERATOR">Gaz Operatori</option>

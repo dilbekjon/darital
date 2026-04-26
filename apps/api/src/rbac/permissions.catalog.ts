@@ -37,6 +37,9 @@ export const PERMISSIONS = {
   'utility.bills.manage.gas': 'Manage monthly gas meter readings and bills',
   'utility.bills.payments.record': 'Record utility bill payments',
   'utility.bills.payments.approve': 'Approve utility bill payments',
+  'utility.bills.collect.water': 'Confirm/collect water utility cash payments',
+  'utility.bills.collect.electricity': 'Confirm/collect electricity utility cash payments',
+  'utility.bills.collect.gas': 'Confirm/collect gas utility cash payments',
   // Invoices
   'invoices.read': 'View invoices',
   'invoices.create': 'Create invoices',
@@ -168,6 +171,36 @@ export const ROLE_PRESETS: Record<string, PermissionCode[]> = {
     'utility.bills.read',
     'utility.bills.manage.gas',
     'utility.bills.payments.record',
+    'tenants.read',
+    'units.read',
+    'contracts.read',
+    'companies.read',
+  ],
+
+  WATER_COLLECTOR: [
+    'utility.bills.read',
+    'utility.bills.payments.record',
+    'utility.bills.collect.water',
+    'tenants.read',
+    'units.read',
+    'contracts.read',
+    'companies.read',
+  ],
+
+  ELECTRICITY_COLLECTOR: [
+    'utility.bills.read',
+    'utility.bills.payments.record',
+    'utility.bills.collect.electricity',
+    'tenants.read',
+    'units.read',
+    'contracts.read',
+    'companies.read',
+  ],
+
+  GAS_COLLECTOR: [
+    'utility.bills.read',
+    'utility.bills.payments.record',
+    'utility.bills.collect.gas',
     'tenants.read',
     'units.read',
     'contracts.read',

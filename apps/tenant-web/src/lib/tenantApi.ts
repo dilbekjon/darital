@@ -101,9 +101,20 @@ interface Contract {
 
 export interface TenantUtilityBillPayment {
   id: string;
+  utilityType?: 'WATER' | 'ELECTRICITY' | 'GAS';
   source: 'BANK' | 'CASH';
   amount: number;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+  workflowStatus?: 'TENANT_SUBMITTED' | 'COLLECTOR_CONFIRMED' | 'HANDED_TO_CASHIER' | 'CASHIER_CONFIRMED' | 'REJECTED';
+  tenantDeclaredAmount?: number | null;
+  collectorConfirmedAmount?: number | null;
+  collectorId?: string | null;
+  tenantDeclaredAt?: string | null;
+  collectorConfirmedAt?: string | null;
+  collectorHandoverAt?: string | null;
+  handoverDueAt?: string | null;
+  handoverOverdue?: boolean;
+  note?: string | null;
   createdAt: string;
   confirmedAt?: string | null;
 }

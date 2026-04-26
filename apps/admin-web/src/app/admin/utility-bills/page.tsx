@@ -13,12 +13,24 @@ import DaritalLoader from '../../../components/DaritalLoader';
 type UtilityType = 'WATER' | 'ELECTRICITY' | 'GAS';
 type UtilityBillStatus = 'DRAFT' | 'PENDING' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
 type PaymentSource = 'BANK' | 'CASH';
+type WorkflowStatus = 'TENANT_SUBMITTED' | 'COLLECTOR_CONFIRMED' | 'HANDED_TO_CASHIER' | 'CASHIER_CONFIRMED' | 'REJECTED';
 
 interface UtilityBillPayment {
   id: string;
+  utilityType: UtilityType;
   source: PaymentSource;
   amount: number;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+  workflowStatus: WorkflowStatus;
+  tenantDeclaredAmount?: number | null;
+  collectorConfirmedAmount?: number | null;
+  collectorId?: string | null;
+  tenantDeclaredAt?: string | null;
+  collectorConfirmedAt?: string | null;
+  collectorHandoverAt?: string | null;
+  handoverDueAt?: string | null;
+  handoverOverdue?: boolean;
+  note?: string | null;
   createdAt: string;
   confirmedAt?: string | null;
 }
@@ -50,8 +62,22 @@ interface TenantOption {
 
 const TYPE_LABEL: Record<UtilityType, string> = {
   WATER: 'Suv',
-  ELECTRICITY: 'Elektr',
+  ELECTRICITY: 'Svet',
   GAS: 'Gaz',
+};
+
+const WORKFLOW_LABEL: Record<WorkflowStatus, string> = {
+  TENANT_SUBMITTED: 'Tenant yubordi',
+  COLLECTOR_CONFIRMED: 'Yig‘uvchi qabul qildi',
+  HANDED_TO_CASHIER: 'Kassirga topshirildi',
+  CASHIER_CONFIRMED: 'Kassir tasdiqladi',
+  REJECTED: 'Rad etildi',
+};
+
+const collectorRoleByType: Record<UtilityType, string[]> = {
+  WATER: ['WATER_COLLECTOR', 'PAYMENT_COLLECTOR'],
+  ELECTRICITY: ['ELECTRICITY_COLLECTOR', 'PAYMENT_COLLECTOR'],
+  GAS: ['GAS_COLLECTOR', 'PAYMENT_COLLECTOR'],
 };
 
 export default function AdminUtilityBillsPage() {
@@ -64,11 +90,7 @@ export default function AdminUtilityBillsPage() {
   const [error, setError] = useState<string | null>(null);
   const [bills, setBills] = useState<UtilityBill[]>([]);
   const [tenants, setTenants] = useState<TenantOption[]>([]);
-
-  const [monthFilter, setMonthFilter] = useState<string>('');
-  const [typeFilter, setTypeFilter] = useState<string>('ALL');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [search, setSearch] = useState('');
+  const [activeType, setActiveType] = useState<UtilityType>('WATER');
 
   const [form, setForm] = useState({
     tenantId: '',
@@ -83,15 +105,16 @@ export default function AdminUtilityBillsPage() {
   const canRead = hasPermission('utility.bills.read');
   const canRecordPayment = hasPermission('utility.bills.payments.record');
   const canApprovePayment = hasPermission('utility.bills.payments.approve');
+  const isCashier = user?.role === 'CASHIER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  const canManageReading = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'WATER_OPERATOR' || user?.role === 'ELECTRICITY_OPERATOR' || user?.role === 'GAS_OPERATOR';
+
+  const canCollectForType = (type: UtilityType) => {
+    const role = user?.role || '';
+    return collectorRoleByType[type].includes(role) || role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'CASHIER';
+  };
 
   const loadBills = async () => {
-    const params = new URLSearchParams();
-    if (monthFilter) params.append('month', monthFilter);
-    if (typeFilter !== 'ALL') params.append('type', typeFilter);
-    if (statusFilter !== 'ALL') params.append('status', statusFilter);
-    if (search.trim()) params.append('q', search.trim());
-    const query = params.toString() ? `?${params.toString()}` : '';
-    const data = await fetchApi<UtilityBill[]>(`/utility-bills${query}`);
+    const data = await fetchApi<UtilityBill[]>('/utility-bills');
     setBills(data);
   };
 
@@ -100,47 +123,39 @@ export default function AdminUtilityBillsPage() {
     setTenants(data);
   };
 
-  const initialLoad = async () => {
-    if (!canRead) return;
-    setPageLoading(true);
-    setError(null);
-    try {
-      await Promise.all([loadBills(), loadTenants()]);
-    } catch (err) {
-      if (err instanceof ApiError) setError(err.message);
-      else setError('Kommunal to‘lovlarni yuklashda xatolik yuz berdi');
-    } finally {
-      setPageLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (!loading && canRead) {
-      void initialLoad();
-    } else if (!loading) {
-      setPageLoading(false);
-    }
+    const run = async () => {
+      if (!canRead) {
+        setPageLoading(false);
+        return;
+      }
+      setPageLoading(true);
+      setError(null);
+      try {
+        await Promise.all([loadBills(), loadTenants()]);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Kommunal ma’lumotlarni yuklashda xatolik');
+      } finally {
+        setPageLoading(false);
+      }
+    };
+    if (!loading) void run();
   }, [loading, canRead]);
 
-  useEffect(() => {
-    if (!canRead || pageLoading) return;
-    const handle = setTimeout(() => {
-      void loadBills().catch((err) => setError(err instanceof ApiError ? err.message : 'Yuklashda xatolik'));
-    }, 250);
-    return () => clearTimeout(handle);
-  }, [monthFilter, typeFilter, statusFilter, search]);
+  const groupedBills = useMemo(() => bills.filter((bill) => bill.type === activeType), [bills, activeType]);
 
-  const totals = useMemo(() => {
-    return bills.reduce(
-      (acc, bill) => {
-        acc.amount += bill.amount;
-        acc.paid += bill.paidAmount;
-        acc.remaining += bill.remainingAmount;
-        return acc;
-      },
-      { amount: 0, paid: 0, remaining: 0 },
-    );
-  }, [bills]);
+  const queue = useMemo(() => {
+    const rows: Array<{ bill: UtilityBill; payment: UtilityBillPayment }> = [];
+    for (const bill of bills) {
+      if (bill.type !== activeType) continue;
+      for (const payment of bill.payments) {
+        if (payment.status !== 'PENDING') continue;
+        rows.push({ bill, payment });
+      }
+    }
+    rows.sort((a, b) => new Date(b.payment.createdAt).getTime() - new Date(a.payment.createdAt).getTime());
+    return rows;
+  }, [bills, activeType]);
 
   const handleSaveReading = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -162,32 +177,32 @@ export default function AdminUtilityBillsPage() {
       setForm((prev) => ({ ...prev, startReading: '', endReading: '', note: '' }));
       await loadBills();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Saqlashda xatolik');
+      setError(err instanceof ApiError ? err.message : 'Hisob saqlashda xatolik');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRecordPayment = async (billId: string) => {
-    const sourceRaw = window.prompt('To‘lov manbasi kiriting: BANK yoki CASH', 'BANK');
-    if (!sourceRaw) return;
-    const source = sourceRaw.toUpperCase();
-    if (source !== 'BANK' && source !== 'CASH') {
-      setError('Faqat BANK yoki CASH manbasi ruxsat etiladi');
-      return;
-    }
-    const amount = window.prompt('To‘lov summasi (bo‘sh qoldirilsa to‘liq qoldiq):', '');
+  const handleCollectorConfirm = async (paymentId: string, suggestedAmount: number) => {
+    const raw = window.prompt('Qabul qilingan summa', String(Math.round(suggestedAmount)));
+    if (raw === null) return;
     try {
-      await fetchApi(`/utility-bills/${billId}/payments`, {
-        method: 'POST',
-        body: JSON.stringify({
-          source,
-          amount: amount?.trim() ? amount.trim() : undefined,
-        }),
+      await fetchApi(`/utility-bills/payments/${paymentId}/collector-confirm`, {
+        method: 'PATCH',
+        body: JSON.stringify(raw.trim() ? { amount: raw.trim() } : {}),
       });
       await loadBills();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'To‘lov yozishda xatolik');
+      setError(err instanceof ApiError ? err.message : 'Qabul qilishda xatolik');
+    }
+  };
+
+  const handleCollectorHandover = async (paymentId: string) => {
+    try {
+      await fetchApi(`/utility-bills/payments/${paymentId}/collector-handover`, { method: 'PATCH' });
+      await loadBills();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Kassirga topshirishda xatolik');
     }
   };
 
@@ -216,219 +231,209 @@ export default function AdminUtilityBillsPage() {
     <div className={`p-4 sm:p-6 lg:p-8 min-h-screen ${darkMode ? 'bg-black' : 'bg-gray-100'}`}>
       <Breadcrumbs items={[{ label: t.dashboard || 'Bosh sahifa', href: '/dashboard' }, { label: 'Kommunal to‘lovlar' }]} />
 
-      <div className="mb-6">
+      <div className="mb-4">
         <h1 className={`text-2xl sm:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Kommunal to‘lovlar</h1>
         <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Suv, elektr va gaz hisoblagichlari bo‘yicha oylik billing va to‘lov nazorati
+          Model: Tenant yuboradi → Yig‘uvchi qabul qiladi → Kassirga topshiradi → Kassir tasdiqlaydi
         </p>
       </div>
 
-      {error && (
-        <div className="mb-4 px-4 py-3 rounded-lg border bg-red-100 border-red-300 text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4 px-4 py-3 rounded-lg border bg-red-100 border-red-300 text-red-700">{error}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-blue-600/30 text-white' : 'bg-white border-gray-200'}`}>
-          <p className="text-xs opacity-70">Umumiy hisob</p>
-          <p className="text-xl font-semibold mt-1">UZS {Math.round(totals.amount).toLocaleString()}</p>
-        </div>
-        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-green-600/30 text-white' : 'bg-white border-green-200'}`}>
-          <p className="text-xs opacity-70">To‘langan</p>
-          <p className="text-xl font-semibold mt-1">UZS {Math.round(totals.paid).toLocaleString()}</p>
-        </div>
-        <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-amber-600/30 text-white' : 'bg-white border-amber-200'}`}>
-          <p className="text-xs opacity-70">Qolgan qarzdorlik</p>
-          <p className="text-xl font-semibold mt-1">UZS {Math.round(totals.remaining).toLocaleString()}</p>
-        </div>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {(Object.keys(TYPE_LABEL) as UtilityType[]).map((type) => (
+          <button
+            key={type}
+            onClick={() => {
+              setActiveType(type);
+              setForm((prev) => ({ ...prev, type }));
+            }}
+            className={`px-3 py-2 rounded-lg text-sm font-semibold ${
+              activeType === type
+                ? darkMode
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-blue-600 text-white'
+                : darkMode
+                  ? 'bg-gray-900 text-gray-300 border border-blue-600/20'
+                  : 'bg-white text-gray-700 border border-gray-300'
+            }`}
+          >
+            {TYPE_LABEL[type]}
+          </button>
+        ))}
       </div>
 
-      <form onSubmit={handleSaveReading} className={`mb-6 rounded-lg border p-4 ${darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-white border-gray-200'}`}>
-        <p className={`font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Oylik hisoblagich kiriting / yangilang</p>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <select
-            value={form.tenantId}
-            onChange={(e) => setForm((prev) => ({ ...prev, tenantId: e.target.value }))}
-            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-            required
-          >
-            <option value="">Tenant tanlang</option>
-            {tenants.map((tenant) => (
-              <option key={tenant.id} value={tenant.id}>
-                {tenant.fullName} {tenant.phone ? `(${tenant.phone})` : ''}
-              </option>
-            ))}
-          </select>
-          <select
-            value={form.type}
-            onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as UtilityType }))}
-            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-          >
-            <option value="WATER">Suv</option>
-            <option value="ELECTRICITY">Elektr</option>
-            <option value="GAS">Gaz</option>
-          </select>
-          <input
-            type="month"
-            value={form.month}
-            onChange={(e) => setForm((prev) => ({ ...prev, month: e.target.value }))}
-            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-            required
-          />
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Tarif (1 birlik)"
-            value={form.unitPrice}
-            onChange={(e) => setForm((prev) => ({ ...prev, unitPrice: e.target.value }))}
-            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-            required
-          />
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Boshlang‘ich ko‘rsatkich"
-            value={form.startReading}
-            onChange={(e) => setForm((prev) => ({ ...prev, startReading: e.target.value }))}
-            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-          />
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Oxirgi ko‘rsatkich"
-            value={form.endReading}
-            onChange={(e) => setForm((prev) => ({ ...prev, endReading: e.target.value }))}
-            className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-          />
-          <input
-            type="text"
-            placeholder="Izoh (ixtiyoriy)"
-            value={form.note}
-            onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
-            className={`px-3 py-2 rounded-lg border md:col-span-2 ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-          />
-        </div>
-        <div className="mt-4">
+      {canManageReading && (
+        <form onSubmit={handleSaveReading} className={`mb-6 rounded-xl border p-4 ${darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-white border-gray-200'}`}>
+          <p className={`font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Oy boshidagi/oxiridagi hisoblagich</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <select
+              value={form.tenantId}
+              onChange={(e) => setForm((prev) => ({ ...prev, tenantId: e.target.value }))}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
+              required
+            >
+              <option value="">Tenant tanlang</option>
+              {tenants.map((tenant) => (
+                <option key={tenant.id} value={tenant.id}>
+                  {tenant.fullName} {tenant.phone ? `(${tenant.phone})` : ''}
+                </option>
+              ))}
+            </select>
+            <input
+              type="month"
+              value={form.month}
+              onChange={(e) => setForm((prev) => ({ ...prev, month: e.target.value }))}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
+              required
+            />
+            <input
+              type="number"
+              step="0.01"
+              placeholder="Tarif"
+              value={form.unitPrice}
+              onChange={(e) => setForm((prev) => ({ ...prev, unitPrice: e.target.value }))}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
+              required
+            />
+            <input
+              type="number"
+              step="0.01"
+              placeholder="Boshlang‘ich holat"
+              value={form.startReading}
+              onChange={(e) => setForm((prev) => ({ ...prev, startReading: e.target.value }))}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
+            />
+            <input
+              type="number"
+              step="0.01"
+              placeholder="Oxirgi holat"
+              value={form.endReading}
+              onChange={(e) => setForm((prev) => ({ ...prev, endReading: e.target.value }))}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
+            />
+            <input
+              type="text"
+              placeholder="Izoh"
+              value={form.note}
+              onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
+            />
+          </div>
           <button
             type="submit"
             disabled={saving}
-            className={`px-4 py-2 rounded-lg font-medium ${darkMode ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-blue-600 text-white hover:bg-blue-700'} disabled:opacity-50`}
+            className={`mt-3 px-4 py-2 rounded-lg font-medium ${darkMode ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-blue-600 text-white hover:bg-blue-700'} disabled:opacity-50`}
           >
             {saving ? 'Saqlanmoqda...' : 'Saqlash'}
           </button>
-        </div>
-      </form>
+        </form>
+      )}
 
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Tenant / xona qidirish"
-          className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-        />
-        <input
-          type="month"
-          value={monthFilter}
-          onChange={(e) => setMonthFilter(e.target.value)}
-          className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-        />
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-        >
-          <option value="ALL">Barcha turlar</option>
-          <option value="WATER">Suv</option>
-          <option value="ELECTRICITY">Elektr</option>
-          <option value="GAS">Gaz</option>
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-        >
-          <option value="ALL">Barcha holatlar</option>
-          <option value="DRAFT">Draft</option>
-          <option value="PENDING">Pending</option>
-          <option value="PARTIALLY_PAID">Partially paid</option>
-          <option value="PAID">Paid</option>
-          <option value="CANCELLED">Cancelled</option>
-        </select>
+      <div className={`mb-6 rounded-xl border p-4 ${darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-white border-gray-200'}`}>
+        <p className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          {TYPE_LABEL[activeType]} bo‘yicha to‘lov navbati
+        </p>
+        {queue.length === 0 ? (
+          <p className={darkMode ? 'text-sm text-gray-400' : 'text-sm text-gray-600'}>Kutilayotgan to‘lov yo‘q.</p>
+        ) : (
+          <div className="space-y-2">
+            {queue.map(({ bill, payment }) => {
+              const canCollect = canCollectForType(payment.utilityType);
+              const allowCollectorConfirm = canCollect && payment.source === 'CASH' && payment.workflowStatus === 'TENANT_SUBMITTED';
+              const allowCollectorHandover =
+                canCollect &&
+                payment.source === 'CASH' &&
+                payment.workflowStatus === 'COLLECTOR_CONFIRMED' &&
+                (!payment.collectorId || payment.collectorId === user.id || isCashier);
+              const allowCashierApprove =
+                isCashier &&
+                payment.status === 'PENDING' &&
+                (
+                  (payment.source === 'BANK' && payment.workflowStatus === 'TENANT_SUBMITTED') ||
+                  (payment.source === 'CASH' && payment.workflowStatus === 'HANDED_TO_CASHIER')
+                );
+
+              return (
+                <div key={payment.id} className={`rounded-lg border px-3 py-3 ${darkMode ? 'border-blue-600/30 bg-black' : 'border-gray-200 bg-gray-50'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {bill.tenantName || 'Tenant'} • {bill.unitName || 'Unit'}
+                      </p>
+                      <p className={darkMode ? 'text-xs text-gray-400' : 'text-xs text-gray-600'}>
+                        {TYPE_LABEL[bill.type]} • {payment.source} • {Math.round(payment.amount).toLocaleString()} UZS
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-xs font-semibold ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>{WORKFLOW_LABEL[payment.workflowStatus]}</p>
+                      {payment.handoverOverdue && (
+                        <p className="text-[11px] text-red-500 font-semibold">Kassirga topshirish kechikdi</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {allowCollectorConfirm && (
+                      <button
+                        onClick={() => handleCollectorConfirm(payment.id, payment.tenantDeclaredAmount ?? payment.amount)}
+                        className={darkMode ? 'px-3 py-1 rounded text-xs bg-amber-600/20 border border-amber-600/30 text-amber-200' : 'px-3 py-1 rounded text-xs bg-amber-100 border border-amber-300 text-amber-800'}
+                      >
+                        Qabul qildim
+                      </button>
+                    )}
+                    {allowCollectorHandover && (
+                      <button
+                        onClick={() => handleCollectorHandover(payment.id)}
+                        className={darkMode ? 'px-3 py-1 rounded text-xs bg-blue-600/20 border border-blue-600/30 text-blue-200' : 'px-3 py-1 rounded text-xs bg-blue-100 border border-blue-300 text-blue-800'}
+                      >
+                        Kassirga topshirdim
+                      </button>
+                    )}
+                    {allowCashierApprove && (
+                      <>
+                        <button onClick={() => handleApprove(payment.id)} className="px-3 py-1 rounded text-xs bg-green-100 border border-green-300 text-green-800">
+                          Tasdiqlash
+                        </button>
+                        <button onClick={() => handleDecline(payment.id)} className="px-3 py-1 rounded text-xs bg-red-100 border border-red-300 text-red-700">
+                          Rad etish
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {bills.length === 0 ? (
+      {groupedBills.length === 0 ? (
         <EmptyState
           icon={<div className="text-4xl">💡</div>}
-          title="Kommunal hisoblar yo‘q"
-          description="Yuqoridagi forma orqali oy bo‘yicha ko‘rsatkichlarni kiriting"
+          title={`${TYPE_LABEL[activeType]} bo‘yicha hisob yo‘q`}
+          description="Oy bo‘yicha hisoblagich kiritsangiz, tenantlar shu yerdan to‘lov qiladi."
         />
       ) : (
         <div className="grid gap-4">
-          {bills.map((bill) => (
-            <div key={bill.id} className={`rounded-lg border p-4 ${darkMode ? 'bg-black border-blue-600/30' : 'bg-white border-gray-200'}`}>
-              <div className="flex flex-wrap items-start justify-between gap-2">
+          {groupedBills.map((bill) => (
+            <div key={bill.id} className={`rounded-xl border p-4 ${darkMode ? 'bg-black border-blue-600/30' : 'bg-white border-gray-200'}`}>
+              <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className={`text-base font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                     {bill.tenantName || 'Tenant'} • {bill.unitName || 'Unit'}
                   </p>
-                  <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className={darkMode ? 'text-xs text-gray-400' : 'text-xs text-gray-600'}>
                     {TYPE_LABEL[bill.type]} • {bill.month}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>UZS {Math.round(bill.amount).toLocaleString()}</p>
-                  <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Qoldiq: UZS {Math.round(bill.remainingAmount).toLocaleString()}
-                  </p>
+                  <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{Math.round(bill.amount).toLocaleString()} UZS</p>
+                  <p className={darkMode ? 'text-xs text-gray-400' : 'text-xs text-gray-600'}>Qoldiq: {Math.round(bill.remainingAmount).toLocaleString()} UZS</p>
                 </div>
               </div>
-
-              <div className={`mt-3 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                Boshlang‘ich: {bill.startReading ?? '-'} • Oxirgi: {bill.endReading ?? '-'} • Sarf: {bill.consumption.toLocaleString()} • Tarif: {bill.unitPrice.toLocaleString()}
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                  bill.status === 'PAID'
-                    ? 'bg-green-100 text-green-800'
-                    : bill.status === 'PARTIALLY_PAID'
-                      ? 'bg-amber-100 text-amber-800'
-                      : bill.status === 'PENDING'
-                        ? 'bg-blue-100 text-blue-800'
-                        : bill.status === 'CANCELLED'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {bill.status}
-                </span>
-                {canRecordPayment && bill.remainingAmount > 0 && (
-                  <button
-                    onClick={() => handleRecordPayment(bill.id)}
-                    className={`px-3 py-1 rounded-md text-xs font-medium ${darkMode ? 'bg-blue-600/20 text-blue-300 border border-blue-600/30' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}
-                  >
-                    To‘lov yozish
-                  </button>
-                )}
-              </div>
-
-              {bill.payments.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  {bill.payments.map((payment) => (
-                    <div key={payment.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 ${darkMode ? 'border-blue-600/30 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
-                      <div className="text-sm">
-                        <span className="font-medium">{payment.source}</span> • UZS {Math.round(payment.amount).toLocaleString()} • {payment.status}
-                      </div>
-                      {canApprovePayment && payment.status === 'PENDING' && (
-                        <div className="flex gap-2">
-                          <button onClick={() => handleApprove(payment.id)} className="px-2 py-1 text-xs rounded bg-green-100 text-green-800">Tasdiqlash</button>
-                          <button onClick={() => handleDecline(payment.id)} className="px-2 py-1 text-xs rounded bg-red-100 text-red-700">Rad etish</button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <p className={darkMode ? 'mt-2 text-xs text-gray-400' : 'mt-2 text-xs text-gray-600'}>
+                Holat: {bill.startReading ?? '-'} → {bill.endReading ?? '-'} • Sarf: {bill.consumption.toLocaleString()} • Tarif: {bill.unitPrice.toLocaleString()}
+              </p>
             </div>
           ))}
         </div>

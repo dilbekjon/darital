@@ -4,6 +4,8 @@ import { AdminRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 import { Permissions } from '../rbac/permissions.decorator';
+import { CollectorConfirmUtilityPaymentDto } from './dto/collector-confirm-utility-payment.dto';
+import { CollectorHandoverUtilityPaymentDto } from './dto/collector-handover-utility-payment.dto';
 import { CreateUtilityBillPaymentDto } from './dto/create-utility-bill-payment.dto';
 import { ListUtilityBillsQueryDto } from './dto/list-utility-bills-query.dto';
 import { UpdateUtilityBillDto } from './dto/update-utility-bill.dto';
@@ -21,8 +23,11 @@ export class UtilityBillsController {
   @Get()
   @Permissions('utility.bills.read')
   @ApiOperation({ summary: 'List utility bills' })
-  async findAll(@Query() query: ListUtilityBillsQueryDto) {
-    return this.utilityBillsService.findAll(query);
+  async findAll(@Query() query: ListUtilityBillsQueryDto, @Req() req: any) {
+    return this.utilityBillsService.findAll(query, {
+      id: req.user.id,
+      role: String(req.user.role),
+    });
   }
 
   @Post('readings/upsert')
@@ -62,13 +67,52 @@ export class UtilityBillsController {
   @Permissions('utility.bills.payments.approve')
   @ApiOperation({ summary: 'Approve utility bill payment' })
   async approvePayment(@Param('paymentId') paymentId: string, @Req() req: any) {
-    return this.utilityBillsService.approvePayment(paymentId, req.user.id);
+    return this.utilityBillsService.approvePayment(paymentId, {
+      id: req.user.id,
+      role: String(req.user.role),
+    });
   }
 
   @Patch('payments/:paymentId/decline')
   @Permissions('utility.bills.payments.approve')
   @ApiOperation({ summary: 'Decline utility bill payment' })
   async declinePayment(@Param('paymentId') paymentId: string, @Req() req: any) {
-    return this.utilityBillsService.declinePayment(paymentId, req.user.id);
+    return this.utilityBillsService.declinePayment(paymentId, {
+      id: req.user.id,
+      role: String(req.user.role),
+    });
+  }
+
+  @Patch('payments/:paymentId/collector-confirm')
+  @Permissions('utility.bills.payments.record')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @ApiOperation({ summary: 'Collector confirms receiving tenant cash payment' })
+  async collectorConfirm(
+    @Param('paymentId') paymentId: string,
+    @Body() dto: CollectorConfirmUtilityPaymentDto,
+    @Req() req: any,
+  ) {
+    return this.utilityBillsService.collectorConfirm(
+      paymentId,
+      { id: req.user.id, role: String(req.user.role) },
+      dto.amount,
+      dto.note,
+    );
+  }
+
+  @Patch('payments/:paymentId/collector-handover')
+  @Permissions('utility.bills.payments.record')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @ApiOperation({ summary: 'Collector confirms cash handover to cashier' })
+  async collectorHandover(
+    @Param('paymentId') paymentId: string,
+    @Body() dto: CollectorHandoverUtilityPaymentDto,
+    @Req() req: any,
+  ) {
+    return this.utilityBillsService.collectorHandover(
+      paymentId,
+      { id: req.user.id, role: String(req.user.role) },
+      dto.note,
+    );
   }
 }

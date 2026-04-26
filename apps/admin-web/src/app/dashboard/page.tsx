@@ -86,7 +86,7 @@ export default function DashboardPage() {
   const canViewReports = hasPermission('reports.view');
   const canViewChat = hasPermission('chat.read');
   const canManageNotifications = hasPermission('notifications.manage');
-  const isPaymentCollector = user?.role === 'PAYMENT_COLLECTOR';
+  const isPaymentCollector = ['PAYMENT_COLLECTOR', 'WATER_COLLECTOR', 'ELECTRICITY_COLLECTOR', 'GAS_COLLECTOR'].includes(user?.role || '');
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -151,7 +151,7 @@ export default function DashboardPage() {
         expiringContracts,
       });
 
-      if (user?.role === 'PAYMENT_COLLECTOR') {
+      if (isPaymentCollector) {
         const collectorRes = await fetchApi<CollectorSummary>('/payments/collector-summary').catch(() => null);
         setCollectorSummary(collectorRes);
       } else {

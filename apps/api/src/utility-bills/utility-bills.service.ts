@@ -1,5 +1,14 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AdminRole, PaymentMethod, PaymentSource, PaymentStatus, Prisma, UtilityBillStatus, UtilityType } from '@prisma/client';
+import {
+  AdminRole,
+  PaymentMethod,
+  PaymentSource,
+  PaymentStatus,
+  Prisma,
+  UtilityBillStatus,
+  UtilityPaymentWorkflowStatus,
+  UtilityType,
+} from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../prisma.service';
 import { CreateUtilityBillPaymentDto } from './dto/create-utility-bill-payment.dto';
@@ -10,6 +19,10 @@ import { UpsertUtilityReadingDto } from './dto/upsert-utility-reading.dto';
 @Injectable()
 export class UtilityBillsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private endOfUtcDay(date: Date): Date {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59, 999));
+  }
 
   private parseMonth(month: string): Date {
     const [y, m] = month.split('-').map(Number);
@@ -47,6 +60,19 @@ export class UtilityBillsService {
     return false;
   }
 
+  private canCollectType(role: string, type: UtilityType): boolean {
+    if (role === AdminRole.SUPER_ADMIN || role === AdminRole.ADMIN || role === AdminRole.CASHIER) return true;
+    if (role === AdminRole.PAYMENT_COLLECTOR) return true;
+    if (role === AdminRole.WATER_COLLECTOR && type === UtilityType.WATER) return true;
+    if (role === AdminRole.ELECTRICITY_COLLECTOR && type === UtilityType.ELECTRICITY) return true;
+    if (role === AdminRole.GAS_COLLECTOR && type === UtilityType.GAS) return true;
+    return false;
+  }
+
+  private canApprove(role: string): boolean {
+    return role === AdminRole.SUPER_ADMIN || role === AdminRole.ADMIN || role === AdminRole.CASHIER;
+  }
+
   private deriveStatus(amount: Decimal, paidAmount: Decimal, currentStatus?: UtilityBillStatus): UtilityBillStatus {
     if (currentStatus === UtilityBillStatus.CANCELLED) return UtilityBillStatus.CANCELLED;
     if (amount.lessThanOrEqualTo(0)) return UtilityBillStatus.DRAFT;
@@ -76,10 +102,25 @@ export class UtilityBillsService {
       updatedAt: bill.updatedAt,
       payments: (bill.payments || []).map((payment: any) => ({
         id: payment.id,
+        utilityType: payment.utilityType ?? bill.type,
         source: payment.source,
         method: payment.method,
         amount: Number(payment.amount ?? 0),
         status: payment.status,
+        workflowStatus: payment.workflowStatus,
+        tenantDeclaredAmount: payment.tenantDeclaredAmount ? Number(payment.tenantDeclaredAmount) : null,
+        collectorConfirmedAmount: payment.collectorConfirmedAmount ? Number(payment.collectorConfirmedAmount) : null,
+        collectorId: payment.collectorId ?? null,
+        tenantDeclaredAt: payment.tenantDeclaredAt ?? null,
+        collectorConfirmedAt: payment.collectorConfirmedAt ?? null,
+        collectorHandoverAt: payment.collectorHandoverAt ?? null,
+        handoverDueAt: payment.handoverDueAt ?? null,
+        handoverOverdue:
+          payment.source === PaymentSource.CASH &&
+          payment.status === PaymentStatus.PENDING &&
+          payment.workflowStatus === UtilityPaymentWorkflowStatus.COLLECTOR_CONFIRMED &&
+          payment.handoverDueAt &&
+          new Date(payment.handoverDueAt).getTime() < Date.now(),
         note: payment.note || null,
         createdAt: payment.createdAt,
         confirmedAt: payment.confirmedAt || null,
@@ -87,12 +128,21 @@ export class UtilityBillsService {
     };
   }
 
-  async findAll(query: ListUtilityBillsQueryDto) {
+  async findAll(query: ListUtilityBillsQueryDto, actor?: { id: string; role: string }) {
     const where: Prisma.UtilityBillWhereInput = {};
     if (query.tenantId) where.tenantId = query.tenantId;
     if (query.type) where.type = query.type;
     if (query.status) where.status = query.status;
     if (query.month) where.billingMonth = this.parseMonth(query.month);
+    if (actor?.role === AdminRole.WATER_OPERATOR || actor?.role === AdminRole.WATER_COLLECTOR) {
+      where.type = UtilityType.WATER;
+    }
+    if (actor?.role === AdminRole.ELECTRICITY_OPERATOR || actor?.role === AdminRole.ELECTRICITY_COLLECTOR) {
+      where.type = UtilityType.ELECTRICITY;
+    }
+    if (actor?.role === AdminRole.GAS_OPERATOR || actor?.role === AdminRole.GAS_COLLECTOR) {
+      where.type = UtilityType.GAS;
+    }
     if (query.q?.trim()) {
       const q = query.q.trim();
       where.OR = [
@@ -253,13 +303,35 @@ export class UtilityBillsService {
     if (amount.lessThanOrEqualTo(0)) throw new BadRequestException('Payment amount must be greater than 0');
     if (amount.greaterThan(remaining)) throw new BadRequestException('Payment amount cannot exceed remaining amount');
 
+    if (dto.source === PaymentSource.BANK && actor.role === AdminRole.PAYMENT_COLLECTOR) {
+      throw new ForbiddenException('Collector can only create CASH utility payments');
+    }
+    if (dto.source === PaymentSource.CASH && actor.role !== 'TENANT_USER' && !this.canCollectType(actor.role, bill.type)) {
+      throw new ForbiddenException('You cannot record cash payments for this utility type');
+    }
+
+    const now = new Date();
+    const isTenantActor = actor.role === 'TENANT_USER';
+    const workflowStatus = UtilityPaymentWorkflowStatus.TENANT_SUBMITTED;
+    const collectorId = !isTenantActor && dto.source === PaymentSource.CASH ? actor.id : null;
+    const collectorConfirmedAt = collectorId ? now : null;
+    const handoverDueAt = collectorId ? this.endOfUtcDay(now) : null;
+
     const payment = await this.prisma.utilityBillPayment.create({
       data: {
         utilityBillId,
+        utilityType: bill.type,
         method: PaymentMethod.OFFLINE,
         source: dto.source,
         amount,
         status: PaymentStatus.PENDING,
+        workflowStatus,
+        tenantDeclaredAt: now,
+        tenantDeclaredAmount: amount,
+        collectorId,
+        collectorConfirmedAt,
+        collectorConfirmedAmount: collectorId ? amount : null,
+        handoverDueAt,
         createdBy: actor.id,
         createdByRole: actor.role,
         note: dto.note,
@@ -270,19 +342,116 @@ export class UtilityBillsService {
       utilityBillId: payment.utilityBillId,
       amount: Number(payment.amount),
       status: payment.status,
+      workflowStatus: payment.workflowStatus,
       source: payment.source,
       createdAt: payment.createdAt,
     };
   }
 
-  async approvePayment(paymentId: string, actorId: string) {
+  async collectorConfirm(paymentId: string, actor: { id: string; role: string }, amount?: string, note?: string) {
     const payment = await this.prisma.utilityBillPayment.findUnique({
       where: { id: paymentId },
       include: { utilityBill: true },
     });
     if (!payment) throw new NotFoundException('Utility payment not found');
+    if (payment.source !== PaymentSource.CASH) throw new BadRequestException('Only CASH payments require collector confirmation');
+    if (!this.canCollectType(actor.role, payment.utilityType)) {
+      throw new ForbiddenException('You cannot confirm this utility payment');
+    }
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException('Only pending utility payment can be confirmed by collector');
+    }
+    if (
+      payment.workflowStatus !== UtilityPaymentWorkflowStatus.TENANT_SUBMITTED &&
+      payment.workflowStatus !== UtilityPaymentWorkflowStatus.COLLECTOR_CONFIRMED
+    ) {
+      throw new BadRequestException('Payment is not in collector confirmation stage');
+    }
+
+    const now = new Date();
+    const confirmedAmount = amount ? this.decimal(amount) : this.decimal(payment.tenantDeclaredAmount ?? payment.amount);
+    if (confirmedAmount.lessThanOrEqualTo(0)) {
+      throw new BadRequestException('Collector confirmed amount must be greater than 0');
+    }
+
+    const updated = await this.prisma.utilityBillPayment.update({
+      where: { id: paymentId },
+      data: {
+        collectorId: actor.id,
+        collectorConfirmedAt: now,
+        collectorConfirmedAmount: confirmedAmount,
+        workflowStatus: UtilityPaymentWorkflowStatus.COLLECTOR_CONFIRMED,
+        handoverDueAt: this.endOfUtcDay(now),
+        note: note ?? payment.note,
+      },
+    });
+
+    return {
+      id: updated.id,
+      workflowStatus: updated.workflowStatus,
+      collectorConfirmedAt: updated.collectorConfirmedAt,
+      handoverDueAt: updated.handoverDueAt,
+    };
+  }
+
+  async collectorHandover(paymentId: string, actor: { id: string; role: string }, note?: string) {
+    const payment = await this.prisma.utilityBillPayment.findUnique({
+      where: { id: paymentId },
+    });
+    if (!payment) throw new NotFoundException('Utility payment not found');
+    if (payment.source !== PaymentSource.CASH) throw new BadRequestException('Only CASH payments require handover');
+    if (!this.canCollectType(actor.role, payment.utilityType)) {
+      throw new ForbiddenException('You cannot handover this utility payment');
+    }
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException('Only pending utility payment can be handed over');
+    }
+    if (payment.workflowStatus !== UtilityPaymentWorkflowStatus.COLLECTOR_CONFIRMED) {
+      throw new BadRequestException('Collector must confirm receipt before handover');
+    }
+    if (payment.collectorId && payment.collectorId !== actor.id && !this.canApprove(actor.role)) {
+      throw new ForbiddenException('Only the same collector can confirm handover');
+    }
+
+    const updated = await this.prisma.utilityBillPayment.update({
+      where: { id: paymentId },
+      data: {
+        collectorHandoverAt: new Date(),
+        workflowStatus: UtilityPaymentWorkflowStatus.HANDED_TO_CASHIER,
+        note: note ?? payment.note,
+      },
+    });
+
+    return {
+      id: updated.id,
+      workflowStatus: updated.workflowStatus,
+      collectorHandoverAt: updated.collectorHandoverAt,
+    };
+  }
+
+  async approvePayment(paymentId: string, actor: { id: string; role: string }) {
+    const payment = await this.prisma.utilityBillPayment.findUnique({
+      where: { id: paymentId },
+      include: { utilityBill: true },
+    });
+    if (!payment) throw new NotFoundException('Utility payment not found');
+    if (!this.canApprove(actor.role)) {
+      throw new ForbiddenException('Only cashier/admin can approve utility payments');
+    }
     if (payment.status !== PaymentStatus.PENDING) {
       throw new BadRequestException('Only pending utility payment can be approved');
+    }
+    if (
+      payment.source === PaymentSource.CASH &&
+      payment.workflowStatus !== UtilityPaymentWorkflowStatus.HANDED_TO_CASHIER
+    ) {
+      throw new BadRequestException('Cash payment must be handed to cashier before approval');
+    }
+    if (
+      payment.source === PaymentSource.BANK &&
+      payment.workflowStatus !== UtilityPaymentWorkflowStatus.TENANT_SUBMITTED
+    ) {
+      throw new BadRequestException('Bank payment must be in pending cashier confirmation stage');
     }
 
     const bill = await this.prisma.$transaction(async (tx) => {
@@ -290,7 +459,8 @@ export class UtilityBillsService {
         where: { id: paymentId },
         data: {
           status: PaymentStatus.CONFIRMED,
-          confirmedBy: actorId,
+          workflowStatus: UtilityPaymentWorkflowStatus.CASHIER_CONFIRMED,
+          confirmedBy: actor.id,
           confirmedAt: new Date(),
         },
       });
@@ -305,7 +475,7 @@ export class UtilityBillsService {
         data: {
           paidAmount,
           status,
-          updatedBy: actorId,
+          updatedBy: actor.id,
         },
         include: {
           tenant: { select: { id: true, fullName: true } },
@@ -318,12 +488,15 @@ export class UtilityBillsService {
     return this.mapBill(bill);
   }
 
-  async declinePayment(paymentId: string, actorId: string) {
+  async declinePayment(paymentId: string, actor: { id: string; role: string }) {
     const payment = await this.prisma.utilityBillPayment.findUnique({
       where: { id: paymentId },
       include: { utilityBill: true },
     });
     if (!payment) throw new NotFoundException('Utility payment not found');
+    if (!this.canApprove(actor.role)) {
+      throw new ForbiddenException('Only cashier/admin can decline utility payments');
+    }
     if (payment.status !== PaymentStatus.PENDING) {
       throw new BadRequestException('Only pending utility payment can be declined');
     }
@@ -332,7 +505,8 @@ export class UtilityBillsService {
       where: { id: paymentId },
       data: {
         status: PaymentStatus.CANCELLED,
-        confirmedBy: actorId,
+        workflowStatus: UtilityPaymentWorkflowStatus.REJECTED,
+        confirmedBy: actor.id,
         confirmedAt: new Date(),
       },
     });
