@@ -77,6 +77,20 @@ interface Payment {
   };
 }
 
+interface UtilityBill {
+  id: string;
+  type: 'WATER' | 'ELECTRICITY' | 'GAS';
+  month: string;
+  startReading: number | null;
+  endReading: number | null;
+  consumption: number;
+  unitPrice: number;
+  amount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  status: string;
+}
+
 export default function AdminTenantDetailsPage() {
   const params = useParams<{ id: string }>();
   const tenantId = String(params?.id || '');
@@ -91,7 +105,8 @@ export default function AdminTenantDetailsPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'invoices' | 'payments'>('overview');
+  const [utilityBills, setUtilityBills] = useState<UtilityBill[]>([]);
+  const [activeTab, setActiveTab] = useState<'overview' | 'invoices' | 'payments' | 'utilities'>('overview');
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('uz-UZ', {
@@ -124,17 +139,19 @@ export default function AdminTenantDetailsPage() {
         try {
           setPageLoading(true);
           setError(null);
-          const [tenantData, contractsData, invoicesData, paymentsData] = await Promise.all([
+          const [tenantData, contractsData, invoicesData, paymentsData, utilityBillsData] = await Promise.all([
             fetchApi<Tenant>(`/tenants/${tenantId}`),
             fetchApi<Contract[]>(`/contracts?includeArchived=true`),
             fetchApi<any>(`/invoices?tenantId=${tenantId}&includeArchived=true&limit=500`),
             fetchApi<any>(`/payments?tenantId=${tenantId}&includeArchived=true&limit=500`),
+            fetchApi<UtilityBill[]>(`/utility-bills?tenantId=${tenantId}`),
           ]);
 
           setTenant(tenantData);
           setContracts((contractsData || []).filter((c) => c.tenantId === tenantId));
           setInvoices(normalizeListResponse<Invoice>(invoicesData).items || []);
           setPayments(normalizeListResponse<Payment>(paymentsData).items || []);
+          setUtilityBills(utilityBillsData || []);
         } catch (err) {
           console.error('Failed to load tenant details:', err);
           if (err instanceof ApiError) setError(err.message);
@@ -387,7 +404,8 @@ export default function AdminTenantDetailsPage() {
         {[
           { key: 'overview', label: 'Umumiy' },
           { key: 'invoices', label: 'Hisob-fakturalar' },
-          { key: 'payments', label: 'To‘lovlar' },
+          { key: 'payments', label: 'Ijara to‘lovlari' },
+          { key: 'utilities', label: 'Kommunal to‘lovlar' },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -695,6 +713,38 @@ export default function AdminTenantDetailsPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'utilities' && (
+        <div className={`rounded-lg p-4 ${darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+          <h2 className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Kommunal to‘lovlar</h2>
+          {utilityBills.length === 0 ? (
+            <p className={`${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Kommunal yozuvlar topilmadi</p>
+          ) : (
+            <div className="space-y-3">
+              {utilityBills.map((bill) => (
+                <div key={bill.id} className={`rounded-lg border p-3 ${darkMode ? 'border-gray-700 bg-gray-800/40' : 'border-gray-200 bg-gray-50'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {bill.type === 'ELECTRICITY' ? 'Svet' : bill.type === 'GAS' ? 'Gaz' : 'Suv'} • {bill.month}
+                      </p>
+                      <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Holat: {bill.startReading ?? '-'} → {bill.endReading ?? '-'} • Sarf: {Number(bill.consumption || 0).toLocaleString()} • Tarif: {Number(bill.unitPrice || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{formatCurrency(Number(bill.amount || 0))}</p>
+                      <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Qolgan: {formatCurrency(Number(bill.remainingAmount || 0))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

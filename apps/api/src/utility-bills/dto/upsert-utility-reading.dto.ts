@@ -25,9 +25,10 @@ export class UpsertUtilityReadingDto {
   @IsNumberString()
   endReading?: string;
 
-  @ApiProperty({ description: 'Unit price numeric string' })
+  @ApiPropertyOptional({ description: 'Unit price numeric string. If omitted, tariff config is used.' })
+  @IsOptional()
   @IsNumberString()
-  unitPrice!: string;
+  unitPrice?: string;
 
   @ApiPropertyOptional({ description: 'Optional note' })
   @IsOptional()

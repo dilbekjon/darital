@@ -17,6 +17,9 @@ interface Tenant {
   fullName: string;
   phone: string;
   email?: string;
+  utilityElectricityEnabled?: boolean;
+  utilityGasEnabled?: boolean;
+  utilityWaterEnabled?: boolean;
   createdAt: string;
   isArchived?: boolean;
   archivedAt?: string;
@@ -48,6 +51,9 @@ export default function AdminTenantsPage() {
     email: '',
     password: '',
     confirmPassword: '',
+    utilityElectricityEnabled: true,
+    utilityGasEnabled: false,
+    utilityWaterEnabled: false,
   });
   const [submitting, setSubmitting] = useState(false);
   const [resettingPassword, setResettingPassword] = useState<string | null>(null);
@@ -255,7 +261,16 @@ export default function AdminTenantsPage() {
   };
 
   const resetForm = () => {
-    setFormData({ fullName: '', phone: '', email: '', password: '', confirmPassword: '' });
+    setFormData({
+      fullName: '',
+      phone: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      utilityElectricityEnabled: true,
+      utilityGasEnabled: false,
+      utilityWaterEnabled: false,
+    });
     setEditingTenant(null);
   };
 
@@ -275,6 +290,9 @@ export default function AdminTenantsPage() {
       email: tenant.email || '',
       password: '',
       confirmPassword: '',
+      utilityElectricityEnabled: tenant.utilityElectricityEnabled ?? true,
+      utilityGasEnabled: tenant.utilityGasEnabled ?? false,
+      utilityWaterEnabled: tenant.utilityWaterEnabled ?? false,
     });
     setError(null);
     setSuccess(null);
@@ -291,10 +309,13 @@ export default function AdminTenantsPage() {
     
     try {
       if (editingTenant) {
-        const updatePayload: { fullName: string; phone: string; email?: string | null; password?: string } = {
+        const updatePayload: { fullName: string; phone: string; email?: string | null; password?: string; utilityElectricityEnabled?: boolean; utilityGasEnabled?: boolean; utilityWaterEnabled?: boolean } = {
           fullName: formData.fullName,
           phone: formData.phone,
           email: formData.email.trim() || null,
+          utilityElectricityEnabled: formData.utilityElectricityEnabled,
+          utilityGasEnabled: formData.utilityGasEnabled,
+          utilityWaterEnabled: formData.utilityWaterEnabled,
         };
         if (formData.password) {
           if (formData.password !== formData.confirmPassword) {
@@ -314,6 +335,9 @@ export default function AdminTenantsPage() {
           fullName: response.fullName,
           phone: response.phone,
           email: response.email || '',
+          utilityElectricityEnabled: response.utilityElectricityEnabled,
+          utilityGasEnabled: response.utilityGasEnabled,
+          utilityWaterEnabled: response.utilityWaterEnabled,
           createdAt: response.createdAt || editingTenant.createdAt,
         };
 
@@ -327,6 +351,9 @@ export default function AdminTenantsPage() {
             fullName: formData.fullName,
             phone: formData.phone,
             email: formData.email.trim() || undefined,
+            utilityElectricityEnabled: formData.utilityElectricityEnabled,
+            utilityGasEnabled: formData.utilityGasEnabled,
+            utilityWaterEnabled: formData.utilityWaterEnabled,
           }),
         });
         
@@ -336,6 +363,9 @@ export default function AdminTenantsPage() {
           fullName: response.fullName,
           phone: response.phone,
           email: response.email || '',
+          utilityElectricityEnabled: response.utilityElectricityEnabled,
+          utilityGasEnabled: response.utilityGasEnabled,
+          utilityWaterEnabled: response.utilityWaterEnabled,
           createdAt: response.createdAt || new Date().toISOString(),
         };
         
@@ -803,6 +833,36 @@ export default function AdminTenantsPage() {
                     } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
                     placeholder="ixtiyoriy@email.uz"
                   />
+                </div>
+              </div>
+
+              <div className={`mb-4 rounded-lg border p-3 ${darkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-200 bg-gray-50'}`}>
+                <p className={`text-sm font-medium mb-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Kommunal xizmatlar</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label className={`flex items-center gap-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <input
+                      type="checkbox"
+                      checked={formData.utilityElectricityEnabled}
+                      onChange={(e) => setFormData({ ...formData, utilityElectricityEnabled: e.target.checked })}
+                    />
+                    Svet
+                  </label>
+                  <label className={`flex items-center gap-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <input
+                      type="checkbox"
+                      checked={formData.utilityGasEnabled}
+                      onChange={(e) => setFormData({ ...formData, utilityGasEnabled: e.target.checked })}
+                    />
+                    Gaz
+                  </label>
+                  <label className={`flex items-center gap-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <input
+                      type="checkbox"
+                      checked={formData.utilityWaterEnabled}
+                      onChange={(e) => setFormData({ ...formData, utilityWaterEnabled: e.target.checked })}
+                    />
+                    Suv
+                  </label>
                 </div>
               </div>
 

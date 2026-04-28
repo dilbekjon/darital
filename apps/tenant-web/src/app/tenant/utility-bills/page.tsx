@@ -38,15 +38,11 @@ export default function TenantUtilityBillsPage() {
   const loadBills = async () => {
     const list = await getTenantUtilityBills();
     setBills(list);
-    setAmountInputs((prev) => {
-      const next = { ...prev };
-      for (const bill of list) {
-        if (!next[bill.id] || Number(next[bill.id]) <= 0) {
-          next[bill.id] = String(Math.max(0, Math.round(bill.remainingAmount)));
-        }
-      }
-      return next;
-    });
+    setAmountInputs(() =>
+      Object.fromEntries(
+        list.map((bill) => [bill.id, String(Math.max(0, Number(bill.remainingAmount || 0)))]),
+      ),
+    );
   };
 
   useEffect(() => {
@@ -65,6 +61,14 @@ export default function TenantUtilityBillsPage() {
     };
     void run();
   }, [router]);
+
+  useEffect(() => {
+    if (bills.length === 0) return;
+    const availableTypes = Array.from(new Set(bills.map((bill) => bill.type)));
+    if (!availableTypes.includes(activeType)) {
+      setActiveType(availableTypes[0] as UtilityType);
+    }
+  }, [bills, activeType]);
 
   const totals = useMemo(() => {
     return bills.reduce(
@@ -137,10 +141,10 @@ export default function TenantUtilityBillsPage() {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {(Object.keys(TYPE_LABEL) as UtilityType[]).map((type) => (
+            {Array.from(new Set(bills.map((bill) => bill.type))).map((type) => (
               <button
                 key={type}
-                onClick={() => setActiveType(type)}
+                onClick={() => setActiveType(type as UtilityType)}
                 className={`px-3 py-2 rounded-lg text-sm font-semibold ${
                   activeType === type
                     ? darkMode

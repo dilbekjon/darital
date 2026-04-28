@@ -223,6 +223,9 @@ model Tenant {
   conversations Conversation[]
   notifications InAppNotification[]
   utilityBills  UtilityBill[]
+  utilityElectricityEnabled Boolean @default(true)
+  utilityGasEnabled         Boolean @default(false)
+  utilityWaterEnabled       Boolean @default(false)
   // Archive fields
   isArchived    Boolean        @default(false)
   archivedAt    DateTime?
@@ -233,6 +236,16 @@ model Tenant {
   @@index([companyId])
   @@index([createdAt])
   @@index([isArchived])
+}
+
+model UtilityTariffConfig {
+  id                String  @id @default(cuid())
+  electricityPerKwh Decimal @default(0)
+  gasPerM3          Decimal @default(0)
+  waterPerM3        Decimal @default(0)
+  updatedBy         String?
+  updatedAt         DateTime @updatedAt
+  createdAt         DateTime @default(now())
 }
 
 model TenantSetupToken {

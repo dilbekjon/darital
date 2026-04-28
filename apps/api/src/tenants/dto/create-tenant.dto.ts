@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, Matches } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsString, Matches } from 'class-validator';
 
 export class CreateTenantDto {
   @ApiProperty()
@@ -15,5 +15,19 @@ export class CreateTenantDto {
   @IsOptional()
   @IsEmail()
   email?: string;
-}
 
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  utilityElectricityEnabled?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  utilityGasEnabled?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  utilityWaterEnabled?: boolean;
+}

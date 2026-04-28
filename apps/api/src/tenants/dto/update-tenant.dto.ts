@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, MinLength, Matches } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsString, MinLength, Matches } from 'class-validator';
 
 export class UpdateTenantDto {
   @ApiPropertyOptional()
@@ -23,5 +23,19 @@ export class UpdateTenantDto {
   @IsString()
   @MinLength(6)
   password?: string;
-}
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  utilityElectricityEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  utilityGasEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  utilityWaterEnabled?: boolean;
+}

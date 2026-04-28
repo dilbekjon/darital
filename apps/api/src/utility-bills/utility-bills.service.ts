@@ -15,6 +15,7 @@ import { CreateUtilityBillPaymentDto } from './dto/create-utility-bill-payment.d
 import { ListUtilityBillsQueryDto } from './dto/list-utility-bills-query.dto';
 import { UpdateUtilityBillDto } from './dto/update-utility-bill.dto';
 import { UpsertUtilityReadingDto } from './dto/upsert-utility-reading.dto';
+import { UpdateUtilityTariffDto } from './dto/update-utility-tariff.dto';
 
 @Injectable()
 export class UtilityBillsService {
@@ -54,6 +55,7 @@ export class UtilityBillsService {
 
   private canManageType(role: AdminRole, type: UtilityType): boolean {
     if (role === AdminRole.SUPER_ADMIN || role === AdminRole.ADMIN) return true;
+    if (role === AdminRole.PAYMENT_COLLECTOR) return true;
     if (role === AdminRole.WATER_OPERATOR && type === UtilityType.WATER) return true;
     if (role === AdminRole.ELECTRICITY_OPERATOR && type === UtilityType.ELECTRICITY) return true;
     if (role === AdminRole.GAS_OPERATOR && type === UtilityType.GAS) return true;
@@ -67,6 +69,24 @@ export class UtilityBillsService {
     if (role === AdminRole.ELECTRICITY_COLLECTOR && type === UtilityType.ELECTRICITY) return true;
     if (role === AdminRole.GAS_COLLECTOR && type === UtilityType.GAS) return true;
     return false;
+  }
+
+  private getTenantUtilityEnabled(tenant: {
+    utilityElectricityEnabled?: boolean | null;
+    utilityGasEnabled?: boolean | null;
+    utilityWaterEnabled?: boolean | null;
+  }, type: UtilityType): boolean {
+    if (type === UtilityType.ELECTRICITY) return Boolean(tenant.utilityElectricityEnabled);
+    if (type === UtilityType.GAS) return Boolean(tenant.utilityGasEnabled);
+    return Boolean(tenant.utilityWaterEnabled);
+  }
+
+  private async resolveTariff(type: UtilityType): Promise<Decimal> {
+    const config = await this.prisma.utilityTariffConfig.findUnique({ where: { id: 'default' } });
+    if (!config) return new Decimal(0);
+    if (type === UtilityType.ELECTRICITY) return this.decimal(config.electricityPerKwh);
+    if (type === UtilityType.GAS) return this.decimal(config.gasPerM3);
+    return this.decimal(config.waterPerM3);
   }
 
   private canApprove(role: string): boolean {
@@ -174,7 +194,11 @@ export class UtilityBillsService {
     const billingMonth = this.parseMonth(dto.month);
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: dto.tenantId },
-      include: {
+      select: {
+        id: true,
+        utilityElectricityEnabled: true,
+        utilityGasEnabled: true,
+        utilityWaterEnabled: true,
         contracts: {
           where: { status: 'ACTIVE' },
           include: { unit: true },
@@ -185,10 +209,27 @@ export class UtilityBillsService {
     });
 
     if (!tenant) throw new NotFoundException('Tenant not found');
+    if (!this.getTenantUtilityEnabled(tenant, dto.type)) {
+      throw new BadRequestException('This utility type is not enabled for the tenant');
+    }
 
-    const startReading = dto.startReading ? this.decimal(dto.startReading) : null;
+    const previousBill = await this.prisma.utilityBill.findFirst({
+      where: {
+        tenantId: dto.tenantId,
+        type: dto.type,
+        billingMonth: { lt: billingMonth },
+      },
+      orderBy: { billingMonth: 'desc' },
+      select: { endReading: true },
+    });
+
+    const startReading = dto.startReading
+      ? this.decimal(dto.startReading)
+      : previousBill?.endReading
+        ? this.decimal(previousBill.endReading)
+        : null;
     const endReading = dto.endReading ? this.decimal(dto.endReading) : null;
-    const unitPrice = this.decimal(dto.unitPrice);
+    const unitPrice = dto.unitPrice ? this.decimal(dto.unitPrice) : await this.resolveTariff(dto.type);
     const { consumption, amount } = this.normalizeReadingFields(startReading, endReading, unitPrice);
 
     const existing = await this.prisma.utilityBill.findUnique({
@@ -292,6 +333,18 @@ export class UtilityBillsService {
     if (!bill) throw new NotFoundException('Utility bill not found');
     if (bill.status === UtilityBillStatus.CANCELLED) {
       throw new BadRequestException('Cancelled utility bill cannot be paid');
+    }
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: bill.tenantId },
+      select: {
+        id: true,
+        utilityElectricityEnabled: true,
+        utilityGasEnabled: true,
+        utilityWaterEnabled: true,
+      },
+    });
+    if (!tenant || !this.getTenantUtilityEnabled(tenant, bill.type)) {
+      throw new BadRequestException('This utility type is not enabled for the tenant');
     }
 
     const remaining = this.decimal(bill.amount).minus(this.decimal(bill.paidAmount));
@@ -515,8 +568,24 @@ export class UtilityBillsService {
   }
 
   async getTenantBills(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        utilityElectricityEnabled: true,
+        utilityGasEnabled: true,
+        utilityWaterEnabled: true,
+      },
+    });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+
+    const enabledTypes: UtilityType[] = [];
+    if (tenant.utilityWaterEnabled) enabledTypes.push(UtilityType.WATER);
+    if (tenant.utilityElectricityEnabled) enabledTypes.push(UtilityType.ELECTRICITY);
+    if (tenant.utilityGasEnabled) enabledTypes.push(UtilityType.GAS);
+
     const bills = await this.prisma.utilityBill.findMany({
-      where: { tenantId },
+      where: { tenantId, type: { in: enabledTypes } },
       include: {
         unit: { select: { id: true, name: true } },
         payments: { orderBy: { createdAt: 'desc' } },
@@ -532,5 +601,47 @@ export class UtilityBillsService {
       throw new NotFoundException('Utility bill not found');
     }
     return this.createPayment(utilityBillId, dto, { id: tenantId, role: 'TENANT_USER' });
+  }
+
+  async getTariffs() {
+    const config = await this.prisma.utilityTariffConfig.upsert({
+      where: { id: 'default' },
+      create: { id: 'default' },
+      update: {},
+    });
+    return {
+      electricityPerKwh: Number(config.electricityPerKwh ?? 0),
+      gasPerM3: Number(config.gasPerM3 ?? 0),
+      waterPerM3: Number(config.waterPerM3 ?? 0),
+      updatedAt: config.updatedAt,
+    };
+  }
+
+  async updateTariffs(dto: UpdateUtilityTariffDto, actor: { id: string; role: string }) {
+    if (!(actor.role === AdminRole.SUPER_ADMIN || actor.role === AdminRole.ADMIN)) {
+      throw new ForbiddenException('Only superadmin/admin can update utility tariffs');
+    }
+    const updated = await this.prisma.utilityTariffConfig.upsert({
+      where: { id: 'default' },
+      create: {
+        id: 'default',
+        electricityPerKwh: dto.electricityPerKwh ? this.decimal(dto.electricityPerKwh) : new Decimal(0),
+        gasPerM3: dto.gasPerM3 ? this.decimal(dto.gasPerM3) : new Decimal(0),
+        waterPerM3: dto.waterPerM3 ? this.decimal(dto.waterPerM3) : new Decimal(0),
+        updatedBy: actor.id,
+      },
+      update: {
+        electricityPerKwh: dto.electricityPerKwh !== undefined ? this.decimal(dto.electricityPerKwh) : undefined,
+        gasPerM3: dto.gasPerM3 !== undefined ? this.decimal(dto.gasPerM3) : undefined,
+        waterPerM3: dto.waterPerM3 !== undefined ? this.decimal(dto.waterPerM3) : undefined,
+        updatedBy: actor.id,
+      },
+    });
+    return {
+      electricityPerKwh: Number(updated.electricityPerKwh ?? 0),
+      gasPerM3: Number(updated.gasPerM3 ?? 0),
+      waterPerM3: Number(updated.waterPerM3 ?? 0),
+      updatedAt: updated.updatedAt,
+    };
   }
 }

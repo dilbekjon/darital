@@ -58,6 +58,15 @@ interface TenantOption {
   id: string;
   fullName: string;
   phone?: string;
+  utilityElectricityEnabled?: boolean;
+  utilityGasEnabled?: boolean;
+  utilityWaterEnabled?: boolean;
+}
+
+interface UtilityTariffs {
+  electricityPerKwh: number;
+  gasPerM3: number;
+  waterPerM3: number;
 }
 
 const TYPE_LABEL: Record<UtilityType, string> = {
@@ -74,12 +83,6 @@ const WORKFLOW_LABEL: Record<WorkflowStatus, string> = {
   REJECTED: 'Rad etildi',
 };
 
-const collectorRoleByType: Record<UtilityType, string[]> = {
-  WATER: ['WATER_COLLECTOR', 'PAYMENT_COLLECTOR'],
-  ELECTRICITY: ['ELECTRICITY_COLLECTOR', 'PAYMENT_COLLECTOR'],
-  GAS: ['GAS_COLLECTOR', 'PAYMENT_COLLECTOR'],
-};
-
 export default function AdminUtilityBillsPage() {
   const { user, loading, hasPermission } = useAuth();
   const t = useUntypedTranslations();
@@ -91,6 +94,14 @@ export default function AdminUtilityBillsPage() {
   const [bills, setBills] = useState<UtilityBill[]>([]);
   const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [activeType, setActiveType] = useState<UtilityType>('WATER');
+  const [mobileView, setMobileView] = useState<'queue' | 'bills'>('queue');
+  const [search, setSearch] = useState('');
+  const [onlyPendingHandover, setOnlyPendingHandover] = useState(false);
+  const [tariffs, setTariffs] = useState<UtilityTariffs>({
+    electricityPerKwh: 0,
+    gasPerM3: 0,
+    waterPerM3: 0,
+  });
 
   const [form, setForm] = useState({
     tenantId: '',
@@ -106,11 +117,11 @@ export default function AdminUtilityBillsPage() {
   const canRecordPayment = hasPermission('utility.bills.payments.record');
   const canApprovePayment = hasPermission('utility.bills.payments.approve');
   const isCashier = user?.role === 'CASHIER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-  const canManageReading = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'WATER_OPERATOR' || user?.role === 'ELECTRICITY_OPERATOR' || user?.role === 'GAS_OPERATOR';
+  const canManageReading = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'PAYMENT_COLLECTOR' || user?.role === 'WATER_OPERATOR' || user?.role === 'ELECTRICITY_OPERATOR' || user?.role === 'GAS_OPERATOR';
 
-  const canCollectForType = (type: UtilityType) => {
+  const canCollectForType = (_type: UtilityType) => {
     const role = user?.role || '';
-    return collectorRoleByType[type].includes(role) || role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'CASHIER';
+    return role === 'PAYMENT_COLLECTOR' || role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'CASHIER' || role === 'WATER_COLLECTOR' || role === 'ELECTRICITY_COLLECTOR' || role === 'GAS_COLLECTOR';
   };
 
   const loadBills = async () => {
@@ -123,6 +134,11 @@ export default function AdminUtilityBillsPage() {
     setTenants(data);
   };
 
+  const loadTariffs = async () => {
+    const data = await fetchApi<UtilityTariffs>('/utility-bills/tariffs');
+    setTariffs(data);
+  };
+
   useEffect(() => {
     const run = async () => {
       if (!canRead) {
@@ -132,7 +148,7 @@ export default function AdminUtilityBillsPage() {
       setPageLoading(true);
       setError(null);
       try {
-        await Promise.all([loadBills(), loadTenants()]);
+        await Promise.all([loadBills(), loadTenants(), loadTariffs()]);
       } catch (err) {
         setError(err instanceof ApiError ? err.message : 'Kommunal ma’lumotlarni yuklashda xatolik');
       } finally {
@@ -143,6 +159,17 @@ export default function AdminUtilityBillsPage() {
   }, [loading, canRead]);
 
   const groupedBills = useMemo(() => bills.filter((bill) => bill.type === activeType), [bills, activeType]);
+  const enabledTenants = useMemo(
+    () =>
+      tenants.filter((tenant) =>
+        activeType === 'ELECTRICITY'
+          ? tenant.utilityElectricityEnabled
+          : activeType === 'GAS'
+            ? tenant.utilityGasEnabled
+            : tenant.utilityWaterEnabled,
+      ),
+    [tenants, activeType],
+  );
 
   const queue = useMemo(() => {
     const rows: Array<{ bill: UtilityBill; payment: UtilityBillPayment }> = [];
@@ -150,17 +177,33 @@ export default function AdminUtilityBillsPage() {
       if (bill.type !== activeType) continue;
       for (const payment of bill.payments) {
         if (payment.status !== 'PENDING') continue;
+        if (onlyPendingHandover && payment.workflowStatus !== 'COLLECTOR_CONFIRMED') continue;
+        const q = search.trim().toLowerCase();
+        if (
+          q &&
+          !(bill.tenantName || '').toLowerCase().includes(q) &&
+          !(bill.unitName || '').toLowerCase().includes(q)
+        ) {
+          continue;
+        }
         rows.push({ bill, payment });
       }
     }
     rows.sort((a, b) => new Date(b.payment.createdAt).getTime() - new Date(a.payment.createdAt).getTime());
     return rows;
-  }, [bills, activeType]);
+  }, [bills, activeType, search, onlyPendingHandover]);
+
+  const queueStats = useMemo(() => {
+    const total = queue.length;
+    const submitted = queue.filter((row) => row.payment.workflowStatus === 'TENANT_SUBMITTED').length;
+    const handover = queue.filter((row) => row.payment.workflowStatus === 'COLLECTOR_CONFIRMED').length;
+    return { total, submitted, handover };
+  }, [queue]);
 
   const handleSaveReading = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!form.tenantId || !form.month || !form.unitPrice) {
-      setError('Tenant, oy va tarif majburiy');
+    if (!form.tenantId || !form.month) {
+      setError('Tenant va oy majburiy');
       return;
     }
     setSaving(true);
@@ -172,10 +215,11 @@ export default function AdminUtilityBillsPage() {
           ...form,
           startReading: form.startReading || undefined,
           endReading: form.endReading || undefined,
+          unitPrice: form.unitPrice || undefined,
         }),
       });
       setForm((prev) => ({ ...prev, startReading: '', endReading: '', note: '' }));
-      await loadBills();
+      await Promise.all([loadBills(), loadTariffs()]);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Hisob saqlashda xatolik');
     } finally {
@@ -240,6 +284,57 @@ export default function AdminUtilityBillsPage() {
 
       {error && <div className="mb-4 px-4 py-3 rounded-lg border bg-red-100 border-red-300 text-red-700">{error}</div>}
 
+      {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+        <div className={`mb-4 rounded-xl border p-4 ${darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-white border-gray-200'}`}>
+          <p className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Kommunal tariflar</p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input
+              type="number"
+              step="0.01"
+              value={tariffs.electricityPerKwh}
+              onChange={(e) => setTariffs((prev) => ({ ...prev, electricityPerKwh: Number(e.target.value || 0) }))}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
+              placeholder="Svet (1 kWh)"
+            />
+            <input
+              type="number"
+              step="0.01"
+              value={tariffs.gasPerM3}
+              onChange={(e) => setTariffs((prev) => ({ ...prev, gasPerM3: Number(e.target.value || 0) }))}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
+              placeholder="Gaz (1 m3)"
+            />
+            <input
+              type="number"
+              step="0.01"
+              value={tariffs.waterPerM3}
+              onChange={(e) => setTariffs((prev) => ({ ...prev, waterPerM3: Number(e.target.value || 0) }))}
+              className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
+              placeholder="Suv (1 m3)"
+            />
+            <button
+              onClick={async () => {
+                try {
+                  await fetchApi('/utility-bills/tariffs', {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                      electricityPerKwh: String(tariffs.electricityPerKwh || 0),
+                      gasPerM3: String(tariffs.gasPerM3 || 0),
+                      waterPerM3: String(tariffs.waterPerM3 || 0),
+                    }),
+                  });
+                } catch (err) {
+                  setError(err instanceof ApiError ? err.message : 'Tarifni saqlashda xatolik');
+                }
+              }}
+              className={`px-4 py-2 rounded-lg font-medium ${darkMode ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+            >
+              Tarifni saqlash
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mb-4 flex flex-wrap gap-2">
         {(Object.keys(TYPE_LABEL) as UtilityType[]).map((type) => (
           <button
@@ -263,6 +358,44 @@ export default function AdminUtilityBillsPage() {
         ))}
       </div>
 
+      <div className={`mb-4 rounded-xl border p-3 ${darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-white border-gray-200'}`}>
+        <div className="flex gap-2 mb-2">
+          <button
+            onClick={() => setMobileView('queue')}
+            className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold ${mobileView === 'queue' ? 'bg-blue-600 text-white' : darkMode ? 'bg-black text-gray-300 border border-blue-600/20' : 'bg-gray-50 text-gray-700 border border-gray-300'}`}
+          >
+            Navbat ({queueStats.total})
+          </button>
+          <button
+            onClick={() => setMobileView('bills')}
+            className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold ${mobileView === 'bills' ? 'bg-blue-600 text-white' : darkMode ? 'bg-black text-gray-300 border border-blue-600/20' : 'bg-gray-50 text-gray-700 border border-gray-300'}`}
+          >
+            Hisoblar ({groupedBills.length})
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          <div className={`rounded-lg px-2 py-2 ${darkMode ? 'bg-black text-gray-300' : 'bg-gray-50 text-gray-700'}`}>Jami: <span className="font-semibold">{queueStats.total}</span></div>
+          <div className={`rounded-lg px-2 py-2 ${darkMode ? 'bg-black text-amber-300' : 'bg-amber-50 text-amber-800'}`}>Qabul: <span className="font-semibold">{queueStats.submitted}</span></div>
+          <div className={`rounded-lg px-2 py-2 ${darkMode ? 'bg-black text-blue-300' : 'bg-blue-50 text-blue-800'}`}>Topshirish: <span className="font-semibold">{queueStats.handover}</span></div>
+        </div>
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Tenant yoki xona qidirish"
+            className={`px-3 py-2 rounded-lg border text-sm ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
+          />
+          <label className={`px-3 py-2 rounded-lg border text-sm flex items-center gap-2 ${darkMode ? 'bg-black border-blue-600/30 text-gray-300' : 'bg-white border-gray-300 text-gray-700'}`}>
+            <input
+              type="checkbox"
+              checked={onlyPendingHandover}
+              onChange={(e) => setOnlyPendingHandover(e.target.checked)}
+            />
+            Faqat kassirga topshiriladiganlar
+          </label>
+        </div>
+      </div>
+
       {canManageReading && (
         <form onSubmit={handleSaveReading} className={`mb-6 rounded-xl border p-4 ${darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-white border-gray-200'}`}>
           <p className={`font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Oy boshidagi/oxiridagi hisoblagich</p>
@@ -274,7 +407,7 @@ export default function AdminUtilityBillsPage() {
               required
             >
               <option value="">Tenant tanlang</option>
-              {tenants.map((tenant) => (
+              {enabledTenants.map((tenant) => (
                 <option key={tenant.id} value={tenant.id}>
                   {tenant.fullName} {tenant.phone ? `(${tenant.phone})` : ''}
                 </option>
@@ -290,11 +423,16 @@ export default function AdminUtilityBillsPage() {
             <input
               type="number"
               step="0.01"
-              placeholder="Tarif"
+              placeholder={`Tarif (default: ${
+                activeType === 'ELECTRICITY'
+                  ? tariffs.electricityPerKwh
+                  : activeType === 'GAS'
+                    ? tariffs.gasPerM3
+                    : tariffs.waterPerM3
+              })`}
               value={form.unitPrice}
               onChange={(e) => setForm((prev) => ({ ...prev, unitPrice: e.target.value }))}
               className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
-              required
             />
             <input
               type="number"
@@ -330,6 +468,7 @@ export default function AdminUtilityBillsPage() {
         </form>
       )}
 
+      {mobileView === 'queue' && (
       <div className={`mb-6 rounded-xl border p-4 ${darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-white border-gray-200'}`}>
         <p className={`font-semibold mb-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           {TYPE_LABEL[activeType]} bo‘yicha to‘lov navbati
@@ -372,11 +511,11 @@ export default function AdminUtilityBillsPage() {
                       )}
                     </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {allowCollectorConfirm && (
                       <button
                         onClick={() => handleCollectorConfirm(payment.id, payment.tenantDeclaredAmount ?? payment.amount)}
-                        className={darkMode ? 'px-3 py-1 rounded text-xs bg-amber-600/20 border border-amber-600/30 text-amber-200' : 'px-3 py-1 rounded text-xs bg-amber-100 border border-amber-300 text-amber-800'}
+                        className={darkMode ? 'px-3 py-2 rounded text-xs font-semibold bg-amber-600/20 border border-amber-600/30 text-amber-200' : 'px-3 py-2 rounded text-xs font-semibold bg-amber-100 border border-amber-300 text-amber-800'}
                       >
                         Qabul qildim
                       </button>
@@ -384,17 +523,17 @@ export default function AdminUtilityBillsPage() {
                     {allowCollectorHandover && (
                       <button
                         onClick={() => handleCollectorHandover(payment.id)}
-                        className={darkMode ? 'px-3 py-1 rounded text-xs bg-blue-600/20 border border-blue-600/30 text-blue-200' : 'px-3 py-1 rounded text-xs bg-blue-100 border border-blue-300 text-blue-800'}
+                        className={darkMode ? 'px-3 py-2 rounded text-xs font-semibold bg-blue-600/20 border border-blue-600/30 text-blue-200' : 'px-3 py-2 rounded text-xs font-semibold bg-blue-100 border border-blue-300 text-blue-800'}
                       >
                         Kassirga topshirdim
                       </button>
                     )}
                     {allowCashierApprove && (
                       <>
-                        <button onClick={() => handleApprove(payment.id)} className="px-3 py-1 rounded text-xs bg-green-100 border border-green-300 text-green-800">
+                        <button onClick={() => handleApprove(payment.id)} className="px-3 py-2 rounded text-xs font-semibold bg-green-100 border border-green-300 text-green-800">
                           Tasdiqlash
                         </button>
-                        <button onClick={() => handleDecline(payment.id)} className="px-3 py-1 rounded text-xs bg-red-100 border border-red-300 text-red-700">
+                        <button onClick={() => handleDecline(payment.id)} className="px-3 py-2 rounded text-xs font-semibold bg-red-100 border border-red-300 text-red-700">
                           Rad etish
                         </button>
                       </>
@@ -406,8 +545,9 @@ export default function AdminUtilityBillsPage() {
           </div>
         )}
       </div>
+      )}
 
-      {groupedBills.length === 0 ? (
+      {mobileView === 'bills' && (groupedBills.length === 0 ? (
         <EmptyState
           icon={<div className="text-4xl">💡</div>}
           title={`${TYPE_LABEL[activeType]} bo‘yicha hisob yo‘q`}
@@ -437,7 +577,7 @@ export default function AdminUtilityBillsPage() {
             </div>
           ))}
         </div>
-      )}
+      ))}
     </div>
   );
 }

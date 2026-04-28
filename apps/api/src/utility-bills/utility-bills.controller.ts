@@ -9,6 +9,7 @@ import { CollectorHandoverUtilityPaymentDto } from './dto/collector-handover-uti
 import { CreateUtilityBillPaymentDto } from './dto/create-utility-bill-payment.dto';
 import { ListUtilityBillsQueryDto } from './dto/list-utility-bills-query.dto';
 import { UpdateUtilityBillDto } from './dto/update-utility-bill.dto';
+import { UpdateUtilityTariffDto } from './dto/update-utility-tariff.dto';
 import { UpsertUtilityReadingDto } from './dto/upsert-utility-reading.dto';
 import { UtilityBillsService } from './utility-bills.service';
 
@@ -25,6 +26,24 @@ export class UtilityBillsController {
   @ApiOperation({ summary: 'List utility bills' })
   async findAll(@Query() query: ListUtilityBillsQueryDto, @Req() req: any) {
     return this.utilityBillsService.findAll(query, {
+      id: req.user.id,
+      role: String(req.user.role),
+    });
+  }
+
+  @Get('tariffs')
+  @Permissions('utility.bills.read')
+  @ApiOperation({ summary: 'Get utility tariff configuration' })
+  async getTariffs() {
+    return this.utilityBillsService.getTariffs();
+  }
+
+  @Patch('tariffs')
+  @Permissions('utility.bills.read')
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @ApiOperation({ summary: 'Update utility tariff configuration (superadmin/admin)' })
+  async updateTariffs(@Body() dto: UpdateUtilityTariffDto, @Req() req: any) {
+    return this.utilityBillsService.updateTariffs(dto, {
       id: req.user.id,
       role: String(req.user.role),
     });
