@@ -28,6 +28,19 @@ enum AdminRole {
   TENANT_USER = 'TENANT_USER',
 }
 
+const ASSIGNABLE_ADMIN_ROLES: AdminRole[] = [
+  AdminRole.SUPER_ADMIN,
+  AdminRole.ADMIN,
+  AdminRole.USER_MANAGER,
+  AdminRole.CASHIER,
+  AdminRole.PAYMENT_COLLECTOR,
+  AdminRole.WATER_COLLECTOR,
+  AdminRole.ELECTRICITY_COLLECTOR,
+  AdminRole.GAS_COLLECTOR,
+  AdminRole.SUPPORT,
+  AdminRole.ANALYST,
+];
+
 interface User {
   id: string;
   phone?: string | null;
@@ -97,9 +110,9 @@ export default function AdminUsersPage() {
     role === AdminRole.WATER_COLLECTOR ? ('Suv Pul Yig\'uvchi') :
     role === AdminRole.ELECTRICITY_COLLECTOR ? ('Elektr Pul Yig\'uvchi') :
     role === AdminRole.GAS_COLLECTOR ? ('Gaz Pul Yig\'uvchi') :
-    role === AdminRole.WATER_OPERATOR ? ('Suv Operatori') :
-    role === AdminRole.ELECTRICITY_OPERATOR ? ('Elektr Operatori') :
-    role === AdminRole.GAS_OPERATOR ? ('Gaz Operatori') :
+    role === AdminRole.WATER_OPERATOR ? ('Suv Pul Yig\'uvchi') :
+    role === AdminRole.ELECTRICITY_OPERATOR ? ('Elektr Pul Yig\'uvchi') :
+    role === AdminRole.GAS_OPERATOR ? ('Gaz Pul Yig\'uvchi') :
     role === AdminRole.SUPPORT ? (t.support || 'Qo\'llab-quvvatlash') :
     role === AdminRole.ANALYST ? (t.analyst || 'Tahlilchi') : role;
 
@@ -371,9 +384,6 @@ export default function AdminUsersPage() {
               <option value="WATER_COLLECTOR">Suv Pul Yig‘uvchi</option>
               <option value="ELECTRICITY_COLLECTOR">Elektr Pul Yig‘uvchi</option>
               <option value="GAS_COLLECTOR">Gaz Pul Yig‘uvchi</option>
-              <option value="WATER_OPERATOR">Suv Operatori</option>
-              <option value="ELECTRICITY_OPERATOR">Elektr Operatori</option>
-              <option value="GAS_OPERATOR">Gaz Operatori</option>
               <option value="SUPPORT">{t.support || 'Qo\'llab-quvvatlash'}</option>
               <option value="ANALYST">{t.analyst || 'Tahlilchi'}</option>
             </select>
@@ -570,9 +580,7 @@ export default function AdminUsersPage() {
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
                 >
-                  {Object.values(AdminRole)
-                    .filter(role => role !== AdminRole.TENANT_USER)
-                    .map((role) => (
+                  {ASSIGNABLE_ADMIN_ROLES.map((role) => (
                       <option key={role} value={role}>
                         {getRoleLabel(role)}
                       </option>
@@ -697,9 +705,7 @@ export default function AdminUsersPage() {
                 onChange={(e) => setNewRole(e.target.value as AdminRole)}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
-                {Object.values(AdminRole)
-                  .filter(role => role !== AdminRole.TENANT_USER) // Cannot assign TENANT_USER role here
-                  .map((role) => (
+                {ASSIGNABLE_ADMIN_ROLES.map((role) => (
                     <option key={role} value={role}>
                       {getRoleLabel(role)}
                     </option>

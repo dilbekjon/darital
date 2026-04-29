@@ -56,6 +56,9 @@ export class UtilityBillsService {
   private canManageType(role: AdminRole, type: UtilityType): boolean {
     if (role === AdminRole.SUPER_ADMIN || role === AdminRole.ADMIN) return true;
     if (role === AdminRole.PAYMENT_COLLECTOR) return true;
+    if (role === AdminRole.WATER_COLLECTOR && type === UtilityType.WATER) return true;
+    if (role === AdminRole.ELECTRICITY_COLLECTOR && type === UtilityType.ELECTRICITY) return true;
+    if (role === AdminRole.GAS_COLLECTOR && type === UtilityType.GAS) return true;
     if (role === AdminRole.WATER_OPERATOR && type === UtilityType.WATER) return true;
     if (role === AdminRole.ELECTRICITY_OPERATOR && type === UtilityType.ELECTRICITY) return true;
     if (role === AdminRole.GAS_OPERATOR && type === UtilityType.GAS) return true;

@@ -117,7 +117,16 @@ export default function AdminUtilityBillsPage() {
   const canRecordPayment = hasPermission('utility.bills.payments.record');
   const canApprovePayment = hasPermission('utility.bills.payments.approve');
   const isCashier = user?.role === 'CASHIER' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-  const canManageReading = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'PAYMENT_COLLECTOR' || user?.role === 'WATER_OPERATOR' || user?.role === 'ELECTRICITY_OPERATOR' || user?.role === 'GAS_OPERATOR';
+  const canManageReading =
+    user?.role === 'SUPER_ADMIN' ||
+    user?.role === 'ADMIN' ||
+    user?.role === 'PAYMENT_COLLECTOR' ||
+    user?.role === 'WATER_COLLECTOR' ||
+    user?.role === 'ELECTRICITY_COLLECTOR' ||
+    user?.role === 'GAS_COLLECTOR' ||
+    user?.role === 'WATER_OPERATOR' ||
+    user?.role === 'ELECTRICITY_OPERATOR' ||
+    user?.role === 'GAS_OPERATOR';
 
   const canCollectForType = (_type: UtilityType) => {
     const role = user?.role || '';
