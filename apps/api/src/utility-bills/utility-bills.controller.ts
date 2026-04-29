@@ -108,14 +108,14 @@ export class UtilityBillsController {
   @ApiOperation({ summary: 'Collector confirms receiving tenant cash payment' })
   async collectorConfirm(
     @Param('paymentId') paymentId: string,
-    @Body() dto: CollectorConfirmUtilityPaymentDto,
+    @Body() dto: CollectorConfirmUtilityPaymentDto = {},
     @Req() req: any,
   ) {
     return this.utilityBillsService.collectorConfirm(
       paymentId,
       { id: req.user.id, role: String(req.user.role) },
-      dto.amount,
-      dto.note,
+      dto?.amount,
+      dto?.note,
     );
   }
 
@@ -125,13 +125,13 @@ export class UtilityBillsController {
   @ApiOperation({ summary: 'Collector confirms cash handover to cashier' })
   async collectorHandover(
     @Param('paymentId') paymentId: string,
-    @Body() dto: CollectorHandoverUtilityPaymentDto,
+    @Body() dto: CollectorHandoverUtilityPaymentDto = {},
     @Req() req: any,
   ) {
     return this.utilityBillsService.collectorHandover(
       paymentId,
       { id: req.user.id, role: String(req.user.role) },
-      dto.note,
+      dto?.note,
     );
   }
 }
