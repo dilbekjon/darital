@@ -93,7 +93,7 @@ export default function AdminUtilityBillsPage() {
   const [error, setError] = useState<string | null>(null);
   const [bills, setBills] = useState<UtilityBill[]>([]);
   const [tenants, setTenants] = useState<TenantOption[]>([]);
-  const [activeType, setActiveType] = useState<UtilityType>('WATER');
+  const [activeType, setActiveType] = useState<UtilityType>('ELECTRICITY');
   const [mobileView, setMobileView] = useState<'queue' | 'bills'>('queue');
   const [search, setSearch] = useState('');
   const [onlyPendingHandover, setOnlyPendingHandover] = useState(false);
@@ -105,7 +105,7 @@ export default function AdminUtilityBillsPage() {
 
   const [form, setForm] = useState({
     tenantId: '',
-    type: 'WATER' as UtilityType,
+    type: 'ELECTRICITY' as UtilityType,
     month: '',
     startReading: '',
     endReading: '',
@@ -208,6 +208,19 @@ export default function AdminUtilityBillsPage() {
     const handover = queue.filter((row) => row.payment.workflowStatus === 'COLLECTOR_CONFIRMED').length;
     return { total, submitted, handover };
   }, [queue]);
+
+  const activeTariff =
+    activeType === 'ELECTRICITY'
+      ? tariffs.electricityPerKwh
+      : activeType === 'GAS'
+        ? tariffs.gasPerM3
+        : tariffs.waterPerM3;
+  const formUnitPrice = Number(form.unitPrice || activeTariff || 0);
+  const formStartReading = form.startReading === '' ? null : Number(form.startReading);
+  const formEndReading = form.endReading === '' ? null : Number(form.endReading);
+  const formConsumptionPreview =
+    formStartReading != null && formEndReading != null ? Math.max(0, formEndReading - formStartReading) : null;
+  const formAmountPreview = formConsumptionPreview != null ? formConsumptionPreview * formUnitPrice : null;
 
   const handleSaveReading = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -407,7 +420,12 @@ export default function AdminUtilityBillsPage() {
 
       {canManageReading && (
         <form onSubmit={handleSaveReading} className={`mb-6 rounded-xl border p-4 ${darkMode ? 'bg-gray-900 border-blue-600/30' : 'bg-white border-gray-200'}`}>
-          <p className={`font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Oy boshidagi/oxiridagi hisoblagich</p>
+          <p className={`font-semibold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            {TYPE_LABEL[activeType]} hisoblagichi va avtomatik hisob-kitob
+          </p>
+          <p className={`text-xs mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            Faqat {TYPE_LABEL[activeType].toLowerCase()} ulangan tenantlar ko‘rsatiladi. Boshlang‘ich holat bo‘sh qolsa, tizim oldingi oydagi oxirgi ko‘rsatkichni oladi.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <select
               value={form.tenantId}
@@ -415,7 +433,7 @@ export default function AdminUtilityBillsPage() {
               className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
               required
             >
-              <option value="">Tenant tanlang</option>
+              <option value="">Tenant tanlang ({enabledTenants.length})</option>
               {enabledTenants.map((tenant) => (
                 <option key={tenant.id} value={tenant.id}>
                   {tenant.fullName} {tenant.phone ? `(${tenant.phone})` : ''}
@@ -432,13 +450,7 @@ export default function AdminUtilityBillsPage() {
             <input
               type="number"
               step="0.01"
-              placeholder={`Tarif (default: ${
-                activeType === 'ELECTRICITY'
-                  ? tariffs.electricityPerKwh
-                  : activeType === 'GAS'
-                    ? tariffs.gasPerM3
-                    : tariffs.waterPerM3
-              })`}
+              placeholder={`Tarif (default: ${activeTariff})`}
               value={form.unitPrice}
               onChange={(e) => setForm((prev) => ({ ...prev, unitPrice: e.target.value }))}
               className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
@@ -446,7 +458,7 @@ export default function AdminUtilityBillsPage() {
             <input
               type="number"
               step="0.01"
-              placeholder="Boshlang‘ich holat"
+              placeholder="Boshlang‘ich holat (bo‘sh bo‘lsa oldingi olinadi)"
               value={form.startReading}
               onChange={(e) => setForm((prev) => ({ ...prev, startReading: e.target.value }))}
               className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
@@ -467,9 +479,14 @@ export default function AdminUtilityBillsPage() {
               className={`px-3 py-2 rounded-lg border ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300'}`}
             />
           </div>
+          <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${darkMode ? 'border-blue-600/30 bg-black text-gray-300' : 'border-gray-200 bg-gray-50 text-gray-700'}`}>
+            <span className="font-semibold">Preview:</span>{' '}
+            Sarf {formConsumptionPreview == null ? '-' : formConsumptionPreview.toLocaleString()} × Tarif {formUnitPrice.toLocaleString()} ={' '}
+            <span className="font-semibold">{formAmountPreview == null ? '-' : `${Math.round(formAmountPreview).toLocaleString()} UZS`}</span>
+          </div>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || enabledTenants.length === 0}
             className={`mt-3 px-4 py-2 rounded-lg font-medium ${darkMode ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-blue-600 text-white hover:bg-blue-700'} disabled:opacity-50`}
           >
             {saving ? 'Saqlanmoqda...' : 'Saqlash'}

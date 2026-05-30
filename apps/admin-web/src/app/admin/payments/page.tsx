@@ -769,6 +769,21 @@ export default function AdminPaymentsPage() {
     return 'TO_SUBMIT';
   }
 
+  function getCollectorStageDescription(payment: Payment) {
+    switch (getCollectorStage(payment)) {
+      case 'WAITING_TENANT':
+        return 'Tenant pul berganini tasdiqlashi kerak.';
+      case 'TO_COLLECT':
+        return 'Tenant tasdiqladi. Yig‘uvchi pulni olib, summani kiritadi.';
+      case 'TO_SUBMIT':
+        return 'Pul yig‘uvchida. Kassir qabul qilib yakunlaydi.';
+      case 'DONE':
+        return 'To‘lov yakunlangan va kassada tasdiqlangan.';
+      default:
+        return '';
+    }
+  }
+
   // Calculate statistics
   const stats: PaymentStats = useMemo(() => {
     const stats: PaymentStats = {
@@ -1425,6 +1440,11 @@ export default function AdminPaymentsPage() {
                           Pul olindi. Endi kassir tasdiqlaydi.
                         </p>
                       )}
+                      {stage !== 'TO_SUBMIT' && stage !== 'OTHER' && (
+                        <p className={`mt-3 text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {getCollectorStageDescription(payment)}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -1678,7 +1698,8 @@ export default function AdminPaymentsPage() {
                                 )}
                                 {payment.method === 'OFFLINE' && payment.source === 'CASH' && (
                                   <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                    1) Tenant → 2) Yig‘uvchi → 3) Kassir
+                                    1) Tenant tasdiqlaydi → 2) Yig‘uvchi oladi → 3) Kassir yakunlaydi
+                                    <div className="mt-1 font-medium">{getCollectorStageDescription(payment)}</div>
                                   </div>
                                 )}
                                 {canCollectorCapture && (
@@ -1715,7 +1736,7 @@ export default function AdminPaymentsPage() {
                                               : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300')
                                       }`}
                                     >
-                                      {verifyingPaymentId === payment.id ? 'Processing...' : '✓ Accept'}
+                                      {verifyingPaymentId === payment.id ? 'Jarayonda...' : '✓ Tasdiqlash'}
                                     </button>
                                     <button 
                                       onClick={() => handleVerifyPayment(payment.id, false)}
@@ -1728,7 +1749,7 @@ export default function AdminPaymentsPage() {
                                               : 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300')
                                       }`}
                                     >
-                                      ✗ Decline
+                                      ✗ Rad etish
                                     </button>
                                   </div>
                                 )}

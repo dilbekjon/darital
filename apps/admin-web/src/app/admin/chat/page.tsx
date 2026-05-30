@@ -411,7 +411,7 @@ export default function AdminChatPage() {
   const canReply = hasPermission('chat.reply');
 
   return (
-    <div className={`flex h-full overflow-hidden ${
+    <div className={`flex h-full min-h-[calc(100vh-5rem)] overflow-hidden ${
       darkMode ? 'bg-gray-900' : 'bg-gray-50'
     }`}>
       {/* Left Panel - Conversation List */}

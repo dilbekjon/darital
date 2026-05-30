@@ -227,9 +227,9 @@ export default function TenantChatPage() {
   const showChatOnMobile = !!selectedConversation;
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <TenantNavbar />
-      <div className="flex flex-col lg:flex-row h-[100dvh] lg:h-screen bg-gray-100 dark:bg-gray-900">
+      <div className="flex flex-col lg:flex-row min-h-[calc(100dvh-64px)] lg:h-[calc(100vh-64px)] bg-gray-100 dark:bg-gray-900">
       {/* Left Panel - Conversation List (hidden on mobile/tablet when chat is open) */}
       <div className={`${showListOnMobile ? 'flex' : 'hidden'} lg:flex w-full lg:w-80 xl:w-96 flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex-shrink-0`}>
         <div className="p-3 lg:p-4 border-b border-gray-200 dark:border-gray-700">
@@ -482,7 +482,6 @@ export default function TenantChatPage() {
         )}
       </div>
       </div>
-    </>
+    </div>
   );
 }
-

@@ -98,6 +98,9 @@ export default function AdminTenantDetailsPage() {
   const { user, loading, hasPermission } = useAuth();
   const { darkMode } = useTheme();
   const t = useUntypedTranslations();
+  const bodyTextClass = darkMode ? 'text-gray-200' : 'text-gray-900';
+  const secondaryTextClass = darkMode ? 'text-gray-300' : 'text-gray-700';
+  const mutedTextClass = darkMode ? 'text-gray-400' : 'text-gray-600';
 
   const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -531,7 +534,7 @@ export default function AdminTenantDetailsPage() {
                     <th className="py-2 text-left">Naqd (qoldiq)</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className={bodyTextClass}>
                   {financeOverview.months.map((month) => (
                     <tr key={month.month} className={`border-t ${darkMode ? 'border-gray-800' : 'border-gray-200'}`}>
                       <td className="py-2">{month.monthLabel}</td>
@@ -569,7 +572,7 @@ export default function AdminTenantDetailsPage() {
                   <th className="py-2 text-left">Holat</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className={bodyTextClass}>
                 {sortedInvoices.map((invoice) => {
                   const bank = getSplitProgress(invoice, 'BANK');
                   const cash = getSplitProgress(invoice, 'CASH');
@@ -650,7 +653,7 @@ export default function AdminTenantDetailsPage() {
                     {payment.status}
                   </span>
                 </div>
-                <div className={`mt-2 text-xs space-y-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div className={`mt-2 text-xs space-y-1 ${secondaryTextClass}`}>
                   <p>Sana: {new Date(payment.createdAt).toLocaleString('en-GB')}</p>
                   <p>Invoice: {payment.invoiceId}</p>
                   {payment.method === 'OFFLINE' && payment.source === 'CASH' && (
@@ -677,7 +680,7 @@ export default function AdminTenantDetailsPage() {
                   <th className="py-2 text-left">Holat</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className={bodyTextClass}>
                 {sortedPayments.map((payment) => (
                   <tr key={payment.id} className={`border-t ${darkMode ? 'border-gray-800' : 'border-gray-200'}`}>
                     <td className="py-3">{new Date(payment.createdAt).toLocaleString('en-GB')}</td>
@@ -687,11 +690,11 @@ export default function AdminTenantDetailsPage() {
                     <td className="py-3">
                       {payment.method === 'OFFLINE' && payment.source === 'CASH' ? (
                         <div className="space-y-1">
-                          <div className="text-xs font-medium">{payment.cashCustody?.status || '-'}</div>
-                          <div className="text-xs opacity-80">
+                          <div className={`text-xs font-medium ${secondaryTextClass}`}>{payment.cashCustody?.status || '-'}</div>
+                          <div className={`text-xs ${mutedTextClass}`}>
                             Tenant: {payment.tenantConfirmedAmount ? formatCurrency(payment.tenantConfirmedAmount) : '-'}
                           </div>
-                          <div className="text-xs opacity-80">
+                          <div className={`text-xs ${mutedTextClass}`}>
                             Yig‘uvchi: {payment.collectorReceivedAmount ? formatCurrency(payment.collectorReceivedAmount) : '-'}
                           </div>
                         </div>
@@ -730,7 +733,7 @@ export default function AdminTenantDetailsPage() {
                       <p className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                         {bill.type === 'ELECTRICITY' ? 'Svet' : bill.type === 'GAS' ? 'Gaz' : 'Suv'} • {bill.month}
                       </p>
-                      <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      <p className={`text-xs ${secondaryTextClass}`}>
                         Holat: {bill.startReading ?? '-'} → {bill.endReading ?? '-'} • Sarf: {Number(bill.consumption || 0).toLocaleString()} • Tarif: {Number(bill.unitPrice || 0).toLocaleString()}
                       </p>
                     </div>
