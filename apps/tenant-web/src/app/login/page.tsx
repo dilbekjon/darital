@@ -25,6 +25,34 @@ export default function LoginPage() {
   const t = useUntypedTranslations()
   const { darkMode, toggleTheme } = useTheme()
 
+  const UZ_COUNTRY_CODE = '998'
+  const extractUzLocalDigits = (value: string) => {
+    const digits = value.replace(/\D/g, '')
+    const withoutCc = digits.startsWith(UZ_COUNTRY_CODE) ? digits.slice(UZ_COUNTRY_CODE.length) : digits
+    return withoutCc.slice(0, 9)
+  }
+
+  const formatUzPhone = (value: string) => {
+    const local = extractUzLocalDigits(value)
+    const a = local.slice(0, 2)
+    const b = local.slice(2, 5)
+    const c = local.slice(5, 7)
+    const d = local.slice(7, 9)
+
+    let out = `+${UZ_COUNTRY_CODE}`
+    if (a.length > 0) out += ` (${a}`
+    if (a.length === 2) out += ')'
+    if (b.length > 0) out += ` ${b}`
+    if (c.length > 0) out += `-${c}`
+    if (d.length > 0) out += `-${d}`
+    return out
+  }
+
+  const normalizeUzPhone = (value: string) => {
+    const local = extractUzLocalDigits(value)
+    return local.length ? `+${UZ_COUNTRY_CODE}${local}` : ''
+  }
+
   const resetFlow = () => {
     setStep('phone')
     setPassword('')
@@ -37,7 +65,7 @@ export default function LoginPage() {
   }
 
   const startPasswordReset = async () => {
-    const trimmedPhone = phone.trim()
+    const trimmedPhone = normalizeUzPhone(phone.trim())
     if (!trimmedPhone) {
       setError('Telefon raqam kiritilishi shart')
       return
@@ -48,7 +76,7 @@ export default function LoginPage() {
   }
 
   const resendCode = async () => {
-    const trimmedPhone = phone.trim()
+    const trimmedPhone = normalizeUzPhone(phone.trim())
     if (!trimmedPhone) {
       setError('Telefon raqam kiritilishi shart')
       return
@@ -78,7 +106,7 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const trimmedPhone = phone.trim()
+      const trimmedPhone = normalizeUzPhone(phone.trim())
       
       if (!trimmedPhone) {
         setError('Telefon raqam kiritilishi shart')
@@ -241,8 +269,10 @@ export default function LoginPage() {
                 id="phone"
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => setPhone(formatUzPhone(e.target.value))}
                 required
+                inputMode="tel"
+                autoComplete="tel"
                 className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 ${
                   darkMode
                     ? 'bg-gray-800/50 border-yellow-500/40 text-white placeholder-gray-500 focus:border-yellow-400'
@@ -250,7 +280,7 @@ export default function LoginPage() {
                 } focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   darkMode ? 'focus:ring-yellow-500' : 'focus:ring-blue-500'
                 }`}
-                placeholder="998901234567"
+                placeholder="+998 (90) 123-45-67"
                 disabled={isLoading || step !== 'phone'}
               />
               {step !== 'phone' && (
