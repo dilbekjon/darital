@@ -88,6 +88,100 @@ export default function AdminContractsPage() {
   const [archivingContractId, setArchivingContractId] = useState<string | null>(null);
   const [viewingPdfContract, setViewingPdfContract] = useState<Contract | null>(null);
 
+  const parseMoney = (value: string) => {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  const formatMoneyInput = (value: number) => {
+    const normalized = Math.max(0, Math.round(value * 100) / 100);
+    return String(normalized);
+  };
+
+  const syncCreateSplitValues = (
+    totalValue: string,
+    changedField: 'bankAmount' | 'cashAmount',
+    changedValue: string,
+  ) => {
+    const total = parseMoney(totalValue);
+    const entered = parseMoney(changedValue);
+    const otherField = changedField === 'bankAmount' ? 'cashAmount' : 'bankAmount';
+
+    return {
+      [changedField]: changedValue,
+      [otherField]: totalValue ? formatMoneyInput(total - entered) : '',
+    } as Pick<typeof formData, 'bankAmount' | 'cashAmount'>;
+  };
+
+  const syncEditSplitValues = (
+    totalValue: string,
+    changedField: 'bankAmount' | 'cashAmount',
+    changedValue: string,
+  ) => {
+    const total = parseMoney(totalValue);
+    const entered = parseMoney(changedValue);
+    const otherField = changedField === 'bankAmount' ? 'cashAmount' : 'bankAmount';
+
+    return {
+      [changedField]: changedValue,
+      [otherField]: totalValue ? formatMoneyInput(total - entered) : '',
+    } as Pick<typeof editFormData, 'bankAmount' | 'cashAmount'>;
+  };
+
+  const syncCreateAmount = (nextAmount: string) => {
+    const hasBankValue = formData.bankAmount !== '';
+    const hasCashValue = formData.cashAmount !== '';
+
+    if (!hasBankValue && !hasCashValue) {
+      return {
+        amount: nextAmount,
+        bankAmount: nextAmount,
+        cashAmount: nextAmount ? '0' : '',
+      };
+    }
+
+    if (hasBankValue) {
+      return {
+        amount: nextAmount,
+        bankAmount: formData.bankAmount,
+        cashAmount: nextAmount ? formatMoneyInput(parseMoney(nextAmount) - parseMoney(formData.bankAmount)) : '',
+      };
+    }
+
+    return {
+      amount: nextAmount,
+      bankAmount: nextAmount ? formatMoneyInput(parseMoney(nextAmount) - parseMoney(formData.cashAmount)) : '',
+      cashAmount: formData.cashAmount,
+    };
+  };
+
+  const syncEditAmount = (nextAmount: string) => {
+    const hasBankValue = editFormData.bankAmount !== '';
+    const hasCashValue = editFormData.cashAmount !== '';
+
+    if (!hasBankValue && !hasCashValue) {
+      return {
+        amount: nextAmount,
+        bankAmount: nextAmount,
+        cashAmount: nextAmount ? '0' : '',
+      };
+    }
+
+    if (hasBankValue) {
+      return {
+        amount: nextAmount,
+        bankAmount: editFormData.bankAmount,
+        cashAmount: nextAmount ? formatMoneyInput(parseMoney(nextAmount) - parseMoney(editFormData.bankAmount)) : '',
+      };
+    }
+
+    return {
+      amount: nextAmount,
+      bankAmount: nextAmount ? formatMoneyInput(parseMoney(nextAmount) - parseMoney(editFormData.cashAmount)) : '',
+      cashAmount: editFormData.cashAmount,
+    };
+  };
+
   // Filter contracts based on search query and status
   const filteredContracts = useMemo(() => {
     let filtered = contracts;
@@ -113,6 +207,11 @@ export default function AdminContractsPage() {
 
     return filtered;
   }, [contracts, searchQuery, statusFilter]);
+
+  const freeUnits = useMemo(
+    () => units.filter((unit) => unit.status === 'FREE'),
+    [units],
+  );
 
   useEffect(() => {
     if (!loading) {
@@ -938,7 +1037,7 @@ export default function AdminContractsPage() {
                   min="0"
                   step="0.01"
                   value={editFormData.amount}
-                  onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
+                  onChange={(e) => setEditFormData({ ...editFormData, ...syncEditAmount(e.target.value) })}
                   placeholder={t.monthlyRent || t.enterMonthlyRent || 'Oylik ijara summasini kiriting'}
                   className={`w-full rounded-md shadow-sm px-3 py-2 border ${
                     darkMode ? 'bg-gray-900 border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
@@ -970,7 +1069,12 @@ export default function AdminContractsPage() {
                     min="0"
                     step="0.01"
                     value={editFormData.bankAmount}
-                    onChange={(e) => setEditFormData({ ...editFormData, bankAmount: e.target.value })}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        ...syncEditSplitValues(editFormData.amount, 'bankAmount', e.target.value),
+                      })
+                    }
                     className={`w-full rounded-md shadow-sm px-3 py-2 border ${
                       darkMode ? 'bg-gray-900 border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                     } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
@@ -989,7 +1093,12 @@ export default function AdminContractsPage() {
                     min="0"
                     step="0.01"
                     value={editFormData.cashAmount}
-                    onChange={(e) => setEditFormData({ ...editFormData, cashAmount: e.target.value })}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        ...syncEditSplitValues(editFormData.amount, 'cashAmount', e.target.value),
+                      })
+                    }
                     className={`w-full rounded-md shadow-sm px-3 py-2 border ${
                       darkMode ? 'bg-gray-900 border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                     } focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
@@ -1282,7 +1391,7 @@ export default function AdminContractsPage() {
                   }`}
                 >
                   <option value="">{t.selectUnit || 'Select Unit'}</option>
-                  {units.map((unit) => {
+                  {freeUnits.map((unit) => {
                     const priceValue = typeof unit.price === 'number' 
                       ? unit.price 
                       : typeof unit.price === 'object' && unit.price?.toNumber 
@@ -1390,9 +1499,7 @@ export default function AdminContractsPage() {
 	                        setFormData({
 	                          ...formData,
 	                          rentType: 'PER_SQM',
-	                          amount: nextAmount,
-	                          bankAmount: !formData.bankAmount && !formData.cashAmount ? nextAmount : formData.bankAmount,
-	                          cashAmount: !formData.bankAmount && !formData.cashAmount ? (nextAmount ? '0' : '') : formData.cashAmount,
+	                          ...syncCreateAmount(nextAmount),
 	                        });
 	                      }}
 	                      className="rounded border-gray-400 text-blue-600 focus:ring-blue-500"
@@ -1435,9 +1542,7 @@ export default function AdminContractsPage() {
 	                              setFormData({
 	                                ...formData,
 	                                pricePerSqm: v,
-	                                amount: nextAmount,
-	                                bankAmount: !formData.bankAmount && !formData.cashAmount ? nextAmount : formData.bankAmount,
-	                                cashAmount: !formData.bankAmount && !formData.cashAmount ? (nextAmount ? '0' : '') : formData.cashAmount,
+	                                ...syncCreateAmount(nextAmount),
 	                              });
 	                            }}
 	                            placeholder="Masalan: 150000"
@@ -1474,9 +1579,7 @@ export default function AdminContractsPage() {
 	                        const nextAmount = e.target.value;
 	                        setFormData({
 	                          ...formData,
-	                          amount: nextAmount,
-	                          bankAmount: !formData.bankAmount && !formData.cashAmount ? nextAmount : formData.bankAmount,
-	                          cashAmount: !formData.bankAmount && !formData.cashAmount ? (nextAmount ? '0' : '') : formData.cashAmount,
+	                          ...syncCreateAmount(nextAmount),
 	                        });
 	                      }}
 	                      placeholder={t.monthlyRent || t.enterMonthlyRent || 'Oylik ijara summasini kiriting'}
@@ -1509,7 +1612,12 @@ export default function AdminContractsPage() {
 	                      min="0"
 	                      step="0.01"
 	                      value={formData.bankAmount}
-	                      onChange={(e) => setFormData({ ...formData, bankAmount: e.target.value })}
+	                      onChange={(e) =>
+	                        setFormData({
+	                          ...formData,
+	                          ...syncCreateSplitValues(formData.amount, 'bankAmount', e.target.value),
+	                        })
+	                      }
 	                      placeholder="Masalan: 6000000"
 	                      className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
 	                        darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
@@ -1527,7 +1635,12 @@ export default function AdminContractsPage() {
 	                      min="0"
 	                      step="0.01"
 	                      value={formData.cashAmount}
-	                      onChange={(e) => setFormData({ ...formData, cashAmount: e.target.value })}
+	                      onChange={(e) =>
+	                        setFormData({
+	                          ...formData,
+	                          ...syncCreateSplitValues(formData.amount, 'cashAmount', e.target.value),
+	                        })
+	                      }
 	                      placeholder="Masalan: 4000000"
 	                      className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
 	                        darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
