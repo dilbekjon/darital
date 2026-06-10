@@ -165,7 +165,58 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       text,
       Markup.keyboard([[Markup.button.contactRequest(requestContactLabel)]])
         .resize()
-        .oneTime(),
+        .persistent(),
+    );
+  }
+
+  private async syncTenantIdentity(
+    chatId: string,
+    tenantId: string,
+    lang: 'uz' | 'ru' | 'en',
+    identity?: { telegramUserId?: string; telegramUsername?: string | null },
+  ) {
+    await this.attachTelegramIdentity(chatId, tenantId, lang, identity);
+    await this.linkTenantSession(chatId, tenantId, lang);
+  }
+
+  private async completeTenantLogin(
+    ctx: Context,
+    chatId: string,
+    tenant: { id: string; fullName: string; phone: string },
+    lang: 'uz' | 'ru' | 'en',
+    identity?: { telegramUserId?: string; telegramUsername?: string | null },
+  ) {
+    await this.syncTenantIdentity(chatId, tenant.id, lang, identity);
+
+    await ctx.reply(
+      lang === 'ru'
+        ? `✅ Вход выполнен.\n\nИмя: ${tenant.fullName}\nТелефон: +${tenant.phone}`
+        : lang === 'en'
+          ? `✅ Signed in.\n\nName: ${tenant.fullName}\nPhone: +${tenant.phone}`
+          : `✅ Tizimga kirildi.\n\nIsm: ${tenant.fullName}\nTelefon: +${tenant.phone}`,
+      Markup.removeKeyboard(),
+    );
+
+    await this.showMainMenu(ctx, chatId, lang);
+  }
+
+  private async replyTenantNotFound(ctx: Context, lang: 'uz' | 'ru' | 'en') {
+    await ctx.reply(
+      lang === 'ru'
+        ? 'К сожалению, ваши данные не найдены в системе. Пожалуйста, оставьте обращение через этого бота. Наши специалисты скоро свяжутся с вами и помогут.'
+        : lang === 'en'
+          ? 'Sorry, your information was not found in the system. Please leave a request through this bot. Our specialists will contact you soon and help you.'
+          : 'Kechirasiz, sizning ma\'lumotlaringiz tizimda topilmadi. Iltimos, ushbu bot orqali murojaat qoldiring. Mutaxassislarimiz siz bilan yaqin orada bog‘lanib, yordam berishadi.',
+    );
+  }
+
+  private async replyPhoneConflict(ctx: Context, lang: 'uz' | 'ru' | 'en') {
+    await ctx.reply(
+      lang === 'ru'
+        ? '❌ Этот номер уже привязан к другому арендатору. Пожалуйста, обратитесь в поддержку через этого бота.'
+        : lang === 'en'
+          ? '❌ This phone number is already linked to another tenant. Please contact support through this bot.'
+          : '❌ Bu telefon raqami boshqa ijarachiga biriktirilgan. Iltimos, ushbu bot orqali qo‘llab-quvvatlashga murojaat qiling.',
     );
   }
 
@@ -280,97 +331,69 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    const telegramUserById = identity?.telegramUserId
+      ? await this.prisma.telegramUser.findUnique({
+          where: { telegramUserId: identity.telegramUserId },
+        })
+      : null;
+
+    if (telegramUserById?.tenantId) {
+      const linkedTenant = await this.prisma.tenant.findUnique({
+        where: { id: telegramUserById.tenantId },
+      });
+
+      if (linkedTenant) {
+        if (linkedTenant.phone !== normalizedPhone) {
+          const phoneOwner = await this.prisma.tenant.findUnique({
+            where: { phone: normalizedPhone },
+          });
+
+          if (phoneOwner && phoneOwner.id !== linkedTenant.id) {
+            await this.replyPhoneConflict(ctx, lang);
+            return;
+          }
+
+          await this.prisma.tenant.update({
+            where: { id: linkedTenant.id },
+            data: { phone: normalizedPhone },
+          });
+
+          this.logger.log(
+            `Updated tenant phone from Telegram sync: tenantId=${linkedTenant.id}, telegramUserId=${identity?.telegramUserId}`,
+          );
+        }
+
+        await this.completeTenantLogin(
+          ctx,
+          chatId,
+          {
+            id: linkedTenant.id,
+            fullName: linkedTenant.fullName,
+            phone: normalizedPhone,
+          },
+          lang,
+          identity,
+        );
+        return;
+      }
+    }
+
     const tenant = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
     if (!tenant) {
-      await ctx.reply(
-        lang === 'ru'
-          ? '❌ Этот номер не найден среди арендаторов.'
-          : lang === 'en'
-            ? '❌ This phone number is not registered as a tenant.'
-            : 'Kechirasiz, sizning raqamingiz tizimda topilmadi. Iltimos, ushbu bot orqali murojaat qoldiring. Mutaxassislarimiz siz bilan yaqin orada bog‘lanib, yordam berishadi.',
-      );
+      await this.replyTenantNotFound(ctx, lang);
       return;
     }
 
-    await this.attachTelegramIdentity(chatId, tenant.id, lang, identity);
-
-    const existingOtp = await this.prisma.tenantOtp.findFirst({
-      where: {
-        tenantId: tenant.id,
-        usedAt: null,
-        expiresAt: { gte: new Date() },
+    await this.completeTenantLogin(
+      ctx,
+      chatId,
+      {
+        id: tenant.id,
+        fullName: tenant.fullName,
+        phone: tenant.phone,
       },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (existingOtp) {
-      await this.prisma.telegramUser.update({
-        where: { chatId },
-        data: {
-          pendingTenantId: tenant.id,
-          pendingPhone: tenant.phone,
-          authStep: 'waiting_code',
-          otpHash: existingOtp.codeHash,
-          otpExpiresAt: existingOtp.expiresAt,
-          otpAttempts: 0,
-        },
-      });
-      this.conversationStates.set(chatId, { step: 'waiting_code', language: lang });
-
-      await ctx.reply(
-        lang === 'ru'
-          ? 'SMS-код уже отправлен. Введите 8-значный код.'
-          : lang === 'en'
-            ? 'SMS code already sent. Enter the 8-digit code.'
-            : 'SMS kod yuborilgan. 8 xonali kodni kiriting.',
-        Markup.removeKeyboard(),
-      );
-      return;
-    }
-
-    if (!tenant.passwordSetAt) {
-      try {
-        await this.sendFirstLoginCode(chatId, tenant.id, tenant.phone, tenant.fullName, lang);
-        await ctx.reply(
-          lang === 'ru'
-            ? 'SMS-код отправлен. Введите 8-значный код.'
-            : lang === 'en'
-              ? 'SMS code sent. Enter the 8-digit code.'
-              : 'SMS kod yuborildi. 8 xonali kodni kiriting.',
-          Markup.removeKeyboard(),
-        );
-      } catch (error: any) {
-        this.logger.error(`Failed to send Telegram login code: ${error?.message || error}`);
-        await ctx.reply(
-          lang === 'ru'
-            ? '❌ Не удалось отправить SMS-код. Попробуйте позже.'
-            : lang === 'en'
-              ? '❌ Failed to send SMS code. Try again later.'
-              : '❌ SMS kod yuborilmadi. Keyinroq urinib ko‘ring.',
-        );
-      }
-      return;
-    }
-
-    await this.prisma.telegramUser.update({
-      where: { chatId },
-      data: {
-        pendingTenantId: tenant.id,
-        pendingPhone: tenant.phone,
-        authStep: 'waiting_password',
-        otpHash: null,
-        otpExpiresAt: null,
-        otpAttempts: 0,
-      },
-    });
-    this.conversationStates.set(chatId, { step: 'waiting_password', language: lang });
-
-    await ctx.reply(
-      lang === 'ru'
-        ? 'Введите пароль от аккаунта.'
-        : lang === 'en'
-          ? 'Enter your account password.'
-          : 'Hisobingiz parolini kiriting.',
-      Markup.removeKeyboard(),
+      lang,
+      identity,
     );
   }
 
@@ -466,18 +489,6 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       telegramUsername: ctx.from?.username ?? null,
     });
     const lang = (telegramUser.language as 'uz' | 'ru' | 'en') || 'uz';
-
-    if (this.isTenantAuthorized(telegramUser)) {
-      await ctx.reply(
-        lang === 'ru'
-          ? 'Вы уже вошли в аккаунт.'
-          : lang === 'en'
-            ? 'You are already signed in.'
-            : 'Siz allaqachon tizimga kirgansiz.',
-      );
-      await this.showMainMenu(ctx, chatId, lang);
-      return;
-    }
 
     await this.promptForPhone(ctx, chatId, lang);
   }
