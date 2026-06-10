@@ -37,6 +37,7 @@ export class TenantsService {
         fullName: true,
         email: true,
         phone: true,
+        telegramPhone: true,
         utilityElectricityEnabled: true,
         utilityGasEnabled: true,
         utilityWaterEnabled: true,
@@ -53,6 +54,7 @@ export class TenantsService {
       fullName: tenant.fullName,
       email: tenant.email || '',
       phone: tenant.phone,
+      telegramPhone: tenant.telegramPhone || tenant.phone,
       utilityElectricityEnabled: tenant.utilityElectricityEnabled,
       utilityGasEnabled: tenant.utilityGasEnabled,
       utilityWaterEnabled: tenant.utilityWaterEnabled,
@@ -73,6 +75,7 @@ export class TenantsService {
         fullName: true,
         email: true,
         phone: true,
+        telegramPhone: true,
         createdAt: true,
         utilityElectricityEnabled: true,
         utilityGasEnabled: true,
@@ -88,6 +91,7 @@ export class TenantsService {
       fullName: tenant.fullName,
       email: tenant.email || '',
       phone: tenant.phone,
+      telegramPhone: tenant.telegramPhone || tenant.phone,
       utilityElectricityEnabled: tenant.utilityElectricityEnabled,
       utilityGasEnabled: tenant.utilityGasEnabled,
       utilityWaterEnabled: tenant.utilityWaterEnabled,
@@ -107,6 +111,7 @@ export class TenantsService {
   async create(dto: CreateTenantDto) {
     try {
       const normalizedPhone = this.normalizePhone(dto.phone);
+      const normalizedTelegramPhone = this.normalizePhone(dto.telegramPhone || dto.phone);
       const normalizedEmail = dto.email?.trim() ? dto.email.trim().toLowerCase() : null;
       const tempPassword = crypto.randomBytes(16).toString('hex');
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
@@ -114,6 +119,7 @@ export class TenantsService {
         data: {
           fullName: dto.fullName,
           phone: normalizedPhone,
+          telegramPhone: normalizedTelegramPhone,
           email: normalizedEmail,
           password: hashedPassword,
           passwordSetAt: null,
@@ -145,6 +151,7 @@ export class TenantsService {
         fullName: tenant.fullName,
         email: tenant.email || '',
         phone: tenant.phone,
+        telegramPhone: tenant.telegramPhone || tenant.phone,
         utilityElectricityEnabled: tenant.utilityElectricityEnabled,
         utilityGasEnabled: tenant.utilityGasEnabled,
         utilityWaterEnabled: tenant.utilityWaterEnabled,
@@ -212,6 +219,23 @@ export class TenantsService {
       }
       updateData.phone = normalizedPhone;
     }
+    if (dto.telegramPhone !== undefined) {
+      const normalizedTelegramPhone = dto.telegramPhone
+        ? this.normalizePhone(dto.telegramPhone)
+        : null;
+      if (normalizedTelegramPhone) {
+        const existingByTelegramPhone = await this.prisma.tenant.findUnique({
+          where: { telegramPhone: normalizedTelegramPhone },
+        });
+        if (existingByTelegramPhone && existingByTelegramPhone.id !== id) {
+          throw new ConflictException({
+            code: 'TELEGRAM_PHONE_TAKEN',
+            message: 'Telegram phone number already exists',
+          });
+        }
+      }
+      updateData.telegramPhone = normalizedTelegramPhone;
+    }
     if (dto.email !== undefined) {
       const normalizedEmail = dto.email?.trim() ? dto.email.trim().toLowerCase() : null;
       if (normalizedEmail) {
@@ -238,6 +262,7 @@ export class TenantsService {
         fullName: tenant.fullName,
         email: tenant.email || '',
         phone: tenant.phone,
+        telegramPhone: tenant.telegramPhone || tenant.phone,
         utilityElectricityEnabled: tenant.utilityElectricityEnabled,
         utilityGasEnabled: tenant.utilityGasEnabled,
         utilityWaterEnabled: tenant.utilityWaterEnabled,
@@ -251,6 +276,12 @@ export class TenantsService {
         }
         if (target.includes('phone')) {
           throw new ConflictException({ code: 'PHONE_TAKEN', message: 'Phone number already exists' });
+        }
+        if (target.includes('telegramPhone')) {
+          throw new ConflictException({
+            code: 'TELEGRAM_PHONE_TAKEN',
+            message: 'Telegram phone number already exists',
+          });
         }
         throw new ConflictException({ code: 'UNIQUE_CONSTRAINT', message: 'Unique constraint failed' });
       }

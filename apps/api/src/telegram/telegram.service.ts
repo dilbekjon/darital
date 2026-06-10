@@ -190,10 +190,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     await ctx.reply(
       lang === 'ru'
-        ? `✅ Вход выполнен.\n\nИмя: ${tenant.fullName}\nТелефон: +${tenant.phone}`
+        ? `✅ Вход выполнен.\n\nИмя: ${tenant.fullName}`
         : lang === 'en'
-          ? `✅ Signed in.\n\nName: ${tenant.fullName}\nPhone: +${tenant.phone}`
-          : `✅ Tizimga kirildi.\n\nIsm: ${tenant.fullName}\nTelefon: +${tenant.phone}`,
+          ? `✅ Signed in.\n\nName: ${tenant.fullName}`
+          : `✅ Tizimga kirildi.\n\nIsm: ${tenant.fullName}`,
       Markup.removeKeyboard(),
     );
 
@@ -343,9 +343,9 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       });
 
       if (linkedTenant) {
-        if (linkedTenant.phone !== normalizedPhone) {
+        if ((linkedTenant.telegramPhone || linkedTenant.phone) !== normalizedPhone) {
           const phoneOwner = await this.prisma.tenant.findUnique({
-            where: { phone: normalizedPhone },
+            where: { telegramPhone: normalizedPhone },
           });
 
           if (phoneOwner && phoneOwner.id !== linkedTenant.id) {
@@ -355,11 +355,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
           await this.prisma.tenant.update({
             where: { id: linkedTenant.id },
-            data: { phone: normalizedPhone },
+            data: { telegramPhone: normalizedPhone },
           });
 
           this.logger.log(
-            `Updated tenant phone from Telegram sync: tenantId=${linkedTenant.id}, telegramUserId=${identity?.telegramUserId}`,
+            `Updated tenant telegramPhone from Telegram sync: tenantId=${linkedTenant.id}, telegramUserId=${identity?.telegramUserId}`,
           );
         }
 
@@ -369,7 +369,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           {
             id: linkedTenant.id,
             fullName: linkedTenant.fullName,
-            phone: normalizedPhone,
+            phone: linkedTenant.phone,
           },
           lang,
           identity,
@@ -378,7 +378,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    const tenant = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
+    const tenant = await this.prisma.tenant.findUnique({ where: { telegramPhone: normalizedPhone } });
     if (!tenant) {
       await this.replyTenantNotFound(ctx, lang);
       return;
@@ -2306,7 +2306,24 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
   private async handlePhoneInput(ctx: Context, chatId: string, phoneInput: string, state: ConversationState) {
     const lang = state.language || 'uz';
-    await this.processTenantPhone(ctx, chatId, phoneInput, lang);
+    await ctx.reply(
+      lang === 'ru'
+        ? '❌ Вход доступен только через кнопку отправки контакта ниже. Введите вручную нельзя.'
+        : lang === 'en'
+          ? '❌ Login works only through the contact button below. Manual typing is not allowed.'
+          : '❌ Kirish faqat pastdagi kontakt yuborish tugmasi orqali ishlaydi. Telefon raqamini qo‘lda yozib kirib bo‘lmaydi.',
+      Markup.keyboard([[
+        Markup.button.contactRequest(
+          lang === 'ru'
+            ? '📱 Отправить мой номер'
+            : lang === 'en'
+              ? '📱 Send my phone number'
+              : '📱 Telefon raqamimni yuborish',
+        ),
+      ]])
+        .resize()
+        .persistent(),
+    );
   }
 
   private async handleOtpInput(ctx: Context, chatId: string, code: string, state: ConversationState) {

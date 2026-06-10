@@ -208,6 +208,7 @@ model Tenant {
   id            String         @id @default(cuid())
   fullName      String
   phone         String         @unique
+  telegramPhone String?        @unique
   email         String?        @unique
   companyId     String?
   company       Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
@@ -233,6 +234,7 @@ model Tenant {
   archiveReason String?        // Reason for archiving
 
   @@index([phone])
+  @@index([telegramPhone])
   @@index([companyId])
   @@index([createdAt])
   @@index([isArchived])

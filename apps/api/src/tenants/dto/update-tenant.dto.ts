@@ -13,6 +13,12 @@ export class UpdateTenantDto {
   @Matches(/^[0-9+]{9,15}$/, { message: 'Invalid phone format' })
   phone?: string;
 
+  @ApiPropertyOptional({ description: 'Telegram login phone number' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9+]{9,15}$/, { message: 'Invalid telegram phone format' })
+  telegramPhone?: string;
+
   @ApiPropertyOptional({ description: 'Tenant email address (optional)' })
   @IsOptional()
   @IsEmail()
