@@ -2,14 +2,22 @@
 # PDF links use MINIO_PUBLIC_URL so the browser can open them (nginx proxies /files/ to MinIO).
 # Usage: docker compose -f docker-compose.prod.yml -f docker-compose.vps.yml --env-file .env.production up -d
 services:
+  minio:
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
   admin-web:
     build:
       args:
         NEXT_PUBLIC_API_URL: https://api.darital-arenda.uz/api
+    ports:
+      - "127.0.0.1:3000:3000"
   tenant-web:
     build:
       args:
         NEXT_PUBLIC_API_URL: /api
+    ports:
+      - "127.0.0.1:3002:3002"
   api:
     environment:
       MINIO_ENDPOINT: minio
@@ -21,3 +29,5 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-minioadmin}}
       MINIO_BUCKET: contracts
       MINIO_PUBLIC_URL: https://api.darital-arenda.uz/files
+    ports:
+      - "127.0.0.1:3001:3001"

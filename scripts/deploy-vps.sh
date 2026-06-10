@@ -2,7 +2,7 @@
 # Darital VPS Deployment Script
 # Usage: ./scripts/deploy-vps.sh [pull|start|restart|logs|stop]
 
-set -e
+set -euo pipefail
 
 # Colors for output
 RED='\033[0;31m'
@@ -12,8 +12,32 @@ NC='\033[0m' # No Color
 
 # Configuration
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-COMPOSE_FILE="docker-compose.prod.yml"
-ENV_FILE=".env"
+APP_ENV="${DARITAL_ENV:-production}"
+ENV_FILE="${DARITAL_ENV_FILE:-}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-darital-${APP_ENV}}"
+IMAGE_PREFIX="${IMAGE_PREFIX:-$COMPOSE_PROJECT_NAME}"
+export IMAGE_PREFIX
+COMPOSE_ARGS=(-f docker-compose.prod.yml)
+
+if [ "$APP_ENV" = "staging" ]; then
+    COMPOSE_ARGS+=(-f docker-compose.staging.yml)
+fi
+
+if [ "$APP_ENV" = "production" ] && [ -f "docker-compose.vps.yml" ]; then
+    COMPOSE_ARGS+=(-f docker-compose.vps.yml)
+fi
+
+if [ "$APP_ENV" = "staging" ] && [ -f "docker-compose.vps.staging.yml" ]; then
+    COMPOSE_ARGS+=(-f docker-compose.vps.staging.yml)
+fi
+
+if [ -z "$ENV_FILE" ]; then
+    if [ "$APP_ENV" = "staging" ]; then
+        ENV_FILE="env.staging"
+    else
+        ENV_FILE="env.production"
+    fi
+fi
 
 # Functions
 print_header() {
@@ -36,56 +60,64 @@ print_info() {
 
 check_env() {
     if [ ! -f "$ENV_FILE" ]; then
-        print_error ".env file not found. Copy .env.production to .env and update values."
+        print_error "$ENV_FILE file not found."
         exit 1
     fi
+}
+
+compose() {
+    docker compose -p "$COMPOSE_PROJECT_NAME" "${COMPOSE_ARGS[@]}" --env-file "$ENV_FILE" "$@"
 }
 
 # Command handlers
 cmd_pull() {
     print_header "Pulling Latest Code"
-    git pull origin main
+    local branch="${DARITAL_GIT_BRANCH:-main}"
+    if [ "$APP_ENV" = "staging" ]; then
+        branch="${DARITAL_GIT_BRANCH:-staging}"
+    fi
+    git pull origin "$branch"
     print_success "Code updated"
 }
 
 cmd_start() {
     print_header "Starting Services"
     check_env
-    docker compose -f $COMPOSE_FILE up -d
+    compose up -d
     print_success "Services started"
     print_info "Waiting for services to be healthy..."
     sleep 5
-    docker compose ps
+    compose ps
 }
 
 cmd_stop() {
     print_header "Stopping Services"
-    docker compose -f $COMPOSE_FILE down
+    compose down
     print_success "Services stopped"
 }
 
 cmd_restart() {
     print_header "Restarting Services"
     check_env
-    docker compose -f $COMPOSE_FILE restart
-    print_success "Services restarted"
+    compose up -d --build
+    print_success "Services rebuilt and restarted"
     sleep 3
-    docker compose ps
+    compose ps
 }
 
 cmd_logs() {
     print_header "Viewing Logs (last 50 lines, following)"
-    docker compose -f $COMPOSE_FILE logs --tail=50 -f
+    compose logs --tail=50 -f
 }
 
 cmd_logs_api() {
     print_header "API Logs"
-    docker compose -f $COMPOSE_FILE logs --tail=50 -f api
+    compose logs --tail=50 -f api
 }
 
 cmd_logs_web() {
     print_header "Admin Web Logs"
-    docker compose -f $COMPOSE_FILE logs --tail=50 -f admin-web
+    compose logs --tail=50 -f admin-web
 }
 
 cmd_deploy() {
@@ -95,18 +127,18 @@ cmd_deploy() {
     cmd_restart
     echo ""
     print_success "Deployment complete!"
-    docker compose ps
+    compose ps
 }
 
 cmd_migrate() {
     print_header "Running Database Migrations"
-    docker compose -f $COMPOSE_FILE exec api npx prisma migrate deploy
+    compose exec api npx prisma migrate deploy --schema=prisma/schema.prisma
     print_success "Migrations completed"
 }
 
 cmd_status() {
     print_header "Service Status"
-    docker compose -f $COMPOSE_FILE ps
+    compose ps
     echo ""
     print_header "Docker System Info"
     docker system df
@@ -115,7 +147,7 @@ cmd_status() {
 cmd_backup() {
     print_header "Database Backup"
     BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
-    docker compose -f $COMPOSE_FILE exec -T postgres pg_dump -U postgres darital > "$BACKUP_FILE"
+    compose exec -T postgres pg_dump -U "${POSTGRES_USER:-postgres}" "${POSTGRES_DB:-darital}" > "$BACKUP_FILE"
     print_success "Database backed up to: $BACKUP_FILE"
 }
 
@@ -138,7 +170,7 @@ cmd_restore() {
         exit 0
     fi
     
-    docker compose -f $COMPOSE_FILE exec -T postgres psql -U postgres darital < "$1"
+    compose exec -T postgres psql -U "${POSTGRES_USER:-postgres}" "${POSTGRES_DB:-darital}" < "$1"
     print_success "Database restored"
 }
 
@@ -170,9 +202,16 @@ Examples:
   ./scripts/deploy-vps.sh logs:api      # Watch API logs
 
 Environment Variables:
-  - Create/update .env file with your configuration
-  - See .env.production for all available options
-  - Never commit .env to Git (added to .gitignore)
+  - DARITAL_ENV=production|staging
+  - DARITAL_ENV_FILE=env.production|env.staging
+  - DARITAL_GIT_BRANCH=main|staging
+  - COMPOSE_PROJECT_NAME=darital-production|darital-staging
+  - Create/update env.production and env.staging with your configuration
+  - Never commit real secrets to Git
+
+Examples:
+  DARITAL_ENV=production ./scripts/deploy-vps.sh deploy
+  DARITAL_ENV=staging DARITAL_GIT_BRANCH=staging ./scripts/deploy-vps.sh deploy
 
 For detailed documentation, see VPS_DEPLOYMENT.md
 

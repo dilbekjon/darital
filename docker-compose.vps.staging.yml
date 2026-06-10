@@ -1,0 +1,21 @@
+# Override for staging on VPS with local MinIO and staging public URLs.
+services:
+  admin-web:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: https://staging-api.darital-arenda.uz/api
+  tenant-web:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: /api
+  api:
+    environment:
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-${MINIO_ROOT_USER:-minioadmin}}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-minioadmin}}
+      MINIO_BUCKET: contracts-staging
+      MINIO_PUBLIC_URL: https://staging-api.darital-arenda.uz/files
