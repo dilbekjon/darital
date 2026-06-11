@@ -753,13 +753,32 @@ export default function AdminTenantsPage() {
 
       {/* Create Tenant Modal */}
       {isModalOpen && (
-        <div className={`fixed inset-0 overflow-y-auto h-full w-full flex items-center justify-center z-50 p-4 ${
-          darkMode ? 'bg-black bg-opacity-70' : 'bg-gray-600 bg-opacity-50'
-        }`}>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl mx-auto border dark:border-gray-700">
-            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-              {editingTenant ? t.edit : t.createTenant}
-            </h2>
+        <div className="glass-modal-overlay overflow-y-auto">
+          <div className="glass-modal-panel w-full max-w-2xl mx-auto">
+            <div className="glass-modal-header flex items-start justify-between gap-4">
+              <div>
+                <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Darital</p>
+                <h2 className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">
+                  {editingTenant ? t.edit : t.createTenant}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  resetForm();
+                  setError(null);
+                }}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                  darkMode ? 'border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]' : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-white'
+                }`}
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            <div className="glass-modal-body">
             {success && (
               <div className="bg-green-100 dark:bg-green-900/20 border border-green-400 dark:border-green-800 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg mb-4" role="alert">
                 {success}
@@ -778,7 +797,7 @@ export default function AdminTenantsPage() {
               </div>
             )}
             <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="glass-section grid grid-cols-1 gap-4 mb-4 p-4 md:grid-cols-2">
                 {/* Full Name */}
                 <div>
                   <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -836,7 +855,7 @@ export default function AdminTenantsPage() {
                 </div>
               </div>
 
-              <div className={`mb-4 rounded-lg border p-3 ${darkMode ? 'border-gray-700 bg-gray-900/50' : 'border-gray-200 bg-gray-50'}`}>
+              <div className={`glass-section mb-4 rounded-lg p-3 ${darkMode ? 'bg-gray-900/30' : 'bg-gray-50/70'}`}>
                 <p className={`text-sm font-medium mb-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Kommunal xizmatlar</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <label className={`flex items-center gap-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -867,7 +886,7 @@ export default function AdminTenantsPage() {
               </div>
 
               {editingTenant && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="glass-section grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4">
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       New Password (optional)
@@ -912,7 +931,7 @@ export default function AdminTenantsPage() {
               )}
 
               {/* Form Actions */}
-              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="glass-modal-footer -mx-6 -mb-6 flex justify-end gap-3 mt-6">
                 <button
                   type="button"
                   onClick={() => {
@@ -939,6 +958,7 @@ export default function AdminTenantsPage() {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}

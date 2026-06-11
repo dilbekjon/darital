@@ -1858,11 +1858,9 @@ export default function AdminPaymentsPage() {
         if (!paymentToDelete) return null;
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${
-              darkMode ? 'bg-gray-900 border border-blue-600/30' : 'bg-white border border-gray-200'
-            }`}>
-              <div className="p-6">
+          <div className="glass-modal-overlay">
+            <div className="glass-modal-panel max-w-md w-full mx-4">
+              <div className="glass-modal-body">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className={`text-xl font-bold ${
                     darkMode ? 'text-white' : 'text-gray-900'
@@ -1967,31 +1965,34 @@ export default function AdminPaymentsPage() {
       {editModalOpen && editingPayment && (
         <>
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="fixed inset-0 z-40 bg-slate-950/55 backdrop-blur-sm"
             onClick={() => !savingEdit && setEditModalOpen(false)}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className={`rounded-lg shadow-xl max-w-md w-full p-6 ${
-              darkMode ? 'bg-gray-900 border border-blue-600/30' : 'bg-white'
-            }`}>
-              <div className="mb-4 flex justify-between items-center">
-                <h2 className={`text-xl font-bold ${
-                  darkMode ? 'text-white' : 'text-gray-900'
-                }`}>
-                  {(t as any).editPayment || t.editPayment || 'To\'lovni tahrirlash'}
-                </h2>
+            <div className="glass-modal-panel max-w-md w-full">
+              <div className="glass-modal-header mb-0 flex items-start justify-between gap-4">
+                <div>
+                  <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Darital</p>
+                  <h2 className={`mt-2 text-xl font-semibold ${
+                    darkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                    {(t as any).editPayment || t.editPayment || 'To\'lovni tahrirlash'}
+                  </h2>
+                </div>
                 <button
                   onClick={() => !savingEdit && setEditModalOpen(false)}
                   disabled={savingEdit}
-                  className={`text-2xl ${
-                    darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+                  className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                    darkMode ? 'border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]' : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-white'
                   } disabled:opacity-50`}
                 >
-                  ×
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 6l12 12M18 6L6 18" />
+                  </svg>
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="glass-modal-body space-y-4">
                 {/* Payment Info */}
                 <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -2075,7 +2076,7 @@ export default function AdminPaymentsPage() {
                 )}
 
                 {/* Actions */}
-                <div className="flex gap-3 pt-2">
+                <div className="glass-modal-footer -mx-6 -mb-6 flex gap-3 pt-2">
                   <button
                     onClick={() => !savingEdit && setEditModalOpen(false)}
                     disabled={savingEdit}
@@ -2109,7 +2110,7 @@ export default function AdminPaymentsPage() {
       {recordOfflineModalOpen && (
         <>
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="fixed inset-0 z-40 bg-slate-950/55 backdrop-blur-sm"
             onClick={() => {
               if (!recordingOffline) {
                 setOfflineInvoiceSearch('');
@@ -2118,11 +2119,9 @@ export default function AdminPaymentsPage() {
             }}
           />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className={`w-[95vw] max-w-5xl max-h-[92vh] rounded-xl shadow-2xl overflow-hidden ${
-              darkMode ? 'bg-gray-900 border border-blue-600/30' : 'bg-white'
-            }`}>
+            <div className="glass-modal-panel w-[95vw] max-w-5xl max-h-[92vh] overflow-hidden">
               {/* Modal Header */}
-              <div className={`px-6 py-4 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className="glass-modal-header">
                 <div className="flex items-center justify-between">
                   <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                     To'lov qo'shish
@@ -2150,7 +2149,7 @@ export default function AdminPaymentsPage() {
               </div>
 
               {/* Modal Body */}
-              <div className="px-6 py-4 space-y-4 overflow-y-auto max-h-[calc(92vh-110px)]">
+              <div className="glass-modal-body space-y-4 overflow-y-auto max-h-[calc(92vh-110px)]">
                 {error && (
                   <div className={`p-3 rounded-lg border ${
                     darkMode ? 'bg-red-900/20 border-red-600/30 text-red-300' : 'bg-red-50 border-red-200 text-red-800'

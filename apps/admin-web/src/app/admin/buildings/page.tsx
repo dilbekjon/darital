@@ -443,16 +443,28 @@ export default function BuildingsPage() {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className={`w-full max-w-md rounded-2xl shadow-2xl ${
-            darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white'
-          }`}>
-            <div className={`p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                Hudud qo'shish (ochiq maydon yoki bino)
-              </h2>
+        <div className="glass-modal-overlay">
+          <div className="glass-modal-panel w-full max-w-md">
+            <div className="glass-modal-header flex items-start justify-between gap-4">
+              <div>
+                <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Darital</p>
+                <h2 className={`mt-2 text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  Hudud qo'shish (ochiq maydon yoki bino)
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                  darkMode ? 'border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]' : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-white'
+                }`}
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="glass-modal-body space-y-4">
               <div>
                 <label className={`block text-sm font-semibold mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   1. Qavatlar soni
@@ -511,7 +523,7 @@ export default function BuildingsPage() {
                 />
               </div>
             </div>
-            <div className={`p-6 border-t flex gap-3 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div className="glass-modal-footer flex gap-3">
               <button
                 onClick={() => setShowCreateModal(false)}
                 className={`flex-1 py-3 rounded-xl font-medium ${
@@ -534,16 +546,28 @@ export default function BuildingsPage() {
 
       {/* Edit Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className={`w-full max-w-md rounded-2xl shadow-2xl ${
-            darkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white'
-          }`}>
-            <div className={`p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                Hududni tahrirlash
-              </h2>
+        <div className="glass-modal-overlay">
+          <div className="glass-modal-panel w-full max-w-md">
+            <div className="glass-modal-header flex items-start justify-between gap-4">
+              <div>
+                <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Darital</p>
+                <h2 className={`mt-2 text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+                  Hududni tahrirlash
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowEditModal(false); setSelectedBuilding(null); }}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                  darkMode ? 'border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]' : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-white'
+                }`}
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="glass-modal-body space-y-4">
               <div>
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Qavatlar soni
@@ -598,7 +622,7 @@ export default function BuildingsPage() {
                 />
               </div>
             </div>
-            <div className={`p-6 border-t flex gap-3 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div className="glass-modal-footer flex gap-3">
               <button
                 onClick={() => { setShowEditModal(false); setSelectedBuilding(null); }}
                 className={`flex-1 py-3 rounded-xl font-medium ${

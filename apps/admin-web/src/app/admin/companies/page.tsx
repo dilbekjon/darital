@@ -573,27 +573,34 @@ export default function AdminCompaniesPage() {
       </div>
 
       {isModalOpen && (
-        <div
-          className={`fixed inset-0 overflow-y-auto h-full w-full flex items-center justify-center z-50 ${
-            darkMode ? 'bg-black bg-opacity-70' : 'bg-gray-600 bg-opacity-50'
-          }`}
-        >
-          <div
-            className={`rounded-lg shadow-xl p-6 w-full max-w-4xl mx-auto border ${
-              darkMode
-                ? 'bg-black border-blue-600/30'
-                : 'bg-white border-gray-200'
-            }`}
-          >
-            <h2
-              className={`text-xl font-bold mb-4 ${
-                darkMode ? 'text-white' : 'text-gray-900'
-              }`}
-            >
-              {editingCompany
-                ? (t as any).editCompany || 'Kompaniyani tahrirlash'
-                : (t as any).createCompany || 'Kompaniya yaratish'}
-            </h2>
+        <div className="glass-modal-overlay overflow-y-auto">
+          <div className="glass-modal-panel w-full max-w-4xl mx-auto">
+            <div className="glass-modal-header flex items-start justify-between gap-4">
+              <div>
+                <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Darital</p>
+                <h2
+                  className={`mt-2 text-xl font-semibold ${
+                    darkMode ? 'text-white' : 'text-gray-900'
+                  }`}
+                >
+                  {editingCompany
+                    ? (t as any).editCompany || 'Kompaniyani tahrirlash'
+                    : (t as any).createCompany || 'Kompaniya yaratish'}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${
+                  darkMode ? 'border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]' : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-white'
+                }`}
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            <div className="glass-modal-body">
             {error && (
               <div
                 className={`px-4 py-3 rounded-lg mb-4 border ${
@@ -608,7 +615,7 @@ export default function AdminCompaniesPage() {
             )}
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                <div className="space-y-4">
+                <div className="glass-section space-y-4 p-4">
               <div>
                 <label
                   htmlFor="name"
@@ -671,7 +678,7 @@ export default function AdminCompaniesPage() {
                   </div>
                 </div>
 
-                <div className={`rounded-2xl border p-4 ${darkMode ? 'border-blue-600/30 bg-black/60' : 'border-gray-200 bg-gray-50/70'}`}>
+                <div className={`glass-section rounded-2xl p-4 ${darkMode ? 'bg-black/40' : 'bg-gray-50/70'}`}>
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <div>
                       <h3 className={`text-base font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -765,7 +772,7 @@ export default function AdminCompaniesPage() {
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-3">
+              <div className="glass-modal-footer -mx-6 -mb-6 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -790,6 +797,7 @@ export default function AdminCompaniesPage() {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
