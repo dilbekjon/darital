@@ -30,6 +30,24 @@ body {
   min-height: 100vh;
 }
 
+:root {
+  --admin-field-bg: rgba(255, 255, 255, 0.82);
+  --admin-field-border: rgba(148, 163, 184, 0.28);
+  --admin-field-color: #0f172a;
+  --admin-field-placeholder: #94a3b8;
+  --admin-field-shadow: 0 8px 28px rgba(59, 130, 246, 0.08);
+  --admin-field-focus-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12), 0 18px 36px rgba(59, 130, 246, 0.18);
+}
+
+.dark {
+  --admin-field-bg: rgba(15, 23, 42, 0.72);
+  --admin-field-border: rgba(96, 165, 250, 0.18);
+  --admin-field-color: #e2e8f0;
+  --admin-field-placeholder: #64748b;
+  --admin-field-shadow: 0 14px 34px rgba(37, 99, 235, 0.16);
+  --admin-field-focus-shadow: 0 0 0 4px rgba(96, 165, 250, 0.12), 0 20px 44px rgba(37, 99, 235, 0.24);
+}
+
 /* Dark mode body background */
 body.dark {
   background: #000000 !important;
@@ -100,6 +118,53 @@ body.modal-open {
 /* Disable transitions for specific elements that shouldn't animate */
 input, textarea, select, button {
   transition-property: none;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
+textarea,
+select {
+  background: var(--admin-field-bg);
+  border-color: var(--admin-field-border) !important;
+  color: var(--admin-field-color);
+  box-shadow: var(--admin-field-shadow);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color'])::placeholder,
+textarea::placeholder {
+  color: var(--admin-field-placeholder);
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):focus,
+textarea:focus,
+select:focus {
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: var(--admin-field-focus-shadow) !important;
+  outline: none;
+}
+
+input[type='file']::file-selector-button {
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2563eb, #60a5fa);
+  color: white;
+  font-weight: 600;
+  padding: 0.6rem 0.95rem;
+  margin-right: 0.9rem;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+}
+
+select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(59, 130, 246, 0.9) 50%),
+    linear-gradient(135deg, rgba(59, 130, 246, 0.9) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 2.75rem;
 }
 
 @utility text-balance {

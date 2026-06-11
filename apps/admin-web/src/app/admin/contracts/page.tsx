@@ -1323,12 +1323,15 @@ export default function AdminContractsPage() {
         } backdrop-blur-md`}>
           <div
             style={{ colorScheme: darkMode ? 'dark' : 'light' }}
-            className={`mx-auto w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-[28px] border p-5 shadow-2xl backdrop-blur-2xl sm:p-7 ${
+            className={`relative mx-auto w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-[28px] border p-5 shadow-2xl backdrop-blur-2xl sm:p-7 ${
               darkMode
                 ? 'border-white/10 bg-slate-950/78 text-white shadow-black/50'
                 : 'border-slate-200/70 bg-white/80 text-slate-900 shadow-slate-900/15'
             }`}
           >
+            <div className="pointer-events-none absolute -left-14 top-12 h-36 w-36 rounded-full bg-blue-400/20 blur-3xl" />
+            <div className="pointer-events-none absolute right-12 top-8 h-28 w-28 rounded-full bg-cyan-300/20 blur-3xl" />
+            <div className="pointer-events-none absolute bottom-10 right-20 h-40 w-40 rounded-full bg-blue-600/12 blur-3xl" />
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
                 <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${
