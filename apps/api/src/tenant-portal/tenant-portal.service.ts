@@ -8,6 +8,7 @@ import { CheckoutUzService } from '../payments/checkout-uz.service';
 import { ClickService } from '../payments/click.service';
 import { PaymentsService } from '../payments/payments.service';
 import { ConfirmCashDto } from '../payments/dto/confirm-cash.dto';
+import { ReportRentPaymentDto } from '../payments/dto/report-rent-payment.dto';
 import { CreateUtilityBillPaymentDto } from '../utility-bills/dto/create-utility-bill-payment.dto';
 import { UtilityBillsService } from '../utility-bills/utility-bills.service';
 
@@ -97,7 +98,10 @@ export class TenantPortalService {
       const pendingPayments = (invoice.payments || []).filter((payment: any) => payment.status === PaymentStatus.PENDING);
       const cancelledPayments = (invoice.payments || []).filter((payment: any) => payment.status === PaymentStatus.CANCELLED);
 
-      const totalPaid = confirmedPayments.reduce((sum: number, payment: any) => sum + this.toNumber(payment.amount), 0);
+      const balancePaidAmount = this.toNumber(invoice.balancePaidAmount);
+      const confirmedPaid = confirmedPayments.reduce((sum: number, payment: any) => sum + this.toNumber(payment.amount), 0);
+      // Money settled from the prepaid balance wallet counts as paid too
+      const totalPaid = confirmedPaid + balancePaidAmount;
       const totalRemaining = Math.max(0, amount - totalPaid);
 
       const derivedStatus: 'PAID' | 'PENDING' | 'OVERDUE' = totalRemaining <= 0
@@ -117,6 +121,8 @@ export class TenantPortalService {
         derivedStatus,
         totalPaid,
         totalRemaining,
+        balancePaidAmount,
+        paidFromBalance: balancePaidAmount > 0,
         paymentSummary: {
           total: invoice.payments.length,
           pending: pendingPayments.length,
@@ -287,6 +293,19 @@ export class TenantPortalService {
     }
 
     return this.paymentsService.tenantConfirmCashGiven(paymentId, tenant.id, dto);
+  }
+
+  async reportRentPayment(user: any, dto: ReportRentPaymentDto) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.id },
+      select: { id: true },
+    });
+
+    if (!tenant) {
+      throw new NotFoundException('Tenant not found');
+    }
+
+    return this.paymentsService.tenantReportRentPayment(tenant.id, dto);
   }
 
   async getUtilityBillsForUser(user: any) {

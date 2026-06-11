@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { confirmTenantCashGiven, getTenantPayments } from '../../../lib/tenantApi';
+import { confirmTenantCashGiven, getTenantInvoices, getTenantPayments, reportTenantRentPayment } from '../../../lib/tenantApi';
 import { ApiError, fetchTenantApi } from '../../../lib/api';
 import { useUntypedTranslations } from '../../../i18n/useUntypedTranslations';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -12,9 +12,13 @@ import ReceiptDownload from '../../../components/ReceiptDownload';
 
 export default function TenantPaymentsPage() {
   const [payments, setPayments] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmingPaymentId, setConfirmingPaymentId] = useState<string | null>(null);
   const [cashAmounts, setCashAmounts] = useState<Record<string, string>>({});
+  const [reportForm, setReportForm] = useState({ invoiceId: '', amount: '', source: 'CASH' as 'CASH' | 'BANK', note: '' });
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState<string | null>(null);
   const [receiptData, setReceiptData] = useState<any>(null);
   const [loadingReceipt, setLoadingReceipt] = useState<string | null>(null);
   const router = useRouter();
@@ -33,7 +37,12 @@ export default function TenantPaymentsPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        setPayments(await getTenantPayments());
+        const [paymentsRes, invoicesRes] = await Promise.all([
+          getTenantPayments(),
+          getTenantInvoices().catch(() => []),
+        ]);
+        setPayments(paymentsRes);
+        setInvoices(invoicesRes);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
           router.push('/login');
@@ -46,7 +55,62 @@ export default function TenantPaymentsPage() {
   }, [router]);
 
   const reloadPayments = async () => {
-    setPayments(await getTenantPayments());
+    const [paymentsRes, invoicesRes] = await Promise.all([
+      getTenantPayments(),
+      getTenantInvoices().catch(() => []),
+    ]);
+    setPayments(paymentsRes);
+    setInvoices(invoicesRes);
+  };
+
+  const unpaidInvoices = useMemo(
+    () => invoices.filter((invoice) => (invoice.derivedStatus ?? invoice.status) !== 'PAID' && (invoice.totalRemaining ?? invoice.amount) > 0),
+    [invoices],
+  );
+
+  const selectedInvoice = useMemo(
+    () => unpaidInvoices.find((invoice) => invoice.id === reportForm.invoiceId) ?? null,
+    [unpaidInvoices, reportForm.invoiceId],
+  );
+
+  const handleSelectReportInvoice = (invoiceId: string) => {
+    const invoice = unpaidInvoices.find((item) => item.id === invoiceId);
+    const remaining = invoice ? (invoice.totalRemaining ?? invoice.amount) : '';
+    setReportForm((prev) => ({ ...prev, invoiceId, amount: remaining !== '' ? String(remaining) : '' }));
+  };
+
+  const handleReportPayment = async () => {
+    if (!reportForm.invoiceId) {
+      alert('Avval invoice tanlang');
+      return;
+    }
+    const parsedAmount = parseMoneyInput(reportForm.amount);
+    if (!parsedAmount || parsedAmount <= 0) {
+      alert('Summani to‘g‘ri kiriting');
+      return;
+    }
+
+    setReportSubmitting(true);
+    setReportSuccess(null);
+    try {
+      const result = await reportTenantRentPayment({
+        invoiceId: reportForm.invoiceId,
+        amount: String(parsedAmount),
+        source: reportForm.source,
+        note: reportForm.note.trim() || undefined,
+      });
+      setReportSuccess(result.message || 'To‘lovingiz qayd etildi.');
+      setReportForm({ invoiceId: '', amount: '', source: 'CASH', note: '' });
+      await reloadPayments();
+    } catch (err) {
+      if (err instanceof ApiError) {
+        alert(err.message);
+      } else {
+        alert('To‘lovni qayd etishda xatolik yuz berdi');
+      }
+    } finally {
+      setReportSubmitting(false);
+    }
   };
 
   const sortedPayments = useMemo(() => {
@@ -143,6 +207,100 @@ export default function TenantPaymentsPage() {
               Bu bo‘lim to‘lov operatsiyalari tarixi uchun. Invoice bo‘limida qarzdorlik ko‘rinadi.
             </p>
           </div>
+
+          {unpaidInvoices.length > 0 && (
+            <div className={darkMode ? 'mb-6 rounded-2xl border border-blue-700/40 bg-blue-900/20 p-5' : 'mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-5'}>
+              <h2 className="text-lg font-semibold">Ijara to‘lovini qildim</h2>
+              <p className={darkMode ? 'mt-1 text-sm text-slate-400' : 'mt-1 text-sm text-slate-600'}>
+                Ijara haqini to‘lagan bo‘lsangiz, shu yerda xabar bering — to‘lov tizimda qayd etiladi.
+              </p>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className={darkMode ? 'mb-1 block text-xs text-slate-400' : 'mb-1 block text-xs text-slate-600'}>Invoice</label>
+                  <select
+                    value={reportForm.invoiceId}
+                    onChange={(e) => handleSelectReportInvoice(e.target.value)}
+                    className={darkMode
+                      ? 'w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white'
+                      : 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900'}
+                  >
+                    <option value="">Invoice tanlang</option>
+                    {unpaidInvoices.map((invoice) => (
+                      <option key={invoice.id} value={invoice.id}>
+                        {invoice.unitName || 'Xona'} • {new Date(invoice.dueDate).toLocaleDateString('uz-UZ')} • qoldiq {Number(invoice.totalRemaining ?? invoice.amount).toLocaleString()} UZS
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={darkMode ? 'mb-1 block text-xs text-slate-400' : 'mb-1 block text-xs text-slate-600'}>To‘langan summa (UZS)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={reportForm.amount}
+                    onChange={(e) => setReportForm((prev) => ({ ...prev, amount: e.target.value }))}
+                    placeholder="To‘langan summa"
+                    className={darkMode
+                      ? 'w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white'
+                      : 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900'}
+                  />
+                </div>
+
+                <div>
+                  <label className={darkMode ? 'mb-1 block text-xs text-slate-400' : 'mb-1 block text-xs text-slate-600'}>To‘lov turi</label>
+                  <select
+                    value={reportForm.source}
+                    onChange={(e) => setReportForm((prev) => ({ ...prev, source: e.target.value as 'CASH' | 'BANK' }))}
+                    className={darkMode
+                      ? 'w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white'
+                      : 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900'}
+                  >
+                    <option value="CASH">Naqd</option>
+                    <option value="BANK">Bank o‘tkazmasi</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={darkMode ? 'mb-1 block text-xs text-slate-400' : 'mb-1 block text-xs text-slate-600'}>Izoh (ixtiyoriy)</label>
+                  <input
+                    type="text"
+                    maxLength={500}
+                    value={reportForm.note}
+                    onChange={(e) => setReportForm((prev) => ({ ...prev, note: e.target.value }))}
+                    placeholder="Chek raqami, o‘tkazma izohi..."
+                    className={darkMode
+                      ? 'w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white'
+                      : 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900'}
+                  />
+                </div>
+              </div>
+
+              {selectedInvoice && (
+                <p className={darkMode ? 'mt-3 text-xs text-slate-400' : 'mt-3 text-xs text-slate-600'}>
+                  Tanlangan invoice qoldig‘i: {Number(selectedInvoice.totalRemaining ?? selectedInvoice.amount).toLocaleString()} UZS
+                </p>
+              )}
+
+              {reportSuccess && (
+                <div className={darkMode ? 'mt-3 rounded-lg border border-green-700/40 bg-green-900/20 px-3 py-2 text-sm text-green-300' : 'mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700'}>
+                  {reportSuccess}
+                </div>
+              )}
+
+              <button
+                onClick={handleReportPayment}
+                disabled={reportSubmitting || !reportForm.invoiceId}
+                className={darkMode
+                  ? 'mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50'
+                  : 'mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50'}
+              >
+                {reportSubmitting ? 'Yuborilmoqda...' : 'To‘lov qildim'}
+              </button>
+            </div>
+          )}
 
           <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className={darkMode ? 'rounded-2xl border border-yellow-700/40 bg-yellow-900/20 p-4' : 'rounded-2xl border border-yellow-200 bg-yellow-50 p-4'}>

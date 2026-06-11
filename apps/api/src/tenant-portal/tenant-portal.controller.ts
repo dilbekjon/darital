@@ -8,7 +8,10 @@ import { UpdateNotificationPreferencesDto } from './dto/update-notification-pref
 import { AdminRole } from '@prisma/client'; // Import AdminRole
 import { PaymentIntentDto } from '../payments/dto/payment-intent.dto';
 import { ConfirmCashDto } from '../payments/dto/confirm-cash.dto';
+import { ReportRentPaymentDto } from '../payments/dto/report-rent-payment.dto';
 import { CreateUtilityBillPaymentDto } from '../utility-bills/dto/create-utility-bill-payment.dto';
+import { LedgerService } from '../ledger/ledger.service';
+import { serializeLedgerEntries } from '../ledger/ledger.serializer';
 
 @ApiTags('Tenant Portal')
 @ApiBearerAuth()
@@ -18,7 +21,10 @@ import { CreateUtilityBillPaymentDto } from '../utility-bills/dto/create-utility
 export class TenantPortalController {
   private readonly logger = new Logger(TenantPortalController.name);
 
-  constructor(private readonly tenantPortalService: TenantPortalService) {}
+  constructor(
+    private readonly tenantPortalService: TenantPortalService,
+    private readonly ledger: LedgerService,
+  ) {}
 
   // Helper to ensure only TENANT_USER can access their own data
   private ensureTenantAccess(user: any) {
@@ -122,6 +128,22 @@ export class TenantPortalController {
     return this.tenantPortalService.refreshPaymentStatus(req.user, id);
   }
 
+  @Post('payments/report')
+  @Throttle({ default: { ttl: 60000, limit: 5 } }) // tighter limit: max 5 reports per minute
+  @UsePipes(new ValidationPipe({ whitelist: true }))
+  @ApiOperation({
+    summary: 'Tenant reports a rent payment ("I paid my rent")',
+    description:
+      'Creates a payment for one of the tenant\'s own invoices and (by default) completes it immediately: invoice is settled, ledger credited, and payment_updated is broadcast so admin money-collect and dashboards update in real time. Set TENANT_PAYMENT_AUTO_CONFIRM=false to require collector/cashier verification instead.',
+  })
+  @ApiResponse({ status: 201, description: 'Payment recorded (and confirmed when auto-confirm is enabled)' })
+  @ApiResponse({ status: 404, description: 'Invoice not found' })
+  @ApiResponse({ status: 409, description: 'Invoice already paid or amount exceeds remaining due' })
+  async reportRentPayment(@Req() req, @Body() dto: ReportRentPaymentDto) {
+    this.ensureTenantAccess(req.user);
+    return this.tenantPortalService.reportRentPayment(req.user, dto);
+  }
+
   @Post('payments/:id/confirm-cash-given')
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @ApiOperation({ summary: 'Tenant confirms they handed over cash payment' })
@@ -136,6 +158,17 @@ export class TenantPortalController {
   async getTenantBalance(@Req() req) {
     this.ensureTenantAccess(req.user);
     return this.tenantPortalService.getBalanceForUser(req.user);
+  }
+
+  @Get('balance/history')
+  @ApiOperation({ summary: 'Get tenant balance history (ledger of every change with reasons)' })
+  async getTenantBalanceHistory(@Req() req) {
+    this.ensureTenantAccess(req.user);
+    const [balance, entries] = await Promise.all([
+      this.ledger.getBalance(req.user.id),
+      this.ledger.getHistory(req.user.id),
+    ]);
+    return { current: balance.toNumber(), entries: serializeLedgerEntries(entries) };
   }
 
   @Post('devices/register')

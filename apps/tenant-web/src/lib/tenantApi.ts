@@ -85,6 +85,22 @@ interface Balance {
   current: number;
 }
 
+export interface LedgerEntry {
+  id: string;
+  type: 'DEPOSIT' | 'RENT_CHARGE' | 'UTILITY_CHARGE' | 'PAYMENT' | 'ADJUSTMENT' | 'REVERSAL';
+  amount: number; // signed: + credit, - debit
+  direction: 'credit' | 'debit';
+  balanceAfter: number;
+  description: string;
+  occurredAt: string | null;
+  createdAt: string | null;
+}
+
+export interface BalanceHistory {
+  current: number;
+  entries: LedgerEntry[];
+}
+
 interface Contract {
   id: string;
   unitId: string;
@@ -147,6 +163,26 @@ export async function getTenantPayments(): Promise<Payment[]> {
   return fetchApi<Payment[]>('/tenant/payments');
 }
 
+export interface ReportRentPaymentPayload {
+  invoiceId: string;
+  amount?: string;
+  source: 'CASH' | 'BANK';
+  note?: string;
+}
+
+export interface ReportRentPaymentResponse {
+  payment: Payment | null;
+  autoConfirmed: boolean;
+  message: string;
+}
+
+export async function reportTenantRentPayment(payload: ReportRentPaymentPayload): Promise<ReportRentPaymentResponse> {
+  return fetchApi<ReportRentPaymentResponse>('/tenant/payments/report', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function confirmTenantCashGiven(paymentId: string, amount?: string): Promise<any> {
   return fetchApi(`/tenant/payments/${paymentId}/confirm-cash-given`, {
     method: 'POST',
@@ -172,6 +208,10 @@ export async function refreshTenantPayment(paymentId: string): Promise<any> {
 
 export async function getTenantBalance(): Promise<Balance> {
   return fetchApi<Balance>('/tenant/balance');
+}
+
+export async function getTenantBalanceHistory(): Promise<BalanceHistory> {
+  return fetchApi<BalanceHistory>('/tenant/balance/history');
 }
 
 export async function getTenantContracts(): Promise<Contract[]> {

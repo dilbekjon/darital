@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { io } from 'socket.io-client';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUntypedTranslations } from '../../i18n/useUntypedTranslations';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../contexts/ToastContext';
-import { fetchApi, ApiError, normalizeListResponse } from '../../lib/api';
+import { fetchApi, ApiError, normalizeListResponse, getSocketBaseUrl } from '../../lib/api';
+import { getToken } from '../../lib/auth';
 import DaritalLoader from '../../components/DaritalLoader';
 import SystemStatus from '../../components/SystemStatus';
 
@@ -102,8 +104,33 @@ export default function DashboardPage() {
     }
   }, [authLoading, user]);
 
-  const loadStats = async () => {
-    setLoading(true);
+  // Real-time: refresh stats (without the full-page loader) when any payment changes
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (authLoading || !user) return;
+
+    const token = getToken();
+    if (!token) return;
+
+    const socket = io(`${getSocketBaseUrl()}/chat`, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+    });
+
+    socket.on('payment_updated', () => {
+      // Debounce: several payment events in quick succession trigger one refetch
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => loadStats({ silent: true }), 500);
+    });
+
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      socket.disconnect();
+    };
+  }, [authLoading, user]);
+
+  const loadStats = async (options?: { silent?: boolean }) => {
+    if (!options?.silent) setLoading(true);
     setError(null);
     try {
       // Fetch data from multiple endpoints

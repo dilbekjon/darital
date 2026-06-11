@@ -10,9 +10,11 @@ import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
 import { PaymentWebhookDto } from './dto/payment-webhook.dto';
 import { PaymentProviderEnum } from './dto/payment-intent.dto';
 import { CheckoutUzService } from './checkout-uz.service';
+import { LedgerService } from '../ledger/ledger.service';
 import { ChatGateway } from '../chat/chat.gateway';
 import { OfflinePaymentSource } from './dto/record-offline-payment.dto';
 import { ConfirmCashDto } from './dto/confirm-cash.dto';
+import { ReportRentPaymentDto } from './dto/report-rent-payment.dto';
 
 @Injectable()
 export class PaymentsService {
@@ -23,6 +25,7 @@ export class PaymentsService {
     private readonly notifications: NotificationsService,
     private readonly checkoutUzService: CheckoutUzService,
     private readonly moduleRef: ModuleRef,
+    private readonly ledger: LedgerService,
   ) {}
 
   /**
@@ -452,12 +455,18 @@ export class PaymentsService {
         }
       }
 
-      // Update tenant balance
-      await tx.balance.upsert({
-        where: { tenantId: invoice.contract.tenantId },
-        update: { current: { increment: confirmed.amount as unknown as Prisma.Decimal } },
-        create: { tenantId: invoice.contract.tenantId, current: confirmed.amount as unknown as Prisma.Decimal },
-      });
+      // Credit the payment to the tenant balance wallet and record it in the ledger history
+      await this.ledger.post(
+        {
+          tenantId: invoice.contract.tenantId,
+          type: 'PAYMENT',
+          amount: new Decimal(confirmed.amount), // credit (+)
+          description: "To'lov qabul qilindi",
+          invoiceId: invoice.id,
+          paymentId: confirmed.id,
+        },
+        tx,
+      );
 
       return confirmed;
     });
@@ -1061,6 +1070,139 @@ export class PaymentsService {
     return updated;
   }
 
+  /**
+   * Tenant-initiated rent payment notification.
+   *
+   * The tenant reports "I paid my rent" against one of their invoices. A payment record
+   * is created with the tenant-confirmation fields pre-filled, then (by default) it is
+   * automatically completed through confirmPaymentTransaction — which marks the payment
+   * CONFIRMED, settles the invoice, credits the tenant ledger/balance and emits the
+   * payment_updated realtime event consumed by the admin money-collect view and dashboards.
+   *
+   * Set TENANT_PAYMENT_AUTO_CONFIRM=false to keep tenant-reported payments PENDING so
+   * they flow through the regular collector → cashier verification chain instead.
+   */
+  async tenantReportRentPayment(tenantId: string, dto: ReportRentPaymentDto) {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: dto.invoiceId },
+      include: {
+        contract: {
+          include: {
+            tenant: { select: { id: true, fullName: true, email: true } },
+            unit: { select: { id: true, name: true } },
+          },
+        },
+        payments: { where: { status: { in: [PaymentStatus.PENDING, PaymentStatus.CONFIRMED] } } },
+      },
+    });
+
+    if (!invoice) throw new NotFoundException('Invoice topilmadi');
+    if (invoice.contract.tenantId !== tenantId) {
+      throw new ForbiddenException('Bu invoice sizga tegishli emas');
+    }
+    if ((invoice as any).isArchived) {
+      throw new ConflictException('Arxivlangan invoice uchun to‘lov qayd etib bo‘lmaydi');
+    }
+    if (invoice.status === InvoiceStatus.PAID) {
+      throw new ConflictException('Bu invoice allaqachon to‘langan');
+    }
+
+    // Remaining due for the chosen source, mirroring recordOfflinePayment's split logic
+    const bankDue = new Decimal((invoice as any).bankAmount || 0);
+    const cashDue = new Decimal((invoice as any).cashAmount || 0);
+    const hasSplit = !bankDue.plus(cashDue).equals(0);
+
+    const sumBySource = (sources: string[]) =>
+      invoice.payments
+        .filter((p: any) => sources.includes(String(p.source)))
+        .reduce((sum: Decimal, p: any) => sum.plus(p.amount), new Decimal(0));
+
+    const dueForSource = hasSplit
+      ? (dto.source === 'BANK' ? bankDue : cashDue)
+      : new Decimal(invoice.amount);
+    const paidForSource = hasSplit
+      ? (dto.source === 'BANK' ? sumBySource(['BANK', 'ONLINE']) : sumBySource(['CASH']))
+      : sumBySource(['BANK', 'ONLINE', 'CASH']);
+    const remaining = dueForSource.minus(paidForSource);
+
+    if (remaining.lte(0)) {
+      const label = dto.source === 'BANK' ? 'bank' : 'naqd';
+      throw new ConflictException(`Bu invoice uchun ${label} qismi allaqachon yopilgan yoki tasdiq kutmoqda`);
+    }
+
+    const amount = dto.amount ? new Decimal(dto.amount) : remaining;
+    if (amount.lte(0)) {
+      throw new ConflictException('To‘lov summasi 0 dan katta bo‘lishi kerak');
+    }
+    if (amount.greaterThan(remaining)) {
+      throw new ConflictException(`Summa qolgan qarzdorlikdan oshib ketdi (qolgan: ${remaining.toString()})`);
+    }
+
+    const now = new Date();
+    const noteParts = ['Tenant o‘zi xabar qildi'];
+    if (dto.note?.trim()) noteParts.push(dto.note.trim());
+
+    const created = await this.prisma.payment.create({
+      data: {
+        invoiceId: invoice.id,
+        method: PaymentMethod.OFFLINE,
+        source: dto.source,
+        provider: PaymentProvider.NONE,
+        amount,
+        status: PaymentStatus.PENDING,
+        tenantConfirmedAt: now,
+        tenantConfirmedBy: tenantId,
+        tenantConfirmedAmount: amount,
+        collectorNote: noteParts.join(' — '),
+      } as any,
+    });
+
+    const autoConfirm = process.env.TENANT_PAYMENT_AUTO_CONFIRM !== 'false';
+
+    if (autoConfirm) {
+      // Completes the payment: CONFIRMED status, invoice settlement, ledger credit,
+      // and the payment_updated websocket emit all happen inside this call.
+      await this.confirmPaymentTransaction({ paymentId: created.id, paidAt: now });
+    }
+
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: created.id },
+      include: {
+        invoice: {
+          include: {
+            contract: {
+              include: {
+                tenant: { select: { id: true, fullName: true, email: true } },
+                unit: { select: { id: true, name: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!autoConfirm && payment) {
+      const gateway = this.getChatGateway();
+      if (gateway) {
+        setImmediate(async () => {
+          try {
+            await gateway.emitPaymentUpdated(payment);
+          } catch (error) {
+            console.error('[PaymentsService] Failed to emit payment_updated event:', error);
+          }
+        });
+      }
+    }
+
+    return {
+      payment,
+      autoConfirmed: autoConfirm,
+      message: autoConfirm
+        ? 'To‘lovingiz qayd etildi va tasdiqlandi.'
+        : 'To‘lovingiz qayd etildi. To‘lov yig‘uvchi va kassir tasdig‘i kutilmoqda.',
+    };
+  }
+
   async collectorConfirmCashReceived(paymentId: string, collectorId: string, dto?: ConfirmCashDto) {
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
@@ -1606,15 +1748,20 @@ export class PaymentsService {
       const amount = payment.amount as unknown as Prisma.Decimal;
 
       await this.prisma.$transaction(async (tx) => {
-        await tx.payment.delete({ where: { id: paymentId } });
+        // Reverse the payment's credit from the balance wallet (records a REVERSAL in history)
+        await this.ledger.post(
+          {
+            tenantId,
+            type: 'REVERSAL',
+            amount: new Decimal(amount).negated(), // debit (-)
+            description: "To'lov bekor qilindi",
+            invoiceId: invoice.id,
+            paymentId,
+          },
+          tx,
+        );
 
-        const balance = await tx.balance.findUnique({ where: { tenantId } });
-        if (balance) {
-          await tx.balance.update({
-            where: { tenantId },
-            data: { current: { decrement: amount } },
-          });
-        }
+        await tx.payment.delete({ where: { id: paymentId } });
 
         const remaining = await tx.payment.aggregate({
           where: { invoiceId: invoice.id, status: PaymentStatus.CONFIRMED },
