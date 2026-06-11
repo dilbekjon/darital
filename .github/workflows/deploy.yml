@@ -64,6 +64,8 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      packages: read
     steps:
       - name: Deploy via SSH (pull prebuilt images — no build on server)
         uses: appleboy/ssh-action@v1.2.0
@@ -71,13 +73,12 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: GITHUB_SHA,GH_ACTOR,GHCR_TOKEN,DEPLOY_ENV
           script: |
             set -e
             DEPLOY_ENV="${{ github.event.inputs.environment || 'staging' }}"
             export IMAGE_TAG="${{ github.sha }}"
             export IMAGE_BASE="ghcr.io/${{ github.repository_owner }}/darital"
-            echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             if [ "$DEPLOY_ENV" = "production" ]; then
               cd /srv/darital-prod
               export ADMIN_IMAGE="$IMAGE_BASE-admin-prod"
