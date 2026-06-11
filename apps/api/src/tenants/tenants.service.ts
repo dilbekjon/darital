@@ -25,7 +25,7 @@ export class TenantsService {
   }
 
   private generateOtpCode(): string {
-    return crypto.randomInt(10_000_000, 100_000_000).toString();
+    return crypto.randomInt(1000, 10_000).toString();
   }
 
   async findAll(includeArchived = false) {
@@ -129,23 +129,8 @@ export class TenantsService {
         },
       });
 
-      const token = crypto.randomBytes(32).toString('hex');
-      const baseUrl = process.env.TENANT_SETUP_BASE_URL || 'https://darital-arenda.uz';
-      const setupUrl = `${baseUrl}/setup?phone=${encodeURIComponent(dto.phone)}&token=${token}`;
-
-      await this.prisma.tenantSetupToken.create({
-        data: {
-          tenantId: tenant.id,
-          token,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        },
-      });
-
-      const smsResult = await this.smsService.sendTenantSetupLink(dto.phone, dto.fullName, setupUrl);
-      if (!smsResult.success) {
-        this.logger.warn(`SMS not sent to ${dto.phone}: ${smsResult.error}. Setup link: ${setupUrl}`);
-      }
-
+      // No setup-link SMS: tenants log in with their phone number and receive
+      // an OTP code (Eskiz-approved template) on first login.
       return {
         id: tenant.id,
         fullName: tenant.fullName,
@@ -156,7 +141,6 @@ export class TenantsService {
         utilityGasEnabled: tenant.utilityGasEnabled,
         utilityWaterEnabled: tenant.utilityWaterEnabled,
         createdAt: tenant.createdAt.toISOString(),
-        smsSent: smsResult.success,
       };
     } catch (err: any) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {

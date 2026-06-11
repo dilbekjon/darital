@@ -70,9 +70,20 @@ export default function LoginPage() {
       setError('Telefon raqam kiritilishi shart')
       return
     }
-    setCodePurpose('reset')
-    setStep('code')
-    setError('Parolni tiklash kodi SMS orqali yuborildi. 8 xonali kodni kiriting.')
+    setIsLoading(true)
+    setError('')
+    try {
+      await tenantResetRequestCode(trimmedPhone)
+      setCodePurpose('reset')
+      setStep('code')
+      setError('Parolni tiklash kodi SMS orqali yuborildi. 4 xonali kodni kiriting.')
+    } catch (err) {
+      console.error('Reset code error:', err)
+      if (err instanceof ApiError) setError(err.data?.message || err.message)
+      else setError('Kod yuborishda xatolik')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const resendCode = async () => {
@@ -86,10 +97,10 @@ export default function LoginPage() {
     try {
       if (codePurpose === 'reset') {
         await tenantResetRequestCode(trimmedPhone)
-        setError('Parolni tiklash kodi SMS orqali qayta yuborildi. 8 xonali kodni kiriting.')
+        setError('Parolni tiklash kodi SMS orqali qayta yuborildi. 4 xonali kodni kiriting.')
       } else {
         await tenantLoginRequestCode(trimmedPhone)
-        setError('Tasdiqlash kodi SMS orqali qayta yuborildi. 8 xonali kodni kiriting.')
+        setError('Tasdiqlash kodi SMS orqali qayta yuborildi. 4 xonali kodni kiriting.')
       }
     } catch (err) {
       console.error('Resend code error:', err)
@@ -131,7 +142,7 @@ export default function LoginPage() {
         await tenantLoginRequestCode(trimmedPhone)
         setCodePurpose('first_login')
         setStep('code')
-        setError('Tasdiqlash kodi SMS orqali yuborildi. 8 xonali kodni kiriting.')
+        setError('Tasdiqlash kodi SMS orqali yuborildi. 4 xonali kodni kiriting.')
         setIsLoading(false)
         return
       }
@@ -157,8 +168,8 @@ export default function LoginPage() {
 
       if (step === 'code') {
         const trimmedCode = code.trim()
-        if (!/^\d{8}$/.test(trimmedCode)) {
-          setError('Kod 8 xonali raqam bo‘lishi kerak')
+        if (!/^\d{4}$/.test(trimmedCode)) {
+          setError('Kod 4 xonali raqam bo‘lishi kerak')
           setIsLoading(false)
           return
         }
@@ -172,8 +183,8 @@ export default function LoginPage() {
         const trimmedNewPassword = newPassword.trim()
         const trimmedConfirm = confirmNewPassword.trim()
 
-        if (!/^\d{8}$/.test(trimmedCode)) {
-          setError('Kod 8 xonali raqam bo‘lishi kerak')
+        if (!/^\d{4}$/.test(trimmedCode)) {
+          setError('Kod 4 xonali raqam bo‘lishi kerak')
           setIsLoading(false)
           return
         }
@@ -378,7 +389,7 @@ export default function LoginPage() {
                   } focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     darkMode ? 'focus:ring-yellow-500' : 'focus:ring-blue-500'
                   }`}
-                  placeholder="12345678"
+                  placeholder="1234" maxLength={4} inputMode="numeric"
                   disabled={isLoading}
                 />
                 <div className="mt-2 flex items-center justify-between">

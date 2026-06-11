@@ -6,7 +6,7 @@ export class TenantLoginSetPasswordDto {
   phone!: string;
 
   @IsString()
-  @Matches(/^\d{8}$/, { message: 'Invalid code format' })
+  @Matches(/^\d{4}$/, { message: 'Invalid code format' })
   code!: string;
 
   @IsString()

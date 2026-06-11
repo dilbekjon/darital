@@ -47,7 +47,7 @@ export class AuthController {
   @Post('tenant-login-request-code')
   @Public()
   @Throttle({ default: { ttl: 60000, limit: 3 } })
-  @ApiOperation({ summary: 'Request first-time tenant login SMS code (8 digits)' })
+  @ApiOperation({ summary: 'Request first-time tenant login SMS code (4 digits)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async tenantLoginRequestCode(@Body() body: TenantLoginRequestCodeDto) {
     return this.authService.requestTenantFirstLoginCode(body.phone);
@@ -65,7 +65,7 @@ export class AuthController {
   @Post('tenant-reset-request-code')
   @Public()
   @Throttle({ default: { ttl: 60000, limit: 3 } })
-  @ApiOperation({ summary: 'Request tenant password reset SMS code (8 digits)' })
+  @ApiOperation({ summary: 'Request tenant password reset SMS code (4 digits)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async tenantResetRequestCode(@Body() body: TenantLoginRequestCodeDto) {
     return this.authService.requestTenantPasswordResetCode(body.phone);

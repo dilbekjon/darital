@@ -62,7 +62,7 @@ export class TenantsController {
 
   @Put(':id/reset-password')
   @Permissions('tenants.update')
-  @ApiOperation({ summary: 'Send password reset code (8 digits) via SMS to tenant' })
+  @ApiOperation({ summary: 'Send password reset code (4 digits) via SMS to tenant' })
   @ApiResponse({ status: 200 })
   async resetPassword(@Param('id') id: string) {
     return this.tenantsService.sendResetPasswordSms(id);

@@ -89,7 +89,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   private generateOtpCode(): string {
-    return crypto.randomInt(10_000_000, 100_000_000).toString();
+    return crypto.randomInt(1000, 10_000).toString();
   }
 
   private async ensureTelegramUser(

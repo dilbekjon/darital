@@ -166,25 +166,22 @@ export class SmsService {
     return this.sendViaEskiz(phone, text);
   }
 
-  async sendTenantSetupLink(phone: string, fullName: string, setupUrl: string): Promise<SmsSendResult> {
-    const text = `Assalomu alaykum ${fullName}! Darital ijara portalingizga kirish uchun parol o'rnating: ${setupUrl}`;
-    return this.sendSms(phone, text);
+  // Eskiz-approved template. Any other text will be rejected by Eskiz moderation,
+  // so keep this in sync with the approved template in the Eskiz cabinet.
+  private readonly approvedOtpTemplate =
+    'Darital Arenda ilovasiga kirish uchun tasdiqlash kodingiz: {CODE}. Ushbu kodni hech kimga bermang!';
+
+  private buildOtpText(fullName: string, code: string): string {
+    const template = process.env.SMS_TENANT_OTP_TEMPLATE || this.approvedOtpTemplate;
+    return this.renderSmsTemplate(this.normalizeSmsText(template), { CODE: code, FULL_NAME: fullName });
   }
 
   async sendTelegramLoginCode(phone: string, fullName: string, code: string): Promise<SmsSendResult> {
-    const template = process.env.SMS_TENANT_OTP_TEMPLATE;
-    const text = template
-      ? this.renderSmsTemplate(this.normalizeSmsText(template), { CODE: code, FULL_NAME: fullName })
-      : `Assalomu alaykum ${fullName}! Darital Telegram botiga kirish kodi: ${code}. Kod 10 daqiqa davomida amal qiladi.`;
-    return this.sendSms(phone, text);
+    return this.sendSms(phone, this.buildOtpText(fullName, code));
   }
 
   async sendTenantLoginCode(phone: string, fullName: string, code: string): Promise<SmsSendResult> {
-    const template = process.env.SMS_TENANT_OTP_TEMPLATE;
-    const text = template
-      ? this.renderSmsTemplate(this.normalizeSmsText(template), { CODE: code, FULL_NAME: fullName })
-      : `Assalomu alaykum ${fullName}! Darital tizimiga kirish uchun tasdiqlash kodi: ${code}. Kod 10 daqiqa davomida amal qiladi.`;
-    return this.sendSms(phone, text);
+    return this.sendSms(phone, this.buildOtpText(fullName, code));
   }
 
   async sendTenantPasswordResetCode(phone: string, fullName: string, code: string): Promise<SmsSendResult> {

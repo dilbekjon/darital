@@ -210,7 +210,7 @@ export class AuthService {
   }
 
   private generateOtpCode(): string {
-    return crypto.randomInt(10_000_000, 100_000_000).toString();
+    return crypto.randomInt(1000, 10_000).toString();
   }
 
   async requestTenantFirstLoginCode(phone: string): Promise<{ success: boolean }> {
