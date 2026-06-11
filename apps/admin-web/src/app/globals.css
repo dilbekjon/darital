@@ -156,6 +156,11 @@ input[type='file']::file-selector-button {
 }
 
 select {
+  /* Hide the browser's native dropdown arrow so only the custom chevron below shows
+     (otherwise selects render two arrows). */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
   background-image:
     linear-gradient(45deg, transparent 50%, rgba(59, 130, 246, 0.9) 50%),
     linear-gradient(135deg, rgba(59, 130, 246, 0.9) 50%, transparent 50%);
