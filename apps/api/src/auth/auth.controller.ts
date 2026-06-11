@@ -4,9 +4,8 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { TenantLoginRequestCodeDto } from './dto/tenant-login-request-code.dto';
-import { TenantLoginSetPasswordDto } from './dto/tenant-login-set-password.dto';
 import { TenantLoginStatusDto } from './dto/tenant-login-status.dto';
-import { TenantSetupPasswordDto } from './dto/tenant-setup-password.dto';
+import { TenantLoginVerifyDto } from './dto/tenant-login-verify.dto';
 import { Public } from './decorators/public.decorator';
 import { TelegramExchangeDto } from './dto/telegram-exchange.dto';
 
@@ -18,7 +17,7 @@ export class AuthController {
   @Post('login')
   @Public()
   @Throttle({ default: { ttl: 60000, limit: 5 } })
-  @ApiOperation({ summary: 'Authenticate: admin by phone, tenant by phone' })
+  @ApiOperation({ summary: 'Authenticate admin by phone + password (tenants sign in via SMS code)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async login(@Body() body: LoginDto) {
     const loginId = body.login ?? body.email;
@@ -26,19 +25,10 @@ export class AuthController {
     return this.authService.login(loginId, body.password);
   }
 
-  @Post('tenant-setup-password')
-  @Public()
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
-  @ApiOperation({ summary: 'Tenant sets password via SMS link token' })
-  @UsePipes(new ValidationPipe({ whitelist: true }))
-  async tenantSetupPassword(@Body() body: TenantSetupPasswordDto) {
-    return this.authService.tenantSetupPassword(body.phone, body.token, body.password);
-  }
-
   @Post('tenant-login-status')
   @Public()
   @Throttle({ default: { ttl: 60000, limit: 10 } })
-  @ApiOperation({ summary: 'Tenant login status by phone (password set or first time)' })
+  @ApiOperation({ summary: 'Tenant lookup by phone (contact or Telegram number); returns masked SMS target' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async tenantLoginStatus(@Body() body: TenantLoginStatusDto) {
     return this.authService.tenantLoginStatus(body.phone);
@@ -47,37 +37,22 @@ export class AuthController {
   @Post('tenant-login-request-code')
   @Public()
   @Throttle({ default: { ttl: 60000, limit: 3 } })
-  @ApiOperation({ summary: 'Request first-time tenant login SMS code (4 digits)' })
+  @ApiOperation({
+    summary: 'Request tenant login SMS code (4 digits)',
+    description: 'Phone may be the contact or Telegram number; the code is always sent to the contact number.',
+  })
   @UsePipes(new ValidationPipe({ whitelist: true }))
   async tenantLoginRequestCode(@Body() body: TenantLoginRequestCodeDto) {
-    return this.authService.requestTenantFirstLoginCode(body.phone);
+    return this.authService.requestTenantLoginCode(body.phone);
   }
 
-  @Post('tenant-login-set-password')
+  @Post('tenant-login-verify')
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
-  @ApiOperation({ summary: 'Confirm first-time SMS code and set tenant password' })
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: 'Verify 4-digit SMS code and sign the tenant in (passwordless)' })
   @UsePipes(new ValidationPipe({ whitelist: true }))
-  async tenantLoginSetPassword(@Body() body: TenantLoginSetPasswordDto) {
-    return this.authService.confirmTenantFirstLoginAndSetPassword(body.phone, body.code, body.password);
-  }
-
-  @Post('tenant-reset-request-code')
-  @Public()
-  @Throttle({ default: { ttl: 60000, limit: 3 } })
-  @ApiOperation({ summary: 'Request tenant password reset SMS code (4 digits)' })
-  @UsePipes(new ValidationPipe({ whitelist: true }))
-  async tenantResetRequestCode(@Body() body: TenantLoginRequestCodeDto) {
-    return this.authService.requestTenantPasswordResetCode(body.phone);
-  }
-
-  @Post('tenant-reset-set-password')
-  @Public()
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
-  @ApiOperation({ summary: 'Confirm reset SMS code and set tenant password' })
-  @UsePipes(new ValidationPipe({ whitelist: true }))
-  async tenantResetSetPassword(@Body() body: TenantLoginSetPasswordDto) {
-    return this.authService.confirmTenantPasswordResetAndSetPassword(body.phone, body.code, body.password);
+  async tenantLoginVerify(@Body() body: TenantLoginVerifyDto) {
+    return this.authService.verifyTenantLoginCode(body.phone, body.code);
   }
 
   @Post('telegram-exchange')

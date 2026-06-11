@@ -471,7 +471,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    const tenant = await this.prisma.tenant.findUnique({ where: { telegramPhone: normalizedPhone } });
+    // Match the shared number against both the Telegram number and the contact
+    // number. The SMS code is always sent to the contact number (tenant.phone).
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { OR: [{ telegramPhone: normalizedPhone }, { phone: normalizedPhone }] },
+    });
     if (!tenant) {
       await this.replyTenantNotFound(ctx, lang);
       return;

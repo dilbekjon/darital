@@ -33,6 +33,8 @@ export class AuthService {
     }
     const phone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
 
+    // Password login is for admins only. Tenants sign in via SMS OTP
+    // (requestTenantLoginCode / verifyTenantLoginCode) or Telegram.
     const admin = await this.usersService.findByPhone(phone);
     if (admin) {
       if (!admin.password?.startsWith('$2')) {
@@ -45,25 +47,8 @@ export class AuthService {
       return admin;
     }
 
-    const tenant = await this.prisma.tenant.findUnique({ where: { phone } });
-    if (!tenant) {
-      this.logger.warn(`Tenant not found for phone: ${phone}`);
-      return null;
-    }
-    if (!tenant.password?.startsWith('$2')) {
-      this.logger.error(`Tenant ${phone} has unhashed password.`);
-      return null;
-    }
-    const isValid = await bcrypt.compare(trimmedPassword, tenant.password);
-    if (!isValid) return null;
-    this.logger.log(`Login successful for tenant phone: ${phone}`);
-    return {
-      id: tenant.id,
-      email: tenant.phone,
-      fullName: tenant.fullName,
-      role: AdminRole.TENANT_USER,
-      password: tenant.password,
-    };
+    this.logger.warn(`Password login rejected (not an admin): ${phone}`);
+    return null;
   }
 
   async login(login: string, password: string): Promise<{ accessToken: string }> {
@@ -72,15 +57,7 @@ export class AuthService {
       const err: any = new UnauthorizedException({ code: 'INVALID_CREDENTIALS', message: 'Invalid login or password' });
       throw err;
     }
-    let tokenVersion = 0;
-    if (user.role === AdminRole.TENANT_USER) {
-      const tenant = await this.prisma.tenant.findUnique({
-        where: { id: user.id },
-        select: { tokenVersion: true },
-      });
-      tokenVersion = tenant?.tokenVersion ?? 0;
-    }
-    const payload = { sub: user.id, role: user.role, email: user.email, name: user.fullName, tokenVersion };
+    const payload = { sub: user.id, role: user.role, email: user.email, name: user.fullName, tokenVersion: 0 };
     const accessToken = await this.jwtService.signAsync(payload);
     return { accessToken };
   }
@@ -174,54 +151,55 @@ export class AuthService {
     return { accessToken };
   }
 
-  async tenantSetupPassword(phone: string, token: string, newPassword: string): Promise<{ success: boolean }> {
-    const cleanPhone = phone.replace(/\D/g, '');
-    const normalizedPhone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
-    const tenant = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
-    if (!tenant) throw new UnauthorizedException({ code: 'INVALID_LINK', message: 'Invalid or expired link' });
-    const setupToken = await this.prisma.tenantSetupToken.findFirst({
-      where: { tenantId: tenant.id, token, usedAt: null },
-    });
-    if (!setupToken || setupToken.expiresAt < new Date()) {
-      throw new UnauthorizedException({ code: 'INVALID_LINK', message: 'Invalid or expired link' });
-    }
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await this.prisma.$transaction([
-      this.prisma.tenant.update({
-        where: { id: tenant.id },
-        data: { password: hashedPassword, passwordSetAt: new Date() },
-      }),
-      this.prisma.tenantSetupToken.update({ where: { id: setupToken.id }, data: { usedAt: new Date() } }),
-    ]);
-    this.logger.log(`Tenant ${normalizedPhone} set password successfully`);
-    return { success: true };
-  }
-
   private normalizePhone(rawPhone: string): string {
     const cleanPhone = rawPhone.replace(/\D/g, '');
     return cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone}`;
   }
 
-  async tenantLoginStatus(phone: string): Promise<{ exists: boolean; passwordSet: boolean }> {
+  private maskPhone(phone: string): string {
+    const normalized = this.normalizePhone(phone);
+    if (normalized.length < 4) return '****';
+    return `+${normalized.slice(0, 5)}***${normalized.slice(-2)}`;
+  }
+
+  /**
+   * A tenant may sign in with either their contact number (phone) or their
+   * Telegram number (telegramPhone). The OTP SMS is ALWAYS sent to the
+   * contact number — if the two differ, the Telegram number never receives SMS.
+   */
+  private async findTenantForLogin(phone: string) {
     const normalizedPhone = this.normalizePhone(phone);
-    const tenant = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
-    if (!tenant) return { exists: false, passwordSet: false };
-    return { exists: true, passwordSet: Boolean(tenant.passwordSetAt) };
+    return this.prisma.tenant.findFirst({
+      where: { OR: [{ phone: normalizedPhone }, { telegramPhone: normalizedPhone }] },
+    });
+  }
+
+  async tenantLoginStatus(phone: string): Promise<{ exists: boolean; smsTarget: string | null }> {
+    const tenant = await this.findTenantForLogin(phone);
+    if (!tenant) return { exists: false, smsTarget: null };
+    return { exists: true, smsTarget: this.maskPhone(tenant.phone) };
   }
 
   private generateOtpCode(): string {
     return crypto.randomInt(1000, 10_000).toString();
   }
 
-  async requestTenantFirstLoginCode(phone: string): Promise<{ success: boolean }> {
-    const normalizedPhone = this.normalizePhone(phone);
-    const tenant = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
+  async requestTenantLoginCode(phone: string): Promise<{ success: boolean; smsTarget: string }> {
+    const tenant = await this.findTenantForLogin(phone);
     if (!tenant) {
       const err: any = new UnauthorizedException({ code: 'TENANT_NOT_FOUND', message: 'Tenant not found' });
       throw err;
     }
-    if (tenant.passwordSetAt) {
-      const err: any = new UnauthorizedException({ code: 'PASSWORD_ALREADY_SET', message: 'Password already set' });
+
+    // Resend cooldown: at most one SMS per 60 seconds per tenant
+    const recentOtp = await this.prisma.tenantOtp.findFirst({
+      where: { tenantId: tenant.id, usedAt: null, createdAt: { gt: new Date(Date.now() - 60 * 1000) } },
+    });
+    if (recentOtp) {
+      const err: any = new UnauthorizedException({
+        code: 'TOO_FREQUENT',
+        message: 'Kod allaqachon yuborilgan. 1 daqiqadan so‘ng qayta urinib ko‘ring.',
+      });
       throw err;
     }
 
@@ -243,6 +221,7 @@ export class AuthService {
       },
     });
 
+    // Always the contact number, never the Telegram number
     const smsResult = await this.smsService.sendTenantLoginCode(tenant.phone, tenant.fullName, code);
     if (!smsResult.success) {
       // Avoid leaving unusable OTPs in DB when SMS delivery fails
@@ -251,108 +230,11 @@ export class AuthService {
       throw err;
     }
 
-    return { success: true };
+    return { success: true, smsTarget: this.maskPhone(tenant.phone) };
   }
 
-  async confirmTenantFirstLoginAndSetPassword(
-    phone: string,
-    code: string,
-    newPassword: string,
-  ): Promise<{ success: boolean }> {
-    const normalizedPhone = this.normalizePhone(phone);
-    const tenant = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
-    if (!tenant) {
-      const err: any = new UnauthorizedException({ code: 'TENANT_NOT_FOUND', message: 'Tenant not found' });
-      throw err;
-    }
-    if (tenant.passwordSetAt) {
-      const err: any = new UnauthorizedException({ code: 'PASSWORD_ALREADY_SET', message: 'Password already set' });
-      throw err;
-    }
-
-    const otp = await this.prisma.tenantOtp.findFirst({
-      where: { tenantId: tenant.id, usedAt: null },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (!otp || otp.expiresAt < new Date()) {
-      const err: any = new UnauthorizedException({ code: 'OTP_EXPIRED', message: 'Code expired' });
-      throw err;
-    }
-
-    if (otp.attempts >= 5) {
-      const err: any = new UnauthorizedException({ code: 'TOO_MANY_ATTEMPTS', message: 'Too many attempts' });
-      throw err;
-    }
-
-    const isValid = await bcrypt.compare(code.trim(), otp.codeHash);
-    if (!isValid) {
-      await this.prisma.tenantOtp.update({
-        where: { id: otp.id },
-        data: { attempts: otp.attempts + 1 },
-      });
-      const err: any = new UnauthorizedException({ code: 'INVALID_OTP', message: 'Invalid code' });
-      throw err;
-    }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await this.prisma.$transaction([
-      this.prisma.tenant.update({
-        where: { id: tenant.id },
-        data: { password: hashedPassword, passwordSetAt: new Date() },
-      }),
-      this.prisma.tenantOtp.update({
-        where: { id: otp.id },
-        data: { usedAt: new Date() },
-      }),
-    ]);
-
-    return { success: true };
-  }
-
-  async requestTenantPasswordResetCode(phone: string): Promise<{ success: boolean }> {
-    const normalizedPhone = this.normalizePhone(phone);
-    const tenant = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
-    if (!tenant) {
-      const err: any = new UnauthorizedException({ code: 'TENANT_NOT_FOUND', message: 'Tenant not found' });
-      throw err;
-    }
-
-    // Cleanup expired/used codes
-    await this.prisma.tenantOtp.deleteMany({
-      where: {
-        tenantId: tenant.id,
-        OR: [{ usedAt: { not: null } }, { expiresAt: { lt: new Date() } }],
-      },
-    });
-
-    const codeValue = this.generateOtpCode();
-    const codeHash = await bcrypt.hash(codeValue, 10);
-    const otp = await this.prisma.tenantOtp.create({
-      data: {
-        tenantId: tenant.id,
-        codeHash,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      },
-    });
-
-    const smsResult = await this.smsService.sendTenantPasswordResetCode(tenant.phone, tenant.fullName, codeValue);
-    if (!smsResult.success) {
-      await this.prisma.tenantOtp.delete({ where: { id: otp.id } }).catch(() => undefined);
-      const err: any = new UnauthorizedException({ code: 'SMS_FAILED', message: smsResult.error || 'SMS failed' });
-      throw err;
-    }
-
-    return { success: true };
-  }
-
-  async confirmTenantPasswordResetAndSetPassword(
-    phone: string,
-    code: string,
-    newPassword: string,
-  ): Promise<{ success: boolean }> {
-    const normalizedPhone = this.normalizePhone(phone);
-    const tenant = await this.prisma.tenant.findUnique({ where: { phone: normalizedPhone } });
+  async verifyTenantLoginCode(phone: string, code: string): Promise<{ accessToken: string }> {
+    const tenant = await this.findTenantForLogin(phone);
     if (!tenant) {
       const err: any = new UnauthorizedException({ code: 'TENANT_NOT_FOUND', message: 'Tenant not found' });
       throw err;
@@ -383,18 +265,20 @@ export class AuthService {
       throw err;
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await this.prisma.$transaction([
-      this.prisma.tenant.update({
-        where: { id: tenant.id },
-        data: { password: hashedPassword, passwordSetAt: new Date() },
-      }),
-      this.prisma.tenantOtp.update({
-        where: { id: otp.id },
-        data: { usedAt: new Date() },
-      }),
-    ]);
+    await this.prisma.tenantOtp.update({
+      where: { id: otp.id },
+      data: { usedAt: new Date() },
+    });
 
-    return { success: true };
+    const accessToken = await this.jwtService.signAsync({
+      sub: tenant.id,
+      role: AdminRole.TENANT_USER,
+      email: tenant.phone,
+      name: tenant.fullName,
+      tokenVersion: tenant.tokenVersion,
+    });
+
+    this.logger.log(`Tenant SMS login successful: ${this.maskPhone(tenant.phone)}`);
+    return { accessToken };
   }
 }

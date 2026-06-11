@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { login, getMe, ApiError, tenantLoginRequestCode, tenantLoginSetPassword, tenantLoginStatus, tenantResetRequestCode, tenantResetSetPassword } from '@/lib/api'
+import { ApiError, tenantLoginRequestCode, tenantLoginStatus, tenantLoginVerify } from '@/lib/api'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useUntypedTranslations } from '../../i18n/useUntypedTranslations'
 import { useTheme } from '../../contexts/ThemeContext'
@@ -11,13 +11,9 @@ import { Language, languageNames, languageFlags } from '../../lib/i18n'
 export default function LoginPage() {
   const router = useRouter()
   const [phone, setPhone] = useState('')
-  const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmNewPassword, setConfirmNewPassword] = useState('')
-  const [step, setStep] = useState<'phone' | 'password' | 'code' | 'set_password'>('phone')
-  const [codePurpose, setCodePurpose] = useState<'first_login' | 'reset'>('first_login')
-  const [showPassword, setShowPassword] = useState(false)
+  const [step, setStep] = useState<'phone' | 'code'>('phone')
+  const [smsTarget, setSmsTarget] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showLangMenu, setShowLangMenu] = useState(false)
@@ -55,35 +51,9 @@ export default function LoginPage() {
 
   const resetFlow = () => {
     setStep('phone')
-    setPassword('')
     setCode('')
-    setNewPassword('')
-    setConfirmNewPassword('')
-    setShowPassword(false)
-    setCodePurpose('first_login')
+    setSmsTarget(null)
     setError('')
-  }
-
-  const startPasswordReset = async () => {
-    const trimmedPhone = normalizeUzPhone(phone.trim())
-    if (!trimmedPhone) {
-      setError('Telefon raqam kiritilishi shart')
-      return
-    }
-    setIsLoading(true)
-    setError('')
-    try {
-      await tenantResetRequestCode(trimmedPhone)
-      setCodePurpose('reset')
-      setStep('code')
-      setError('Parolni tiklash kodi SMS orqali yuborildi. 4 xonali kodni kiriting.')
-    } catch (err) {
-      console.error('Reset code error:', err)
-      if (err instanceof ApiError) setError(err.data?.message || err.message)
-      else setError('Kod yuborishda xatolik')
-    } finally {
-      setIsLoading(false)
-    }
   }
 
   const resendCode = async () => {
@@ -95,13 +65,9 @@ export default function LoginPage() {
     setIsLoading(true)
     setError('')
     try {
-      if (codePurpose === 'reset') {
-        await tenantResetRequestCode(trimmedPhone)
-        setError('Parolni tiklash kodi SMS orqali qayta yuborildi. 4 xonali kodni kiriting.')
-      } else {
-        await tenantLoginRequestCode(trimmedPhone)
-        setError('Tasdiqlash kodi SMS orqali qayta yuborildi. 4 xonali kodni kiriting.')
-      }
+      const res = await tenantLoginRequestCode(trimmedPhone)
+      setSmsTarget(res.smsTarget || null)
+      setError(`Tasdiqlash kodi ${res.smsTarget || 'raqamingizga'} qayta yuborildi. 4 xonali kodni kiriting.`)
     } catch (err) {
       console.error('Resend code error:', err)
       if (err instanceof ApiError) setError(err.data?.message || err.message)
@@ -133,36 +99,11 @@ export default function LoginPage() {
           return
         }
 
-        if (status.passwordSet) {
-          setStep('password')
-          setIsLoading(false)
-          return
-        }
-
-        await tenantLoginRequestCode(trimmedPhone)
-        setCodePurpose('first_login')
+        const res = await tenantLoginRequestCode(trimmedPhone)
+        setSmsTarget(res.smsTarget || status.smsTarget || null)
         setStep('code')
-        setError('Tasdiqlash kodi SMS orqali yuborildi. 4 xonali kodni kiriting.')
+        setError('')
         setIsLoading(false)
-        return
-      }
-
-      if (step === 'password') {
-        const trimmedPassword = password.trim()
-        if (!trimmedPassword) {
-          setError('Parol kiritilishi shart')
-          setIsLoading(false)
-          return
-        }
-
-        const data = await login(trimmedPhone, trimmedPassword)
-        localStorage.setItem('accessToken', data.accessToken)
-        const user = await getMe()
-        if (user.role === 'TENANT_USER' || user.role === 'TENANT') {
-          router.push('/tenant')
-        } else {
-          router.push('/dashboard')
-        }
         return
       }
 
@@ -173,39 +114,8 @@ export default function LoginPage() {
           setIsLoading(false)
           return
         }
-        setStep('set_password')
-        setIsLoading(false)
-        return
-      }
 
-      if (step === 'set_password') {
-        const trimmedCode = code.trim()
-        const trimmedNewPassword = newPassword.trim()
-        const trimmedConfirm = confirmNewPassword.trim()
-
-        if (!/^\d{4}$/.test(trimmedCode)) {
-          setError('Kod 4 xonali raqam bo‘lishi kerak')
-          setIsLoading(false)
-          return
-        }
-        if (trimmedNewPassword.length < 6) {
-          setError('Yangi parol kamida 6 ta belgidan iborat bo‘lishi kerak')
-          setIsLoading(false)
-          return
-        }
-        if (trimmedNewPassword !== trimmedConfirm) {
-          setError('Parollar mos emas')
-          setIsLoading(false)
-          return
-        }
-
-        if (codePurpose === 'reset') {
-          await tenantResetSetPassword(trimmedPhone, trimmedCode, trimmedNewPassword)
-        } else {
-          await tenantLoginSetPassword(trimmedPhone, trimmedCode, trimmedNewPassword)
-        }
-
-        const data = await login(trimmedPhone, trimmedNewPassword)
+        const data = await tenantLoginVerify(trimmedPhone, trimmedCode)
         localStorage.setItem('accessToken', data.accessToken)
         router.push('/tenant')
         return
@@ -308,73 +218,15 @@ export default function LoginPage() {
               )}
             </div>
 
-            {step === 'password' && (
-              <div>
-              <label htmlFor="password" className={`block text-sm font-semibold mb-2 ${
-                darkMode ? 'text-yellow-400' : 'text-gray-700'
-              }`}>
-                {t.password}
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required={step === 'password'}
-                  minLength={6}
-                  className={`w-full px-4 py-3 pr-12 rounded-xl border-2 transition-all duration-300 ${
-                    darkMode
-                      ? 'bg-gray-800/50 border-yellow-500/40 text-white placeholder-gray-500 focus:border-yellow-400'
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                  } focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                    darkMode ? 'focus:ring-yellow-500' : 'focus:ring-blue-500'
-                  }`}
-                  placeholder="••••••••"
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg transition-colors ${
-                    darkMode ? 'text-gray-400 hover:text-yellow-400' : 'text-gray-500 hover:text-blue-600'
-                  }`}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  tabIndex={-1}
-                >
-                  {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              <div className="mt-3 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={startPasswordReset}
-                  disabled={isLoading}
-                  className={`text-sm font-medium underline transition-colors ${
-                    darkMode ? 'text-gray-300 hover:text-yellow-400' : 'text-gray-600 hover:text-blue-700'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  Parolni tiklash (kod bilan)
-                </button>
-              </div>
-              </div>
-            )}
-
             {step === 'code' && (
               <div>
+                <p className={`mb-3 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  📩 4 xonali tasdiqlash kodi {smsTarget || 'kontakt raqamingizga'} SMS orqali yuborildi.
+                </p>
                 <label htmlFor="code" className={`block text-sm font-semibold mb-2 ${
                   darkMode ? 'text-yellow-400' : 'text-gray-700'
                 }`}>
-                  {codePurpose === 'reset' ? 'Parolni tiklash kodi' : 'Tasdiqlash kodi'}
+                  Tasdiqlash kodi
                 </label>
                 <input
                   id="code"
@@ -407,59 +259,6 @@ export default function LoginPage() {
               </div>
             )}
 
-            {step === 'set_password' && (
-              <>
-                <div>
-                  <label htmlFor="newPassword" className={`block text-sm font-semibold mb-2 ${
-                    darkMode ? 'text-yellow-400' : 'text-gray-700'
-                  }`}>
-                    Yangi parol
-                  </label>
-                  <input
-                    id="newPassword"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 ${
-                      darkMode
-                        ? 'bg-gray-800/50 border-yellow-500/40 text-white placeholder-gray-500 focus:border-yellow-400'
-                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                    } focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                      darkMode ? 'focus:ring-yellow-500' : 'focus:ring-blue-500'
-                    }`}
-                    placeholder="••••••••"
-                    disabled={isLoading}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="confirmNewPassword" className={`block text-sm font-semibold mb-2 ${
-                    darkMode ? 'text-yellow-400' : 'text-gray-700'
-                  }`}>
-                    Yangi parolni tasdiqlang
-                  </label>
-                  <input
-                    id="confirmNewPassword"
-                    type="password"
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-300 ${
-                      darkMode
-                        ? 'bg-gray-800/50 border-yellow-500/40 text-white placeholder-gray-500 focus:border-yellow-400'
-                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                    } focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                      darkMode ? 'focus:ring-yellow-500' : 'focus:ring-blue-500'
-                    }`}
-                    placeholder="••••••••"
-                    disabled={isLoading}
-                  />
-                </div>
-              </>
-            )}
-
             <button
               type="submit"
               disabled={isLoading}
@@ -472,12 +271,8 @@ export default function LoginPage() {
               {isLoading
                 ? t.loading
                 : step === 'phone'
-                  ? 'Davom etish'
-                  : step === 'password'
-                    ? t.login
-                    : step === 'code'
-                      ? 'Kod tekshirish'
-                      : 'Parolni o‘rnatish'}
+                  ? 'SMS kod olish'
+                  : 'Kirish'}
             </button>
           </form>
         </div>

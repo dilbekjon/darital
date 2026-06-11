@@ -110,7 +110,7 @@ export async function login(loginId: string, password: string): Promise<LoginRes
 
 export interface TenantLoginStatusResponse {
   exists: boolean;
-  passwordSet: boolean;
+  smsTarget: string | null;
 }
 
 export async function tenantLoginStatus(phone: string): Promise<TenantLoginStatusResponse> {
@@ -120,31 +120,17 @@ export async function tenantLoginStatus(phone: string): Promise<TenantLoginStatu
   });
 }
 
-export async function tenantLoginRequestCode(phone: string): Promise<{ success: boolean }> {
-  return fetchApi<{ success: boolean }>('/auth/tenant-login-request-code', {
+export async function tenantLoginRequestCode(phone: string): Promise<{ success: boolean; smsTarget: string }> {
+  return fetchApi<{ success: boolean; smsTarget: string }>('/auth/tenant-login-request-code', {
     method: 'POST',
     body: JSON.stringify({ phone }),
   });
 }
 
-export async function tenantLoginSetPassword(phone: string, code: string, password: string): Promise<{ success: boolean }> {
-  return fetchApi<{ success: boolean }>('/auth/tenant-login-set-password', {
+export async function tenantLoginVerify(phone: string, code: string): Promise<LoginResponse> {
+  return fetchApi<LoginResponse>('/auth/tenant-login-verify', {
     method: 'POST',
-    body: JSON.stringify({ phone, code, password }),
-  });
-}
-
-export async function tenantResetRequestCode(phone: string): Promise<{ success: boolean }> {
-  return fetchApi<{ success: boolean }>('/auth/tenant-reset-request-code', {
-    method: 'POST',
-    body: JSON.stringify({ phone }),
-  });
-}
-
-export async function tenantResetSetPassword(phone: string, code: string, password: string): Promise<{ success: boolean }> {
-  return fetchApi<{ success: boolean }>('/auth/tenant-reset-set-password', {
-    method: 'POST',
-    body: JSON.stringify({ phone, code, password }),
+    body: JSON.stringify({ phone, code }),
   });
 }
 
