@@ -41,6 +41,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         throw new UnauthorizedException();
       }
 
+      if ((payload.tokenVersion ?? 0) !== tenant.tokenVersion) {
+        throw new UnauthorizedException();
+      }
+
       // Tenants don't have permissions, return empty array
       return { 
         id: tenant.id, 

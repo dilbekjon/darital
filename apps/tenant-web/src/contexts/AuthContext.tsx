@@ -2,6 +2,16 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useRouter } from 'next/navigation';
 import { getMe, UserResponse, ApiError } from '../lib/api';
 
+const SESSION_REVALIDATE_INTERVAL_MS = 30000;
+
+// Routes reachable without an authenticated session. Everything else
+// (the tenant portal: /tenant, /chat, /contracts, /invoices, /payments)
+// requires a valid Telegram-verified login.
+const PUBLIC_PATH_PREFIXES = ['/login', '/tg-login', '/setup'];
+function isPublicPath(pathname: string): boolean {
+  return pathname === '/' || PUBLIC_PATH_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
+}
+
 // Define the type for the AdminRole enum from the backend
 // This should match the AdminRole enum in your Prisma schema
 enum AdminRole {
@@ -38,8 +48,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!token) {
       setUser(null);
       setLoading(false);
-      // Only redirect if not already on login page or tenant pages
-      if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/tenant')) {
+      // Redirect to login unless we're already on a public (no-auth) route
+      if (!isPublicPath(window.location.pathname)) {
         router.push('/login');
       }
       return;
@@ -54,7 +64,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (err instanceof ApiError && err.status === 401) {
         localStorage.removeItem('accessToken');
         setUser(null);
-        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/tenant')) {
+        if (!isPublicPath(window.location.pathname)) {
           router.push('/login');
         }
       } else {
@@ -67,6 +77,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     fetchUser();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const revalidate = () => {
+      if (localStorage.getItem('accessToken')) {
+        void fetchUser();
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        revalidate();
+      }
+    };
+
+    window.addEventListener('focus', revalidate);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    const intervalId = window.setInterval(revalidate, SESSION_REVALIDATE_INTERVAL_MS);
+
+    return () => {
+      window.removeEventListener('focus', revalidate);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   const hasPermission = (permissionCode: string): boolean => {

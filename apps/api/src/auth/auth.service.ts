@@ -72,7 +72,15 @@ export class AuthService {
       const err: any = new UnauthorizedException({ code: 'INVALID_CREDENTIALS', message: 'Invalid login or password' });
       throw err;
     }
-    const payload = { sub: user.id, role: user.role, email: user.email, name: user.fullName };
+    let tokenVersion = 0;
+    if (user.role === AdminRole.TENANT_USER) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { id: user.id },
+        select: { tokenVersion: true },
+      });
+      tokenVersion = tenant?.tokenVersion ?? 0;
+    }
+    const payload = { sub: user.id, role: user.role, email: user.email, name: user.fullName, tokenVersion };
     const accessToken = await this.jwtService.signAsync(payload);
     return { accessToken };
   }
@@ -122,6 +130,7 @@ export class AuthService {
       role: AdminRole.TENANT_USER,
       email: tenant.phone,
       name: tenant.fullName,
+      tokenVersion: tenant.tokenVersion,
     });
 
     return { accessToken };

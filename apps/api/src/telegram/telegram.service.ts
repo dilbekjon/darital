@@ -22,6 +22,7 @@ interface ConversationState {
   step:
     | 'waiting_phone'
     | 'waiting_code'
+    | 'waiting_login_code'
     | 'waiting_new_password'
     | 'waiting_confirm_new_password'
     | 'waiting_password'
@@ -188,13 +189,34 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   ) {
     await this.syncTenantIdentity(chatId, tenant.id, lang, identity);
 
+    const baseUrl = this.getTenantWebBaseUrl();
+    const tgToken =
+      baseUrl && this.authService
+        ? await this.authService.createTelegramAppToken(chatId, tenant.id)
+        : null;
+    const loginUrl =
+      baseUrl && tgToken
+        ? this.buildTelegramAppLoginUrl(baseUrl, tgToken)
+        : baseUrl;
+
+    const openAppLabel =
+      lang === 'ru'
+        ? '📱 Открыть портал'
+        : lang === 'en'
+          ? '📱 Open portal'
+          : '📱 Portalni ochish';
+
+    const successKeyboard = loginUrl
+      ? Markup.inlineKeyboard([[Markup.button.webApp(openAppLabel, loginUrl)]])
+      : undefined;
+
     await ctx.reply(
       lang === 'ru'
-        ? `✅ Вход выполнен.\n\nИмя: ${tenant.fullName}`
+        ? `✅ Вход выполнен.\n\nИмя: ${tenant.fullName}\n\nНажмите кнопку ниже, чтобы открыть мини-приложение уже авторизованным.`
         : lang === 'en'
-          ? `✅ Signed in.\n\nName: ${tenant.fullName}`
-          : `✅ Tizimga kirildi.\n\nIsm: ${tenant.fullName}`,
-      Markup.removeKeyboard(),
+          ? `✅ Signed in.\n\nName: ${tenant.fullName}\n\nTap the button below to open the Mini App already signed in.`
+          : `✅ Tizimga kirildi.\n\nIsm: ${tenant.fullName}\n\nQuyidagi tugmani bosing, Mini App avtorizatsiya qilingan holda ochiladi.`,
+      successKeyboard ?? Markup.removeKeyboard(),
     );
 
     await this.showMainMenu(ctx, chatId, lang);
@@ -285,6 +307,78 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     this.conversationStates.set(chatId, { step: 'waiting_code', language: lang });
   }
 
+  private maskPhone(phone: string): string {
+    const normalized = this.normalizePhone(phone);
+    if (normalized.length < 4) return '****';
+    const last2 = normalized.slice(-2);
+    return `+${normalized.slice(0, 5)}***${last2}`;
+  }
+
+  /**
+   * Sends an SMS verification code for Telegram login and moves the
+   * conversation into the 'waiting_login_code' step. The code is verified
+   * by handleLoginOtpInput before completeTenantLogin is called.
+   */
+  private async sendTenantLoginCode(
+    chatId: string,
+    tenant: { id: string; fullName: string; phone: string },
+    lang: 'uz' | 'ru' | 'en',
+  ) {
+    const code = this.generateOtpCode();
+    const otpHash = await bcrypt.hash(code, 10);
+    const smsResult = await this.smsService?.sendTelegramLoginCode(tenant.phone, tenant.fullName, code);
+
+    if (!smsResult?.success) {
+      throw new Error(smsResult?.error || 'SMS delivery failed');
+    }
+
+    await this.prisma.telegramUser.update({
+      where: { chatId },
+      data: {
+        pendingTenantId: tenant.id,
+        pendingPhone: tenant.phone,
+        otpHash,
+        otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        otpAttempts: 0,
+        authStep: 'waiting_login_code',
+        isAuthenticated: false,
+      },
+    });
+
+    this.conversationStates.set(chatId, { step: 'waiting_login_code', language: lang });
+  }
+
+  private async startTenantLoginVerification(
+    ctx: Context,
+    chatId: string,
+    tenant: { id: string; fullName: string; phone: string },
+    lang: 'uz' | 'ru' | 'en',
+  ) {
+    try {
+      await this.sendTenantLoginCode(chatId, tenant, lang);
+    } catch (error: any) {
+      this.logger.error(`Failed to send Telegram login SMS: ${error?.message || error}`);
+      await ctx.reply(
+        lang === 'ru'
+          ? '❌ Не удалось отправить SMS-код. Попробуйте позже или обратитесь в поддержку.'
+          : lang === 'en'
+            ? '❌ Failed to send the SMS code. Please try again later or contact support.'
+            : '❌ SMS kodini yuborib bo‘lmadi. Birozdan so‘ng qayta urinib ko‘ring yoki qo‘llab-quvvatlashga murojaat qiling.',
+      );
+      return;
+    }
+
+    const masked = this.maskPhone(tenant.phone);
+    await ctx.reply(
+      lang === 'ru'
+        ? `📩 Мы отправили SMS-код на номер ${masked}.\n\nВведите код для входа. Код действует 10 минут.`
+        : lang === 'en'
+          ? `📩 We sent an SMS code to ${masked}.\n\nEnter the code to sign in. It is valid for 10 minutes.`
+          : `📩 ${masked} raqamiga SMS kod yubordik.\n\nKirish uchun kodni kiriting. Kod 10 daqiqa davomida amal qiladi.`,
+      Markup.removeKeyboard(),
+    );
+  }
+
   private async linkTenantSession(chatId: string, tenantId: string, lang: 'uz' | 'ru' | 'en') {
     await this.prisma.telegramUser.upsert({
       where: { chatId },
@@ -363,7 +457,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           );
         }
 
-        await this.completeTenantLogin(
+        await this.startTenantLoginVerification(
           ctx,
           chatId,
           {
@@ -372,7 +466,6 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
             phone: linkedTenant.phone,
           },
           lang,
-          identity,
         );
         return;
       }
@@ -384,7 +477,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    await this.completeTenantLogin(
+    await this.startTenantLoginVerification(
       ctx,
       chatId,
       {
@@ -393,7 +486,6 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         phone: tenant.phone,
       },
       lang,
-      identity,
     );
   }
 
@@ -988,17 +1080,35 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     const state = this.conversationStates.get(chatId);
     const lang = state?.language || 'uz';
     try {
-      await this.prisma.telegramUser.updateMany({
+      const telegramUser = await this.prisma.telegramUser.findUnique({
         where: { chatId },
-        data: {
-          isAuthenticated: false,
-          authStep: 'waiting_phone',
-          pendingTenantId: null,
-          pendingPhone: null,
-          otpHash: null,
-          otpExpiresAt: null,
-          otpAttempts: 0,
-        },
+        select: { tenantId: true },
+      });
+
+      await this.prisma.$transaction(async (tx) => {
+        if (telegramUser?.tenantId) {
+          await tx.tenant.update({
+            where: { id: telegramUser.tenantId },
+            data: {
+              tokenVersion: {
+                increment: 1,
+              },
+            },
+          });
+        }
+
+        await tx.telegramUser.updateMany({
+          where: { chatId },
+          data: {
+            isAuthenticated: false,
+            authStep: 'waiting_phone',
+            pendingTenantId: null,
+            pendingPhone: null,
+            otpHash: null,
+            otpExpiresAt: null,
+            otpAttempts: 0,
+          },
+        });
       });
       this.conversationStates.delete(chatId);
       const msg =
@@ -1564,6 +1674,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       state &&
       (state.step === 'waiting_phone' ||
         state.step === 'waiting_code' ||
+        state.step === 'waiting_login_code' ||
         state.step === 'waiting_new_password' ||
         state.step === 'waiting_confirm_new_password' ||
         state.step === 'waiting_password' ||
@@ -1625,7 +1736,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     // Check if user is in registration flow (only ignore during registration steps)
     const state = this.conversationStates.get(chatId);
-    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
+    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_login_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
       this.logger.debug(`Ignoring voice message during registration for chatId=${chatId}`);
       return; // Ignore voice messages during registration
     }
@@ -1684,7 +1795,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     // Check if user is in registration flow (only ignore during registration steps)
     const state = this.conversationStates.get(chatId);
-    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
+    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_login_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
       return; // Ignore video notes during registration
     }
 
@@ -1732,7 +1843,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     // Check if user is in registration flow (only ignore during registration steps)
     const state = this.conversationStates.get(chatId);
-    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
+    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_login_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
       return; // Ignore videos during registration
     }
 
@@ -1784,7 +1895,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
     // Check if user is in registration flow (only ignore during registration steps)
     const state = this.conversationStates.get(chatId);
-    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
+    if (state && (state.step === 'waiting_phone' || state.step === 'waiting_code' || state.step === 'waiting_login_code' || state.step === 'waiting_new_password' || state.step === 'waiting_confirm_new_password' || state.step === 'waiting_password' || state.step === 'choosing_language')) {
       return; // Ignore documents during registration
     }
 
@@ -1991,6 +2102,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       if (
         state.step === 'waiting_phone' ||
         state.step === 'waiting_code' ||
+        state.step === 'waiting_login_code' ||
         state.step === 'waiting_new_password' ||
         state.step === 'waiting_confirm_new_password' ||
         state.step === 'waiting_password'
@@ -2002,6 +2114,9 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           break;
         case 'waiting_code':
           await this.handleOtpInput(ctx, chatId, message, state);
+          break;
+        case 'waiting_login_code':
+          await this.handleLoginOtpInput(ctx, chatId, message, state);
           break;
         case 'waiting_new_password':
           await this.handleNewPasswordInput(ctx, chatId, message, state);
@@ -2413,6 +2528,92 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         : lang === 'en'
           ? 'Code confirmed. Enter a new account password.'
           : 'Kod tasdiqlandi. Hisob uchun yangi parol kiriting.',
+    );
+  }
+
+  /**
+   * Verifies the SMS code for Telegram login. On success, completes the
+   * login (issues the session + Mini App button). Used by the 'waiting_login_code' step.
+   */
+  private async handleLoginOtpInput(ctx: Context, chatId: string, code: string, state: ConversationState) {
+    const lang = state.language || 'uz';
+    const telegramUser = await this.prisma.telegramUser.findUnique({ where: { chatId } });
+    if (!telegramUser?.pendingTenantId || !telegramUser?.otpHash || !telegramUser?.otpExpiresAt) {
+      await this.promptForPhone(ctx, chatId, lang);
+      return;
+    }
+
+    if (telegramUser.otpExpiresAt < new Date()) {
+      await this.resetAuthProgress(chatId);
+      this.conversationStates.set(chatId, { step: 'waiting_phone', language: lang });
+      await ctx.reply(
+        lang === 'ru'
+          ? '❌ Срок действия кода истёк. Отправьте номер телефона заново.'
+          : lang === 'en'
+            ? '❌ Code expired. Send your phone number again.'
+            : '❌ Kod muddati tugadi. Telefon raqamingizni qayta yuboring.',
+      );
+      return;
+    }
+
+    const isValid = await bcrypt.compare(code.trim(), telegramUser.otpHash);
+    if (!isValid) {
+      const attempts = telegramUser.otpAttempts + 1;
+      if (attempts >= 5) {
+        await this.resetAuthProgress(chatId);
+        this.conversationStates.set(chatId, { step: 'waiting_phone', language: lang });
+        await ctx.reply(
+          lang === 'ru'
+            ? '❌ Слишком много попыток. Начните заново с номера телефона.'
+            : lang === 'en'
+              ? '❌ Too many attempts. Start again with your phone number.'
+              : '❌ Urinishlar soni oshib ketdi. Telefon raqamini qayta yuboring.',
+        );
+        return;
+      }
+
+      await this.prisma.telegramUser.update({
+        where: { chatId },
+        data: { otpAttempts: attempts },
+      });
+      await ctx.reply(
+        lang === 'ru'
+          ? '❌ Код неверный. Попробуйте ещё раз.'
+          : lang === 'en'
+            ? '❌ Invalid code. Try again.'
+            : '❌ Kod noto‘g‘ri. Yana urinib ko‘ring.',
+      );
+      return;
+    }
+
+    const tenant = await this.prisma.tenant.findUnique({ where: { id: telegramUser.pendingTenantId } });
+    if (!tenant) {
+      await this.resetAuthProgress(chatId);
+      await this.promptForPhone(ctx, chatId, lang);
+      return;
+    }
+
+    await this.prisma.telegramUser.update({
+      where: { chatId },
+      data: {
+        otpHash: null,
+        otpExpiresAt: null,
+        otpAttempts: 0,
+        pendingPhone: null,
+      },
+    });
+
+    const identity = {
+      telegramUserId: ctx.from?.id ? String(ctx.from.id) : undefined,
+      telegramUsername: ctx.from?.username ?? null,
+    };
+
+    await this.completeTenantLogin(
+      ctx,
+      chatId,
+      { id: tenant.id, fullName: tenant.fullName, phone: tenant.phone },
+      lang,
+      identity,
     );
   }
 
