@@ -54,6 +54,16 @@ enum PaymentProvider {
   NONE
 }
 
+// Types of tenant balance-wallet movements recorded in the ledger
+enum LedgerEntryType {
+  DEPOSIT        // upfront downpayment credited at contract creation
+  RENT_CHARGE    // monthly rent debited when an invoice comes due
+  UTILITY_CHARGE // utility bill debited when finalized
+  PAYMENT        // real money received (cash/bank/online) credited to the wallet
+  ADJUSTMENT     // manual correction by an admin
+  REVERSAL       // reversal of a previous entry (e.g., payment deleted)
+}
+
 enum PaymentSource {
   ONLINE
   BANK
@@ -213,6 +223,7 @@ model Tenant {
   companyId     String?
   company       Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
   password      String
+  tokenVersion  Int            @default(0)
   passwordSetAt DateTime?
   setupTokens   TenantSetupToken[]
   otps          TenantOtp[]
@@ -224,6 +235,7 @@ model Tenant {
   conversations Conversation[]
   notifications InAppNotification[]
   utilityBills  UtilityBill[]
+  ledgerEntries LedgerEntry[]
   utilityElectricityEnabled Boolean @default(true)
   utilityGasEnabled         Boolean @default(false)
   utilityWaterEnabled       Boolean @default(false)
@@ -313,6 +325,10 @@ model Contract {
   amount      Decimal
   bankAmount  Decimal         @default(0)
   cashAmount  Decimal         @default(0)
+  // Optional upfront downpayment credited to the tenant balance wallet at contract creation
+  downPaymentAmount     Decimal @default(0)
+  downPaymentBankAmount Decimal @default(0)
+  downPaymentCashAmount Decimal @default(0)
   status      ContractStatus  @default(ACTIVE)
   notes       String?         // Additional contract notes/description
   createdAt   DateTime        @default(now())
@@ -343,6 +359,10 @@ model Invoice {
   bankAmount  Decimal       @default(0)
   cashAmount  Decimal       @default(0)
   status      InvoiceStatus @default(PENDING)
+  // Portion of this invoice settled from the tenant balance wallet (prepaid credit / downpayment)
+  balancePaidAmount Decimal  @default(0)
+  // When the monthly rent for this invoice was posted to the tenant ledger (null = not yet charged)
+  ledgerChargedAt   DateTime?
   payments    Payment[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -416,6 +436,10 @@ model UtilityBill {
   unitPrice    Decimal           @default(0)
   amount       Decimal           @default(0)
   paidAmount   Decimal           @default(0)
+  // Portion of this bill settled from the tenant balance wallet
+  balancePaidAmount Decimal       @default(0)
+  // When this bill's charge was posted to the tenant ledger (null = not yet charged)
+  ledgerChargedAt   DateTime?
   status       UtilityBillStatus @default(DRAFT)
   note         String?
   createdBy    String?
@@ -470,6 +494,29 @@ model Balance {
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
   current     Decimal  @default(0)
   updatedAt   DateTime @updatedAt
+}
+
+// Immutable history of every change to a tenant's balance wallet.
+// Positive amount = credit (increases balance), negative = debit (decreases balance).
+model LedgerEntry {
+  id            String          @id @default(cuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type          LedgerEntryType
+  amount        Decimal         // signed: + credit, - debit
+  balanceAfter  Decimal         // running balance snapshot right after this entry
+  description   String          // human-readable reason (Uzbek)
+  occurredAt    DateTime        @default(now())
+  contractId    String?
+  invoiceId     String?
+  utilityBillId String?
+  paymentId     String?
+  createdBy     String?         // user id, or 'system' for automated entries
+  createdAt     DateTime        @default(now())
+
+  @@index([tenantId, occurredAt])
+  @@index([type])
+  @@map("ledger_entries")
 }
 
 

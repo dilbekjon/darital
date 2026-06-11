@@ -109,7 +109,8 @@ export default function AdminTenantDetailsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [utilityBills, setUtilityBills] = useState<UtilityBill[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'invoices' | 'payments' | 'utilities'>('overview');
+  const [ledger, setLedger] = useState<{ current: number; entries: any[] }>({ current: 0, entries: [] });
+  const [activeTab, setActiveTab] = useState<'overview' | 'invoices' | 'payments' | 'utilities' | 'balance'>('overview');
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('uz-UZ', {
@@ -118,6 +119,16 @@ export default function AdminTenantDetailsPage() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value || 0);
+
+  const ledgerTypeLabel = (type: string): string =>
+    (({
+      DEPOSIT: "Depozit (boshlang'ich to'lov)",
+      RENT_CHARGE: "Ijara to'lovi",
+      UTILITY_CHARGE: "Kommunal to'lov",
+      PAYMENT: "To'lov qabul qilindi",
+      ADJUSTMENT: 'Qo‘lda tuzatish',
+      REVERSAL: 'Bekor qilindi',
+    } as Record<string, string>)[type] || type);
 
   const displayPhone = (phone?: string) => {
     if (!phone) return '';
@@ -142,12 +153,13 @@ export default function AdminTenantDetailsPage() {
         try {
           setPageLoading(true);
           setError(null);
-          const [tenantData, contractsData, invoicesData, paymentsData, utilityBillsData] = await Promise.all([
+          const [tenantData, contractsData, invoicesData, paymentsData, utilityBillsData, ledgerData] = await Promise.all([
             fetchApi<Tenant>(`/tenants/${tenantId}`),
             fetchApi<Contract[]>(`/contracts?includeArchived=true`),
             fetchApi<any>(`/invoices?tenantId=${tenantId}&includeArchived=true&limit=500`),
             fetchApi<any>(`/payments?tenantId=${tenantId}&includeArchived=true&limit=500`),
             fetchApi<UtilityBill[]>(`/utility-bills?tenantId=${tenantId}`),
+            fetchApi<any>(`/balances/${tenantId}/ledger`).catch(() => ({ current: 0, entries: [] })),
           ]);
 
           setTenant(tenantData);
@@ -155,6 +167,7 @@ export default function AdminTenantDetailsPage() {
           setInvoices(normalizeListResponse<Invoice>(invoicesData).items || []);
           setPayments(normalizeListResponse<Payment>(paymentsData).items || []);
           setUtilityBills(utilityBillsData || []);
+          setLedger(ledgerData && Array.isArray(ledgerData.entries) ? ledgerData : { current: 0, entries: [] });
         } catch (err) {
           console.error('Failed to load tenant details:', err);
           if (err instanceof ApiError) setError(err.message);
@@ -409,6 +422,7 @@ export default function AdminTenantDetailsPage() {
           { key: 'invoices', label: 'Hisob-fakturalar' },
           { key: 'payments', label: 'Ijara to‘lovlari' },
           { key: 'utilities', label: 'Kommunal to‘lovlar' },
+          { key: 'balance', label: 'Balans tarixi' },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -425,6 +439,57 @@ export default function AdminTenantDetailsPage() {
           </button>
         ))}
       </div>
+
+      {activeTab === 'balance' && (
+        <div className="space-y-4">
+          <div className={`rounded-xl p-5 border ${ledger.current < 0
+            ? 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800'
+            : 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-800'}`}>
+            <div className={`text-sm font-medium ${ledger.current < 0 ? 'text-red-600 dark:text-red-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
+              {ledger.current < 0 ? 'Qarz (manfiy balans)' : 'Joriy balans'}
+            </div>
+            <div className={`text-2xl font-bold mt-1 ${ledger.current < 0 ? 'text-red-700 dark:text-red-200' : 'text-emerald-700 dark:text-emerald-200'}`}>
+              {formatCurrency(Math.abs(ledger.current))}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {ledger.current < 0
+                ? 'Balans manfiy — ijarachi qarzdor. Har oy ijara/kommunal shu balansdan yechiladi.'
+                : 'Depozit / oldindan to‘langan mablag‘. Har oy ijara/kommunal shu balansdan yechiladi.'}
+            </div>
+          </div>
+
+          <div className={`rounded-xl border overflow-x-auto ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className={darkMode ? 'bg-gray-900 text-gray-300' : 'bg-gray-50 text-gray-600'}>
+                  <th className="text-left p-3 whitespace-nowrap">Sana</th>
+                  <th className="text-left p-3">Turi</th>
+                  <th className="text-left p-3">Sababi</th>
+                  <th className="text-right p-3 whitespace-nowrap">Summa</th>
+                  <th className="text-right p-3 whitespace-nowrap">Balans</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ledger.entries.length === 0 ? (
+                  <tr><td colSpan={5} className="p-4 text-center text-gray-500 dark:text-gray-400">Hozircha o‘zgarishlar yo‘q.</td></tr>
+                ) : (
+                  ledger.entries.map((e: any) => (
+                    <tr key={e.id} className={`border-t ${darkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                      <td className="p-3 whitespace-nowrap">{e.occurredAt ? new Date(e.occurredAt).toLocaleDateString('uz-UZ', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}</td>
+                      <td className="p-3 whitespace-nowrap">{ledgerTypeLabel(e.type)}</td>
+                      <td className="p-3">{e.description}</td>
+                      <td className={`p-3 text-right font-semibold whitespace-nowrap ${e.amount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {e.amount >= 0 ? '+' : '−'}{formatCurrency(Math.abs(e.amount))}
+                      </td>
+                      <td className="p-3 text-right whitespace-nowrap">{formatCurrency(e.balanceAfter)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

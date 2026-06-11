@@ -40,10 +40,12 @@ import { PrismaModule } from './prisma.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { HealthController } from './health.controller';
 import { UtilityBillsModule } from './utility-bills/utility-bills.module';
+import { LedgerModule } from './ledger/ledger.module';
 
 @Module({
   imports: [
     PrismaModule, // Import PrismaModule first so PrismaService is available globally
+    LedgerModule, // Global tenant balance wallet + ledger
     ...(process.env.NODE_ENV === 'test' ? [] : [ScheduleModule.forRoot()]),
     ThrottlerModule.forRoot({
       throttlers: [

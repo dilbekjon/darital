@@ -30,6 +30,21 @@ export class CreateContractDto {
   @IsNumberString()
   cashAmount!: string;
 
+  @ApiPropertyOptional({ description: 'Upfront downpayment total as string, e.g., 5000.00. Credited to the tenant balance.' })
+  @IsOptional()
+  @IsNumberString()
+  downPaymentAmount?: string;
+
+  @ApiPropertyOptional({ description: 'Downpayment bank portion as string' })
+  @IsOptional()
+  @IsNumberString()
+  downPaymentBankAmount?: string;
+
+  @ApiPropertyOptional({ description: 'Downpayment cash portion as string' })
+  @IsOptional()
+  @IsNumberString()
+  downPaymentCashAmount?: string;
+
   @ApiPropertyOptional({ description: 'Additional contract notes or description' })
   @IsOptional()
   @IsString()

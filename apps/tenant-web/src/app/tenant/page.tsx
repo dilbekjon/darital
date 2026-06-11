@@ -277,6 +277,24 @@ const TenantDashboard = () => {
               </div>
             </a>
 
+            <a href="/tenant/balance" className={`group flex items-center gap-4 p-4 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border ${
+              darkMode
+                ? 'bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 hover:from-yellow-500/20 hover:to-yellow-600/20 border-yellow-500/40 hover:border-yellow-400'
+                : 'bg-gradient-to-r from-emerald-50 to-emerald-100 hover:from-emerald-100 hover:to-emerald-200 border-transparent'
+            }`}>
+              <div className={`p-3 rounded-lg group-hover:scale-110 transition-transform duration-300 border ${
+                darkMode ? 'bg-yellow-500/20 border-yellow-500/50' : 'bg-white border-transparent'
+              }`}>
+                <svg className={`w-6 h-6 ${darkMode ? 'text-yellow-400' : 'text-emerald-600'}`} fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <p className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>Balans</p>
+                <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Depozit va to‘lovlar tarixi</p>
+              </div>
+            </a>
+
             <a href="/tenant/contracts" className={`group flex items-center gap-4 p-4 rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-105 border ${
               darkMode
                 ? 'bg-gradient-to-r from-yellow-500/10 to-yellow-600/10 hover:from-yellow-500/20 hover:to-yellow-600/20 border-yellow-500/40 hover:border-yellow-400'

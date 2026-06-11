@@ -73,6 +73,9 @@ export class ContractsController {
         amount: { type: 'string', example: '1000.50' },
         bankAmount: { type: 'string', example: '700.50' },
         cashAmount: { type: 'string', example: '300.00' },
+        downPaymentAmount: { type: 'string', example: '5000.00', description: 'Upfront downpayment credited to tenant balance' },
+        downPaymentBankAmount: { type: 'string', example: '3000.00' },
+        downPaymentCashAmount: { type: 'string', example: '2000.00' },
         notes: { type: 'string', description: 'Additional contract notes or description' },
         file: { type: 'string', format: 'binary' },
       },
@@ -84,7 +87,8 @@ export class ContractsController {
     @Body() body: any,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    const { tenantId, unitId, startDate, endDate, amount, bankAmount, cashAmount, notes } = body;
+    const { tenantId, unitId, startDate, endDate, amount, bankAmount, cashAmount, notes,
+      downPaymentAmount, downPaymentBankAmount, downPaymentCashAmount } = body;
     if (!file) {
       // Let the global filter map this properly
       throw new Error('File is required');
@@ -92,7 +96,8 @@ export class ContractsController {
     const bucket = process.env.MINIO_BUCKET || 'contracts';
     const url = await this.minio.uploadFile(file, bucket);
     return this.contractsService.create(
-      { tenantId, unitId, startDate, endDate, amount, bankAmount, cashAmount, notes },
+      { tenantId, unitId, startDate, endDate, amount, bankAmount, cashAmount, notes,
+        downPaymentAmount, downPaymentBankAmount, downPaymentCashAmount },
       url,
     );
   }

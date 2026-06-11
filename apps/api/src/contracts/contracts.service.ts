@@ -8,6 +8,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ContractStatus, UnitStatus } from '@prisma/client';
 import { InvoicesService } from '../invoices/invoices.service';
 import { MinioService } from '../minio/minio.service';
+import { LedgerService } from '../ledger/ledger.service';
 
 @Injectable()
 export class ContractsService {
@@ -18,6 +19,7 @@ export class ContractsService {
     private readonly notifications: NotificationsService,
     private readonly invoicesService: InvoicesService,
     private readonly minioService: MinioService,
+    private readonly ledger: LedgerService,
   ) {}
 
   private validatePaymentSplit(amount: Decimal, bankAmount: Decimal, cashAmount: Decimal) {
@@ -149,6 +151,13 @@ export class ContractsService {
     const cashAmount = new Decimal(dto.cashAmount);
     this.validatePaymentSplit(amount, bankAmount, cashAmount);
 
+    const downPaymentAmount = new Decimal(dto.downPaymentAmount || 0);
+    const downPaymentBankAmount = new Decimal(dto.downPaymentBankAmount || 0);
+    const downPaymentCashAmount = new Decimal(dto.downPaymentCashAmount || 0);
+    if (downPaymentAmount.greaterThan(0)) {
+      this.validateDownPaymentSplit(downPaymentAmount, downPaymentBankAmount, downPaymentCashAmount);
+    }
+
     // Create contract and mark unit as BUSY in a transaction
     const contract = await this.prisma.$transaction(async (tx) => {
       const newContract = await tx.contract.create({
@@ -161,6 +170,9 @@ export class ContractsService {
         amount,
         bankAmount,
         cashAmount,
+        downPaymentAmount,
+        downPaymentBankAmount,
+        downPaymentCashAmount,
         notes: dto.notes || null,
         status: ContractStatus.ACTIVE,
       } as any,
@@ -197,7 +209,32 @@ export class ContractsService {
       this.logger.error(`Failed to auto-create invoices for new contract ${contract.id}:`, error?.message || error);
     }
 
+    // Credit the upfront downpayment to the tenant balance wallet
+    if (downPaymentAmount.greaterThan(0)) {
+      try {
+        await this.ledger.post({
+          tenantId: contract.tenantId,
+          type: 'DEPOSIT',
+          amount: downPaymentAmount, // credit (+)
+          description: `Boshlang'ich to'lov (depozit) — ${contract.unit.name}`,
+          contractId: contract.id,
+        });
+      } catch (error: any) {
+        this.logger.error(`Failed to post downpayment for contract ${contract.id}:`, error?.message || error);
+      }
+    }
+
     return contract;
+  }
+
+  private validateDownPaymentSplit(total: Decimal, bank: Decimal, cash: Decimal) {
+    if (!bank.plus(cash).equals(total)) {
+      throw new BadRequestException({
+        code: 'INVALID_DOWNPAYMENT_SPLIT',
+        message: 'Boshlang‘ich to‘lovning bank va naqd summalari jami umumiy summaga teng bo‘lishi kerak',
+        details: { total: total.toString(), bank: bank.toString(), cash: cash.toString() },
+      });
+    }
   }
 
   async update(id: string, dto: UpdateContractDto, pdfUrl?: string) {
