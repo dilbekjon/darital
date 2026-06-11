@@ -1318,15 +1318,53 @@ export default function AdminContractsPage() {
 
       {/* Create Contract Modal */}
       {isModalOpen && (
-        <div className={`fixed inset-0 overflow-y-auto h-full w-full flex items-center justify-center z-50 ${
-          darkMode ? 'bg-black bg-opacity-70' : 'bg-gray-600 bg-opacity-50'
-        }`}>
-          <div className={`bg-white dark:bg-black rounded-lg shadow-xl p-6 w-full max-w-3xl mx-auto max-h-[90vh] overflow-y-auto border ${
-            darkMode ? 'border-blue-600/30' : 'border-gray-200'
-          }`}>
-            <h2 className={`text-2xl font-bold mb-6 ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}>{t.createContract || 'Create Contract'}</h2>
+        <div className={`fixed inset-0 z-50 overflow-y-auto px-3 py-4 sm:px-6 sm:py-8 ${
+          darkMode ? 'bg-slate-950/70' : 'bg-slate-900/30'
+        } backdrop-blur-md`}>
+          <div
+            style={{ colorScheme: darkMode ? 'dark' : 'light' }}
+            className={`mx-auto w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-[28px] border p-5 shadow-2xl backdrop-blur-2xl sm:p-7 ${
+              darkMode
+                ? 'border-white/10 bg-slate-950/78 text-white shadow-black/50'
+                : 'border-slate-200/70 bg-white/80 text-slate-900 shadow-slate-900/15'
+            }`}
+          >
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${
+                  darkMode ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  Darital
+                </p>
+                <h2 className={`mt-2 text-2xl font-semibold sm:text-3xl ${
+                  darkMode ? 'text-white' : 'text-slate-900'
+                }`}>{t.createContract || 'Create Contract'}</h2>
+                <p className={`mt-2 text-sm ${
+                  darkMode ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  Minimal modal, transparent surface, cleaner dark mode.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', downPaymentAmount: '', downPaymentBankAmount: '', downPaymentCashAmount: '', notes: '', rentType: 'FIXED', pricePerSqm: '' });
+                  setFile(null);
+                  setError(null);
+                }}
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition ${
+                  darkMode
+                    ? 'border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]'
+                    : 'border-slate-200 bg-white/70 text-slate-500 hover:bg-white'
+                }`}
+                aria-label="Close create contract modal"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
             {error && (
               <div className={`px-4 py-3 rounded-lg mb-4 border ${
                 darkMode 
@@ -1336,7 +1374,14 @@ export default function AdminContractsPage() {
                 {error}
               </div>
             )}
-            <form onSubmit={handleCreateContract} className="space-y-6">
+            <form
+              onSubmit={handleCreateContract}
+              className={`space-y-5 xl:grid xl:grid-cols-2 xl:gap-5 xl:space-y-0 [&>div]:rounded-[24px] [&>div]:border [&>div]:p-4 sm:[&>div]:p-5 [&_input]:rounded-2xl [&_select]:rounded-2xl [&_textarea]:rounded-2xl [&_input]:border [&_select]:border [&_textarea]:border [&_input]:shadow-none [&_select]:shadow-none [&_textarea]:shadow-none ${
+                darkMode
+                  ? '[&>div]:border-white/10 [&>div]:bg-white/[0.03] [&_input]:border-white/10 [&_select]:border-white/10 [&_textarea]:border-white/10 [&_input]:bg-white/[0.04] [&_select]:bg-white/[0.04] [&_textarea]:bg-white/[0.04] [&_input]:text-white [&_select]:text-white [&_textarea]:text-white'
+                  : '[&>div]:border-slate-200/80 [&>div]:bg-white/55 [&_input]:border-slate-200 [&_select]:border-slate-200 [&_textarea]:border-slate-200 [&_input]:bg-white/80 [&_select]:bg-white/80 [&_textarea]:bg-white/80 [&_input]:text-slate-900 [&_select]:text-slate-900 [&_textarea]:text-slate-900'
+              }`}
+            >
               {/* Tenant Selection */}
               <div>
                 <label htmlFor="tenantId" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -1776,7 +1821,9 @@ export default function AdminContractsPage() {
               </div>
 
               {/* Form Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className={`xl:col-span-2 flex justify-end gap-3 pt-4 ${
+                darkMode ? 'border-white/10 bg-slate-950/65' : 'border-slate-200/80 bg-white/70'
+              } border-t backdrop-blur-xl`}>
                 <button
                   type="button"
                   onClick={() => {
