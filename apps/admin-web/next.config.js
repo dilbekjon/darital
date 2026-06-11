@@ -9,6 +9,7 @@ function getApiUrl() {
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
+  poweredByHeader: false,
   transpilePackages: [],
   env: {
     NEXT_PUBLIC_API_URL: getApiUrl(),
@@ -17,4 +18,3 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
-

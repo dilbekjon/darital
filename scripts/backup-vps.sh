@@ -3,12 +3,23 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_ENV="${DARITAL_ENV:-production}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-darital-${APP_ENV}}"
 COMPOSE_FILES=(-f "$ROOT_DIR/docker-compose.prod.yml")
+if [[ "$APP_ENV" == "staging" && -f "$ROOT_DIR/docker-compose.staging.yml" ]]; then
+  COMPOSE_FILES+=(-f "$ROOT_DIR/docker-compose.staging.yml")
+fi
 if [[ -f "$ROOT_DIR/docker-compose.vps.yml" ]]; then
   COMPOSE_FILES+=(-f "$ROOT_DIR/docker-compose.vps.yml")
 fi
 
-ENV_FILE="${BACKUP_ENV_FILE:-$ROOT_DIR/.env.production}"
+if [[ "$APP_ENV" == "staging" ]]; then
+  DEFAULT_ENV_FILE="$ROOT_DIR/env.staging"
+else
+  DEFAULT_ENV_FILE="$ROOT_DIR/env.production"
+fi
+
+ENV_FILE="${BACKUP_ENV_FILE:-$DEFAULT_ENV_FILE}"
 BACKUP_BASE_DIR="${BACKUP_BASE_DIR:-/opt/darital-backups}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 TIMESTAMP="$(date +"%Y-%m-%d_%H-%M-%S")"
@@ -18,7 +29,7 @@ OFFSITE_ERROR_TAIL=""
 RCLONE_CONFIG_PATH=""
 CURRENT_STEP="init"
 
-DOCKER_COMPOSE=(docker-compose "${COMPOSE_FILES[@]}" --env-file "$ENV_FILE")
+DOCKER_COMPOSE=(docker compose -p "$COMPOSE_PROJECT_NAME" "${COMPOSE_FILES[@]}" --env-file "$ENV_FILE")
 BACKUP_FAILED=0
 
 log() {
@@ -155,7 +166,13 @@ backup_database() {
 backup_minio_files() {
   CURRENT_STEP="backup_minio_files"
   log "copying MinIO data"
-  docker cp darital-minio:/data "$RUN_DIR/files/minio-data"
+  local minio_container_id
+  minio_container_id="$("${DOCKER_COMPOSE[@]}" ps -q minio)"
+  if [[ -z "$minio_container_id" ]]; then
+    printf '[backup] could not find running minio container for project %s\n' "$COMPOSE_PROJECT_NAME" >&2
+    exit 1
+  fi
+  docker cp "${minio_container_id}:/data" "$RUN_DIR/files/minio-data"
   tar -C "$RUN_DIR/files" -czf "$RUN_DIR/files/minio-data.tar.gz" minio-data
   rm -rf "$RUN_DIR/files/minio-data"
   sha256sum "$RUN_DIR/files/minio-data.tar.gz" > "$RUN_DIR/files/minio-data.tar.gz.sha256"
@@ -165,7 +182,7 @@ backup_configs() {
   CURRENT_STEP="backup_configs"
   log "copying configuration files"
   require_file "$ENV_FILE"
-  cp "$ENV_FILE" "$RUN_DIR/configs/.env.production"
+  cp "$ENV_FILE" "$RUN_DIR/configs/.env.${APP_ENV}"
   cp "$ROOT_DIR/docker-compose.prod.yml" "$RUN_DIR/configs/docker-compose.prod.yml"
   if [[ -f "$ROOT_DIR/docker-compose.vps.yml" ]]; then
     cp "$ROOT_DIR/docker-compose.vps.yml" "$RUN_DIR/configs/docker-compose.vps.yml"

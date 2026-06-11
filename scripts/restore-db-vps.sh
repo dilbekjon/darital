@@ -9,12 +9,22 @@ fi
 
 DUMP_FILE="$1"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_ENV="${DARITAL_ENV:-production}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-darital-${APP_ENV}}"
 COMPOSE_FILES=(-f "$ROOT_DIR/docker-compose.prod.yml")
+if [[ "$APP_ENV" == "staging" && -f "$ROOT_DIR/docker-compose.staging.yml" ]]; then
+  COMPOSE_FILES+=(-f "$ROOT_DIR/docker-compose.staging.yml")
+fi
 if [[ -f "$ROOT_DIR/docker-compose.vps.yml" ]]; then
   COMPOSE_FILES+=(-f "$ROOT_DIR/docker-compose.vps.yml")
 fi
-ENV_FILE="${BACKUP_ENV_FILE:-$ROOT_DIR/.env.production}"
-DOCKER_COMPOSE=(docker-compose "${COMPOSE_FILES[@]}" --env-file "$ENV_FILE")
+if [[ "$APP_ENV" == "staging" ]]; then
+  DEFAULT_ENV_FILE="$ROOT_DIR/env.staging"
+else
+  DEFAULT_ENV_FILE="$ROOT_DIR/env.production"
+fi
+ENV_FILE="${BACKUP_ENV_FILE:-$DEFAULT_ENV_FILE}"
+DOCKER_COMPOSE=(docker compose -p "$COMPOSE_PROJECT_NAME" "${COMPOSE_FILES[@]}" --env-file "$ENV_FILE")
 
 if [[ ! -f "$DUMP_FILE" ]]; then
   echo "Dump file not found: $DUMP_FILE" >&2

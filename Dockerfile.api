@@ -8,14 +8,14 @@ COPY . .
 RUN pnpm install
 RUN pnpm --filter api exec prisma generate
 RUN pnpm --filter api build
+RUN pnpm --filter api deploy --prod --legacy /prod/api
 
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/api ./apps/api
-RUN cd apps/api && npx prisma generate
+RUN npm install -g prisma@6.18.0
+COPY --from=builder /prod/api ./
+COPY --from=builder /app/apps/api/dist ./dist
+RUN rm -f prisma.config.ts
 EXPOSE 3001
-WORKDIR /app/apps/api
-CMD ["node", "dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=prisma/schema.prisma && node dist/rbac/seed.js && node dist/main"]
