@@ -1,0 +1,108 @@
+# GitLab CI/CD: build images in CI (GitLab Container Registry) and deploy by
+# having the VPS PULL them — no compiling or npm downloads on the server.
+#
+# Uses GitLab's built-in registry ($CI_REGISTRY_IMAGE) and job token — no PAT
+# needed for build/push. The server pulls with a Deploy Token (see DEPLOY_PIPELINE.md).
+
+stages:
+  - build
+  - deploy
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_BUILDKIT: "1"
+
+# ---- Build template (Docker-in-Docker, BuildKit inline cache for fast rebuilds) ----
+.build:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - >
+      docker build
+      -f "$DOCKERFILE"
+      $BUILD_ARG_FLAG
+      --cache-from "$CI_REGISTRY_IMAGE/$IMG:latest"
+      --build-arg BUILDKIT_INLINE_CACHE=1
+      -t "$CI_REGISTRY_IMAGE/$IMG:$CI_COMMIT_SHA"
+      -t "$CI_REGISTRY_IMAGE/$IMG:latest"
+      .
+    - docker push "$CI_REGISTRY_IMAGE/$IMG:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/$IMG:latest"
+
+build:api:
+  extends: .build
+  variables:
+    IMG: api
+    DOCKERFILE: Dockerfile.api
+    BUILD_ARG_FLAG: ""
+
+build:tenant:
+  extends: .build
+  variables:
+    IMG: tenant
+    DOCKERFILE: Dockerfile.tenant
+    BUILD_ARG_FLAG: "--build-arg NEXT_PUBLIC_API_URL=/api"
+
+build:admin-staging:
+  extends: .build
+  variables:
+    IMG: admin-staging
+    DOCKERFILE: Dockerfile.admin
+    BUILD_ARG_FLAG: "--build-arg NEXT_PUBLIC_API_URL=https://staging-api.darital-arenda.uz/api"
+
+build:admin-prod:
+  extends: .build
+  variables:
+    IMG: admin-prod
+    DOCKERFILE: Dockerfile.admin
+    BUILD_ARG_FLAG: "--build-arg NEXT_PUBLIC_API_URL=https://api.darital-arenda.uz/api"
+
+# ---- Deploy template (SSH to VPS, pull prebuilt images, recreate) ----
+.deploy:
+  stage: deploy
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache openssh-client docker-cli docker-cli-compose
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - echo "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+  script:
+    - |
+      ssh -i ~/.ssh/id_ed25519 "$DEPLOY_USER@$DEPLOY_HOST" "
+        set -e
+        echo '$CI_DEPLOY_PASSWORD' | docker login -u '$CI_DEPLOY_USER' --password-stdin '$CI_REGISTRY'
+        export API_IMAGE='$CI_REGISTRY_IMAGE/api:$CI_COMMIT_SHA'
+        export TENANT_IMAGE='$CI_REGISTRY_IMAGE/tenant:$CI_COMMIT_SHA'
+        export ADMIN_IMAGE='$CI_REGISTRY_IMAGE/$ADMIN_IMG:$CI_COMMIT_SHA'
+        cd '$DEPLOY_DIR'
+        $COMPOSE pull
+        $COMPOSE up -d
+        docker image prune -f
+      "
+
+deploy:staging:
+  extends: .deploy
+  needs: ["build:api", "build:tenant", "build:admin-staging"]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  variables:
+    ADMIN_IMG: admin-staging
+    DEPLOY_DIR: /srv/darital-staging
+    COMPOSE: 'docker compose -p darital-staging -f docker-compose.prod.yml -f docker-compose.staging.yml -f docker-compose.vps.staging.yml -f docker-compose.registry.yml --env-file env.staging'
+
+deploy:production:
+  extends: .deploy
+  needs: ["build:api", "build:tenant", "build:admin-prod"]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual           # production deploy is one-click manual
+  variables:
+    ADMIN_IMG: admin-prod
+    DEPLOY_DIR: /srv/darital-prod
+    COMPOSE: 'docker compose -p darital-production -f docker-compose.prod.yml -f docker-compose.vps.yml -f docker-compose.registry.yml --env-file env.production'

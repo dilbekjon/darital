@@ -1,15 +1,14 @@
-# Pull-based deploy override: point services at prebuilt GHCR images instead of
-# building on the server. Applied LAST in the deploy command. Used by CI; does
-# not affect the existing build-on-server compose files when not included.
+# Pull-based deploy override: point services at prebuilt registry images instead
+# of building on the server. Applied LAST in the deploy command. The image refs
+# are supplied via env vars by the CI deploy job, so this works with ANY registry
+# (GitHub GHCR, GitLab Container Registry, Docker Hub, …).
 services:
   api:
-    image: ${IMAGE_BASE:-ghcr.io/dilbekjon/darital}-api:${IMAGE_TAG:-latest}
+    image: ${API_IMAGE:-ghcr.io/dilbekjon/darital-api:latest}
     pull_policy: always
   admin-web:
-    # ADMIN_IMAGE is set per-environment by the deploy step
-    # (…-admin-prod or …-admin-staging) because the API URL is baked at build time.
-    image: ${ADMIN_IMAGE:-ghcr.io/dilbekjon/darital-admin-staging}:${IMAGE_TAG:-latest}
+    image: ${ADMIN_IMAGE:-ghcr.io/dilbekjon/darital-admin-staging:latest}
     pull_policy: always
   tenant-web:
-    image: ${IMAGE_BASE:-ghcr.io/dilbekjon/darital}-tenant:${IMAGE_TAG:-latest}
+    image: ${TENANT_IMAGE:-ghcr.io/dilbekjon/darital-tenant:latest}
     pull_policy: always

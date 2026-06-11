@@ -1,53 +1,75 @@
-# CI/CD deploy pipeline (build in GitHub, pull on server)
+# CI/CD deploy pipeline (build in CI, pull on server)
 
-**Goal:** stop building Docker images on the VPS. GitHub Actions builds + pushes
-images to GHCR; the server just pulls and runs them. Deploys go from ~20 min to
-~30 sec and never compete with the live app.
+**Goal:** stop building Docker images on the VPS. CI builds + pushes images to a
+registry; the server just pulls and runs them. Deploys go from ~20 min to ~30 sec
+and never compete with the live app.
 
-## How it works
-1. Push to `main` → GitHub Actions builds 4 images (api, tenant, admin-staging,
-   admin-prod) with layer caching and pushes them to GHCR.
-2. The `deploy` job SSHes into the VPS and runs `docker compose pull && up -d`
-   using `docker-compose.registry.yml` (which points services at the GHCR images).
-3. **Staging deploys automatically** on push to `main`.
-   **Production is manual:** Actions → "Build & Deploy" → Run workflow →
-   environment = `production`.
+Two ready-to-use options are included. **GitLab is recommended** (built-in registry
++ CI, no personal access tokens needed).
 
-## One-time setup (things only you can do on GitHub)
+- GitLab: `.gitlab-ci.yml`
+- GitHub: `.github/workflows/deploy.yml`
+- Shared: `docker-compose.registry.yml` (server pulls images via `API_IMAGE` /
+  `TENANT_IMAGE` / `ADMIN_IMAGE` env vars set by whichever CI runs).
 
-### 1. GitHub repo secrets  (Settings → Secrets and variables → Actions)
-| Secret | Value |
-|---|---|
-| `DEPLOY_HOST` | `46.8.194.218` |
-| `DEPLOY_USER` | `ubuntu` |
-| `DEPLOY_SSH_KEY` | the **private** SSH deploy key (see step 2) |
-| `GHCR_PULL_TOKEN` | a GitHub PAT (classic) with `read:packages` — lets the VPS pull the images |
+How it flows (both): push to `main` → CI builds 4 images (api, tenant,
+admin-staging, admin-prod) with layer caching → **staging deploys
+automatically**; **production is one-click manual**.
 
-### 2. SSH deploy key
-Generate a key pair, put the **public** key in the server's
-`/home/ubuntu/.ssh/authorized_keys`, and paste the **private** key into the
-`DEPLOY_SSH_KEY` secret. (I can generate it and install the public key on the
-server for you — just say so.)
+---
 
-### 3. GHCR image visibility
-After the first successful CI run, the packages appear under your GitHub account.
-Either keep them private (the `GHCR_PULL_TOKEN` handles pulls) or set them public
-(Package → Settings → make public) to drop the token requirement.
+## ▶ GitLab setup (recommended)
 
-### 4. Let the deploy user run docker without sudo (one-time, on the server)
-The CI deploy runs `docker compose` as `ubuntu`. Grant docker access once:
+### 1. Move the repo to GitLab
+Create a project at `gitlab.com/<you>/darital`, then from this repo:
 ```
-sudo usermod -aG docker ubuntu
+git remote add gitlab git@gitlab.com:<you>/darital.git
+git push gitlab main
 ```
-(The SSH deploy public key is already installed in `ubuntu`'s `authorized_keys`.)
+(GitLab's Container Registry is enabled by default on gitlab.com.)
 
-### 5. Make sure `docker-compose.registry.yml` is on the server
-It ships in the repo. Pull it into `/srv/darital-prod` and `/srv/darital-staging`
-(or let the first git pull / deploy place it).
+### 2. Deploy token (lets the VPS pull images)
+Project → Settings → Repository → **Deploy tokens** → create one with
+`read_registry` scope. Note its username + token.
+
+### 3. CI/CD variables  (Project → Settings → CI/CD → Variables)
+| Variable | Value | Flags |
+|---|---|---|
+| `DEPLOY_HOST` | `46.8.194.218` | |
+| `DEPLOY_USER` | `ubuntu` | |
+| `DEPLOY_SSH_KEY` | the **private** deploy key | masked, protected |
+| `CI_DEPLOY_USER` | the deploy-token **username** | |
+| `CI_DEPLOY_PASSWORD` | the deploy-token **value** | masked, protected |
+
+(The build job authenticates to the registry automatically via the job token —
+no PAT needed.)
+
+### 4. One-time on the server
+```
+sudo usermod -aG docker ubuntu          # let the deploy user run docker
+```
+The SSH **public** deploy key is already installed in `ubuntu`'s `authorized_keys`.
+Get the private key to paste into `DEPLOY_SSH_KEY`:
+```
+cat /tmp/darital_deploy        # (on your Mac; or wherever it was generated)
+```
+
+That's it — push to `main` → staging auto-deploys; for production use
+CI/CD → Pipelines → run the manual `deploy:production` job.
+
+---
+
+## ▶ GitHub alternative
+If you stay on GitHub instead: add repo secrets `DEPLOY_HOST`, `DEPLOY_USER`,
+`DEPLOY_SSH_KEY`, `GHCR_PULL_TOKEN` (PAT with `read:packages`), plus the same
+`usermod -aG docker ubuntu` on the server. Workflow: `.github/workflows/deploy.yml`.
+
+---
 
 ## Safety
-- The existing build-on-server compose files still work unchanged — this pipeline
-  is additive. You can cut over when you've seen one green run.
-- Migrations still run on api startup (`prisma migrate deploy`), same as today.
-- Roll back by re-running the workflow against an older commit SHA (images are
-  tagged by SHA).
+- The existing build-on-server compose files still work unchanged — this is additive.
+  Cut over once you see one green pipeline.
+- Migrations still run on api startup (`prisma migrate deploy`).
+- Roll back by deploying an older commit SHA (images are tagged by SHA).
+- `docker-compose.registry.yml` must be present in `/srv/darital-prod` and
+  `/srv/darital-staging` (ships with the repo).
