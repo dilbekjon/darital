@@ -157,10 +157,10 @@ const InvoicePage = () => {
                   <div>
                     <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.amount}</p>
                     <p className={`text-2xl font-bold ${darkMode ? 'text-yellow-400' : 'text-blue-600'}`}>
-                      UZS {invoice.amount.toLocaleString()}
+                      UZS {invoice.amount.toLocaleString('uz-UZ')}
                     </p>
                     <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      To‘langan: UZS {(invoice.totalPaid || 0).toLocaleString()} • Qolgan: UZS {(invoice.totalRemaining || 0).toLocaleString()}
+                      To‘langan: UZS {(invoice.totalPaid || 0).toLocaleString('uz-UZ')} • Qolgan: UZS {(invoice.totalRemaining || 0).toLocaleString('uz-UZ')}
                     </p>
                   </div>
 

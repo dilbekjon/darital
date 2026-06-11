@@ -185,6 +185,15 @@ export class ContractsService {
         data: { status: UnitStatus.BUSY },
       });
 
+      // Apply utility-service selections (electricity/gas/water) to the tenant
+      const utilityData: Record<string, boolean> = {};
+      if (dto.utilityElectricityEnabled !== undefined) utilityData.utilityElectricityEnabled = dto.utilityElectricityEnabled;
+      if (dto.utilityGasEnabled !== undefined) utilityData.utilityGasEnabled = dto.utilityGasEnabled;
+      if (dto.utilityWaterEnabled !== undefined) utilityData.utilityWaterEnabled = dto.utilityWaterEnabled;
+      if (Object.keys(utilityData).length > 0) {
+        await tx.tenant.update({ where: { id: dto.tenantId }, data: utilityData });
+      }
+
       return newContract;
     }) as any;
 

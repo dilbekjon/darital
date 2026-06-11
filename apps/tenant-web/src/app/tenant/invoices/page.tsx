@@ -82,7 +82,7 @@ export default function TenantInvoicesPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-semibold">{Number(invoice.amount).toLocaleString()} UZS</p>
+                        <p className="text-2xl font-semibold">{Number(invoice.amount).toLocaleString('uz-UZ')} UZS</p>
                         <span className={status === 'PAID'
                           ? darkMode ? 'mt-2 inline-block rounded-full bg-green-500/15 px-3 py-1 text-xs text-green-300' : 'mt-2 inline-block rounded-full bg-green-100 px-3 py-1 text-xs text-green-700'
                           : status === 'OVERDUE'
@@ -96,22 +96,22 @@ export default function TenantInvoicesPage() {
                     <div className="mt-4 grid gap-3 sm:grid-cols-3">
                       <div className={darkMode ? 'rounded-xl bg-slate-900 p-4' : 'rounded-xl bg-slate-50 p-4'}>
                         <p className={darkMode ? 'text-xs text-slate-400' : 'text-xs text-slate-500'}>Umumiy summa</p>
-                        <p className="mt-1 font-semibold">{Number(invoice.amount).toLocaleString()} UZS</p>
+                        <p className="mt-1 font-semibold">{Number(invoice.amount).toLocaleString('uz-UZ')} UZS</p>
                       </div>
                       <div className={darkMode ? 'rounded-xl bg-slate-900 p-4' : 'rounded-xl bg-slate-50 p-4'}>
                         <p className={darkMode ? 'text-xs text-slate-400' : 'text-xs text-slate-500'}>Bank orqali</p>
-                        <p className="mt-1 font-semibold">{Number(invoice.bankAmount || 0).toLocaleString()} UZS</p>
+                        <p className="mt-1 font-semibold">{Number(invoice.bankAmount || 0).toLocaleString('uz-UZ')} UZS</p>
                       </div>
                       <div className={darkMode ? 'rounded-xl bg-slate-900 p-4' : 'rounded-xl bg-slate-50 p-4'}>
                         <p className={darkMode ? 'text-xs text-slate-400' : 'text-xs text-slate-500'}>Naqd orqali</p>
-                        <p className="mt-1 font-semibold">{Number(invoice.cashAmount || 0).toLocaleString()} UZS</p>
+                        <p className="mt-1 font-semibold">{Number(invoice.cashAmount || 0).toLocaleString('uz-UZ')} UZS</p>
                       </div>
                     </div>
 
                     <div className={darkMode ? 'mt-3 rounded-xl bg-slate-900 p-4 text-sm text-slate-200' : 'mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700'}>
                       <p>
-                        To‘langan: <span className="font-semibold">{Number(invoice.totalPaid || 0).toLocaleString()} UZS</span>
-                        {' '}• Qolgan: <span className="font-semibold">{Number(invoice.totalRemaining ?? invoice.amount).toLocaleString()} UZS</span>
+                        To‘langan: <span className="font-semibold">{Number(invoice.totalPaid || 0).toLocaleString('uz-UZ')} UZS</span>
+                        {' '}• Qolgan: <span className="font-semibold">{Number(invoice.totalRemaining ?? invoice.amount).toLocaleString('uz-UZ')} UZS</span>
                       </p>
                       <p className={darkMode ? 'mt-1 text-xs text-slate-400' : 'mt-1 text-xs text-slate-600'}>
                         To‘lovlar: {invoice.paymentSummary?.confirmed || 0} tasdiqlangan, {invoice.paymentSummary?.pending || 0} kutilmoqda

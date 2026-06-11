@@ -799,7 +799,7 @@ export default function AdminTenantDetailsPage() {
                         {bill.type === 'ELECTRICITY' ? 'Svet' : bill.type === 'GAS' ? 'Gaz' : 'Suv'} • {bill.month}
                       </p>
                       <p className={`text-xs ${secondaryTextClass}`}>
-                        Holat: {bill.startReading ?? '-'} → {bill.endReading ?? '-'} • Sarf: {Number(bill.consumption || 0).toLocaleString()} • Tarif: {Number(bill.unitPrice || 0).toLocaleString()}
+                        Holat: {bill.startReading ?? '-'} → {bill.endReading ?? '-'} • Sarf: {Number(bill.consumption || 0).toLocaleString('uz-UZ')} • Tarif: {Number(bill.unitPrice || 0).toLocaleString('uz-UZ')}
                       </p>
                     </div>
                     <div className="text-right">

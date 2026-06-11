@@ -1133,7 +1133,7 @@ export default function AdminPaymentsPage() {
             {stats.total}
           </div>
           <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-            UZS {stats.totalAmount.toLocaleString()}
+            UZS {stats.totalAmount.toLocaleString('uz-UZ')}
           </div>
         </div>
 
@@ -1148,7 +1148,7 @@ export default function AdminPaymentsPage() {
             {stats.confirmed}
           </div>
           <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-            UZS {stats.confirmedAmount.toLocaleString()}
+            UZS {stats.confirmedAmount.toLocaleString('uz-UZ')}
           </div>
         </div>
 
@@ -1163,7 +1163,7 @@ export default function AdminPaymentsPage() {
             {stats.pending}
           </div>
           <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-            UZS {stats.pendingAmount.toLocaleString()}
+            UZS {stats.pendingAmount.toLocaleString('uz-UZ')}
           </div>
         </div>
 
@@ -1189,22 +1189,22 @@ export default function AdminPaymentsPage() {
         <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
           <div className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tenant tasdig‘i kutilmoqda</div>
           <div className={`text-2xl font-bold mt-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>{cashCustodyStats.awaitingTenantCount}</div>
-          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.awaitingTenantAmount.toLocaleString()}</div>
+          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.awaitingTenantAmount.toLocaleString('uz-UZ')}</div>
         </div>
         <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-blue-700/40' : 'bg-white border-blue-200'}`}>
           <div className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tenant berdi</div>
           <div className="text-2xl font-bold mt-1 text-blue-600">{cashCustodyStats.declaredCount}</div>
-          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.declaredAmount.toLocaleString()}</div>
+          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.declaredAmount.toLocaleString('uz-UZ')}</div>
         </div>
         <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-orange-700/40' : 'bg-white border-orange-200'}`}>
           <div className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Pul yig‘uvchida</div>
           <div className="text-2xl font-bold mt-1 text-orange-600">{cashCustodyStats.withCollectorCount}</div>
-          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.withCollectorAmount.toLocaleString()}</div>
+          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.withCollectorAmount.toLocaleString('uz-UZ')}</div>
         </div>
         <div className={`p-4 rounded-lg border ${darkMode ? 'bg-gray-900 border-red-700/40' : 'bg-white border-red-200'}`}>
           <div className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Tafovutli to‘lovlar</div>
           <div className="text-2xl font-bold mt-1 text-red-600">{cashCustodyStats.disputedCount}</div>
-          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.disputedAmount.toLocaleString()}</div>
+          <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>UZS {cashCustodyStats.disputedAmount.toLocaleString('uz-UZ')}</div>
         </div>
       </div>
       )}
@@ -1383,7 +1383,7 @@ export default function AdminPaymentsPage() {
                           </p>
                         </div>
                         <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {Math.round(payment.amount).toLocaleString()} UZS
+                          {Math.round(payment.amount).toLocaleString('uz-UZ')} UZS
                         </p>
                       </div>
 
@@ -1410,13 +1410,13 @@ export default function AdminPaymentsPage() {
                         {payment.tenantConfirmedAmount != null && (
                           <div className={`rounded-lg p-2 ${darkMode ? 'bg-black/40' : 'bg-gray-50'}`}>
                             <p className="text-[11px] opacity-80">Tenant berdi</p>
-                            <p className="font-medium">{Math.round(payment.tenantConfirmedAmount).toLocaleString()} UZS</p>
+                            <p className="font-medium">{Math.round(payment.tenantConfirmedAmount).toLocaleString('uz-UZ')} UZS</p>
                           </div>
                         )}
                         {payment.collectorReceivedAmount != null && (
                           <div className={`rounded-lg p-2 ${darkMode ? 'bg-black/40' : 'bg-gray-50'}`}>
                             <p className="text-[11px] opacity-80">Yig‘uvchi oldi</p>
-                            <p className="font-medium">{Math.round(payment.collectorReceivedAmount).toLocaleString()} UZS</p>
+                            <p className="font-medium">{Math.round(payment.collectorReceivedAmount).toLocaleString('uz-UZ')} UZS</p>
                           </div>
                         )}
                       </div>
@@ -1585,7 +1585,7 @@ export default function AdminPaymentsPage() {
                                 <>
                                   <div>
                                     <div className={`text-[10px] ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                      Bank: {Math.round(bankProgress.paid).toLocaleString()} / {Math.round(bankProgress.due).toLocaleString()}
+                                      Bank: {Math.round(bankProgress.paid).toLocaleString('uz-UZ')} / {Math.round(bankProgress.due).toLocaleString('uz-UZ')}
                                     </div>
                                     <div className={`h-1.5 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                                       <div className={`h-full ${bankPercent >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${bankPercent}%` }} />
@@ -1593,7 +1593,7 @@ export default function AdminPaymentsPage() {
                                   </div>
                                   <div>
                                     <div className={`text-[10px] ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                      Naqd: {Math.round(cashProgress.paid).toLocaleString()} / {Math.round(cashProgress.due).toLocaleString()}
+                                      Naqd: {Math.round(cashProgress.paid).toLocaleString('uz-UZ')} / {Math.round(cashProgress.due).toLocaleString('uz-UZ')}
                                     </div>
                                     <div className={`h-1.5 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                                       <div className={`h-full ${cashPercent >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${cashPercent}%` }} />
@@ -1608,7 +1608,7 @@ export default function AdminPaymentsPage() {
                       <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${
                         darkMode ? 'text-white' : 'text-gray-900'
                       }`}>
-                        UZS {payment.amount.toLocaleString()}
+                        UZS {payment.amount.toLocaleString('uz-UZ')}
                     </td>
                     <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                       darkMode ? 'text-gray-300' : 'text-gray-500'
@@ -1646,12 +1646,12 @@ export default function AdminPaymentsPage() {
                         )}
                         {payment.method === 'OFFLINE' && payment.source === 'CASH' && payment.tenantConfirmedAmount != null && (
                           <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Tenant: {Math.round(payment.tenantConfirmedAmount).toLocaleString()} UZS
+                            Tenant: {Math.round(payment.tenantConfirmedAmount).toLocaleString('uz-UZ')} UZS
                           </div>
                         )}
                         {payment.method === 'OFFLINE' && payment.source === 'CASH' && payment.collectorReceivedAmount != null && (
                           <div className={`text-xs mt-0.5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Yig‘uvchi: {Math.round(payment.collectorReceivedAmount).toLocaleString()} UZS
+                            Yig‘uvchi: {Math.round(payment.collectorReceivedAmount).toLocaleString('uz-UZ')} UZS
                           </div>
                         )}
                         {payment.method === 'OFFLINE' && payment.collectorNote && (
@@ -1693,7 +1693,7 @@ export default function AdminPaymentsPage() {
                                 )}
                                 {payment.cashCustody?.differenceBetweenTenantAndCollector != null && payment.cashCustody.differenceBetweenTenantAndCollector !== 0 && (
                                   <div className="text-xs text-red-600 font-semibold">
-                                    Tafovut: {Math.abs(payment.cashCustody.differenceBetweenTenantAndCollector).toLocaleString()} UZS
+                                    Tafovut: {Math.abs(payment.cashCustody.differenceBetweenTenantAndCollector).toLocaleString('uz-UZ')} UZS
                                   </div>
                                 )}
                                 {payment.method === 'OFFLINE' && payment.source === 'CASH' && (
@@ -1898,7 +1898,7 @@ export default function AdminPaymentsPage() {
                       <div className="flex justify-between">
                         <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Amount:</span>
                         <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                          UZS {paymentToDelete.amount.toLocaleString()}
+                          UZS {paymentToDelete.amount.toLocaleString('uz-UZ')}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -2018,7 +2018,7 @@ export default function AdminPaymentsPage() {
                   </label>
                   <input
                     type="text"
-                    value={`UZS ${Number(editForm.amount).toLocaleString()}`}
+                    value={`UZS ${Number(editForm.amount).toLocaleString('uz-UZ')}`}
                     disabled
                     className={`block w-full px-3 py-2 border rounded-lg ${
                       darkMode
@@ -2328,12 +2328,12 @@ export default function AdminPaymentsPage() {
                             <div className="flex-1 min-w-0">
                               <div className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{label}</div>
                               <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                                Muddat: {dueStr} | Jami: {Number(invoice.amount).toLocaleString()} UZS | Bank: {Number(invoice.bankAmount || 0).toLocaleString()} | Naqd: {Number(invoice.cashAmount || 0).toLocaleString()}
+                                Muddat: {dueStr} | Jami: {Number(invoice.amount).toLocaleString('uz-UZ')} UZS | Bank: {Number(invoice.bankAmount || 0).toLocaleString('uz-UZ')} | Naqd: {Number(invoice.cashAmount || 0).toLocaleString('uz-UZ')}
                               </div>
                               <div className="mt-2">
                                 <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                  {offlineForm.source === 'BANK' ? 'Bank' : 'Naqd'}: {Math.round(sourceProgress.paid).toLocaleString()} / {Math.round(sourceProgress.due).toLocaleString()} UZS
-                                  {selected && allocatedAmount > 0 ? ` • Ajratiladi (+${Math.round(allocatedAmount).toLocaleString()} UZS)` : ''}
+                                  {offlineForm.source === 'BANK' ? 'Bank' : 'Naqd'}: {Math.round(sourceProgress.paid).toLocaleString('uz-UZ')} / {Math.round(sourceProgress.due).toLocaleString('uz-UZ')} UZS
+                                  {selected && allocatedAmount > 0 ? ` • Ajratiladi (+${Math.round(allocatedAmount).toLocaleString('uz-UZ')} UZS)` : ''}
                                 </div>
                                 <div className={`mt-1 h-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} overflow-hidden`}>
                                   <div className="h-full bg-blue-500" style={{ width: `${currentPercent}%` }} />
@@ -2391,7 +2391,7 @@ export default function AdminPaymentsPage() {
                     } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   />
                   <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Avtomatik hisoblangan summa: {Math.round(selectedInvoiceTotal).toLocaleString()} UZS
+                    Avtomatik hisoblangan summa: {Math.round(selectedInvoiceTotal).toLocaleString('uz-UZ')} UZS
                   </p>
                   {paymentDistributionPreview.length > 0 && (
                     <div className={`mt-3 border rounded-lg ${
@@ -2426,7 +2426,7 @@ export default function AdminPaymentsPage() {
                                 </span>
                               </div>
                               <div className="mt-1">
-                                {Math.round(item.allocated).toLocaleString()} / {Math.round(item.target).toLocaleString()} UZS ({item.percent}%)
+                                {Math.round(item.allocated).toLocaleString('uz-UZ')} / {Math.round(item.target).toLocaleString('uz-UZ')} UZS ({item.percent}%)
                               </div>
                             </div>
                           );

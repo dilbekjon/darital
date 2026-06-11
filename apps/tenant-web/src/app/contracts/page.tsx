@@ -204,7 +204,7 @@ const ContractsPage = () => {
                         </span>
                       </td>
                       <td className={`px-6 py-4 font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                        UZS {contract.amount.toLocaleString()}
+                        UZS {contract.amount.toLocaleString('uz-UZ')}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button

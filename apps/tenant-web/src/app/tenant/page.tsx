@@ -177,7 +177,7 @@ const TenantDashboard = () => {
                 <span className={`text-xs sm:text-sm font-medium ${darkMode ? 'text-yellow-400' : 'text-gray-500'}`}>{t.monthlyPayment}</span>
               </div>
               <h3 className={`text-lg sm:text-xl font-bold mb-1 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                UZS {monthlyAmount.toLocaleString()}
+                UZS {monthlyAmount.toLocaleString('uz-UZ')}
               </h3>
               <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t.monthlyRent}</p>
             </div>

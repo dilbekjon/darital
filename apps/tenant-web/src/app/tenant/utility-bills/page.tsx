@@ -128,15 +128,15 @@ export default function TenantUtilityBillsPage() {
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className={darkMode ? 'rounded-xl border border-slate-800 bg-slate-950 p-4' : 'rounded-xl border border-slate-200 bg-white p-4'}>
               <p className="text-xs opacity-70">Umumiy hisob</p>
-              <p className="mt-1 text-xl font-semibold">{Math.round(totals.total).toLocaleString()} UZS</p>
+              <p className="mt-1 text-xl font-semibold">{Math.round(totals.total).toLocaleString('uz-UZ')} UZS</p>
             </div>
             <div className={darkMode ? 'rounded-xl border border-green-700/40 bg-green-900/20 p-4' : 'rounded-xl border border-green-200 bg-green-50 p-4'}>
               <p className="text-xs opacity-70">To‘langan</p>
-              <p className="mt-1 text-xl font-semibold">{Math.round(totals.paid).toLocaleString()} UZS</p>
+              <p className="mt-1 text-xl font-semibold">{Math.round(totals.paid).toLocaleString('uz-UZ')} UZS</p>
             </div>
             <div className={darkMode ? 'rounded-xl border border-amber-700/40 bg-amber-900/20 p-4' : 'rounded-xl border border-amber-200 bg-amber-50 p-4'}>
               <p className="text-xs opacity-70">Qolgan</p>
-              <p className="mt-1 text-xl font-semibold">{Math.round(totals.remaining).toLocaleString()} UZS</p>
+              <p className="mt-1 text-xl font-semibold">{Math.round(totals.remaining).toLocaleString('uz-UZ')} UZS</p>
             </div>
           </div>
 
@@ -176,9 +176,9 @@ export default function TenantUtilityBillsPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-semibold">{Math.round(bill.amount).toLocaleString()} UZS</p>
+                      <p className="text-xl font-semibold">{Math.round(bill.amount).toLocaleString('uz-UZ')} UZS</p>
                       <p className={darkMode ? 'text-xs text-slate-400' : 'text-xs text-slate-600'}>
-                        Qoldiq: {Math.round(bill.remainingAmount).toLocaleString()} UZS
+                        Qoldiq: {Math.round(bill.remainingAmount).toLocaleString('uz-UZ')} UZS
                       </p>
                     </div>
                   </div>
@@ -221,7 +221,7 @@ export default function TenantUtilityBillsPage() {
                       {bill.payments.map((payment) => (
                         <div key={payment.id} className={darkMode ? 'rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-xs text-slate-300' : 'rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700'}>
                           <div className="flex items-center justify-between gap-2">
-                            <span>{payment.source} • {Math.round(payment.amount).toLocaleString()} UZS</span>
+                            <span>{payment.source} • {Math.round(payment.amount).toLocaleString('uz-UZ')} UZS</span>
                             <span className="font-semibold">{PAYMENT_STATUS_LABEL[payment.workflowStatus || payment.status] || payment.status}</span>
                           </div>
                           {payment.handoverOverdue && (

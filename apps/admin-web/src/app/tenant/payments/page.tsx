@@ -206,7 +206,7 @@ const PaymentsPage = () => {
                   <div>
                     <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{t.amount}</p>
                     <p className={`text-2xl font-bold ${darkMode ? 'text-yellow-400' : 'text-green-600'}`}>
-                      UZS {payment.amount.toLocaleString()}
+                      UZS {payment.amount.toLocaleString('uz-UZ')}
                     </p>
                   </div>
 
@@ -272,10 +272,10 @@ const PaymentsPage = () => {
                           <div className={`text-xs space-y-1 ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>
                             <div>Tenant tasdiqladi</div>
                             {payment.tenantConfirmedAmount != null && (
-                              <div>Bergan summa: {Number(payment.tenantConfirmedAmount).toLocaleString()} UZS</div>
+                              <div>Bergan summa: {Number(payment.tenantConfirmedAmount).toLocaleString('uz-UZ')} UZS</div>
                             )}
                             {payment.collectorReceivedAmount != null && (
-                              <div>Yig‘uvchi olgan summa: {Number(payment.collectorReceivedAmount).toLocaleString()} UZS</div>
+                              <div>Yig‘uvchi olgan summa: {Number(payment.collectorReceivedAmount).toLocaleString('uz-UZ')} UZS</div>
                             )}
                           </div>
                         )}

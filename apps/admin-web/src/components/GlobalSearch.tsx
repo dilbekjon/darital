@@ -95,7 +95,7 @@ const GlobalSearch: React.FC = () => {
           type: 'unit',
           id: unit.id,
           title: unit.name,
-          subtitle: `${unit.status} • ${Number(unit.price).toLocaleString()} UZS`,
+          subtitle: `${unit.status} • ${Number(unit.price).toLocaleString('uz-UZ')} UZS`,
           icon: '🏠',
           href: `/admin/units?search=${encodeURIComponent(unit.name)}`,
         });
@@ -117,7 +117,7 @@ const GlobalSearch: React.FC = () => {
           type: 'contract',
           id: contract.id,
           title: `${contract.tenant?.fullName || 'Unknown'} - ${contract.unit?.name || 'Unknown'}`,
-          subtitle: `${contract.status} • ${Number(contract.amount).toLocaleString()} UZS/month`,
+          subtitle: `${contract.status} • ${Number(contract.amount).toLocaleString('uz-UZ')} UZS/month`,
           icon: '📄',
           href: `/admin/contracts?search=${encodeURIComponent(contract.tenant?.fullName || '')}`,
         });

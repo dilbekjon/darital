@@ -49,7 +49,7 @@ export default function Home() {
       const expiryStr = localStorage.getItem('tokenExpiry')
       if (!expiryStr) return 'N/A'
       const expiry = new Date(parseInt(expiryStr, 10))
-      return expiry.toLocaleString()
+      return expiry.toLocaleString('uz-UZ')
     } catch {
       return 'N/A'
     }

@@ -481,8 +481,8 @@ export default function AdminUtilityBillsPage() {
           </div>
           <div className={`mt-3 rounded-lg border px-3 py-2 text-xs ${darkMode ? 'border-blue-600/30 bg-black text-gray-300' : 'border-gray-200 bg-gray-50 text-gray-700'}`}>
             <span className="font-semibold">Preview:</span>{' '}
-            Sarf {formConsumptionPreview == null ? '-' : formConsumptionPreview.toLocaleString()} × Tarif {formUnitPrice.toLocaleString()} ={' '}
-            <span className="font-semibold">{formAmountPreview == null ? '-' : `${Math.round(formAmountPreview).toLocaleString()} UZS`}</span>
+            Sarf {formConsumptionPreview == null ? '-' : formConsumptionPreview.toLocaleString('uz-UZ')} × Tarif {formUnitPrice.toLocaleString('uz-UZ')} ={' '}
+            <span className="font-semibold">{formAmountPreview == null ? '-' : `${Math.round(formAmountPreview).toLocaleString('uz-UZ')} UZS`}</span>
           </div>
           <button
             type="submit"
@@ -527,7 +527,7 @@ export default function AdminUtilityBillsPage() {
                         {bill.tenantName || 'Tenant'} • {bill.unitName || 'Unit'}
                       </p>
                       <p className={darkMode ? 'text-xs text-gray-400' : 'text-xs text-gray-600'}>
-                        {TYPE_LABEL[bill.type]} • {payment.source} • {Math.round(payment.amount).toLocaleString()} UZS
+                        {TYPE_LABEL[bill.type]} • {payment.source} • {Math.round(payment.amount).toLocaleString('uz-UZ')} UZS
                       </p>
                     </div>
                     <div className="text-right">
@@ -593,12 +593,12 @@ export default function AdminUtilityBillsPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{Math.round(bill.amount).toLocaleString()} UZS</p>
-                  <p className={darkMode ? 'text-xs text-gray-400' : 'text-xs text-gray-600'}>Qoldiq: {Math.round(bill.remainingAmount).toLocaleString()} UZS</p>
+                  <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{Math.round(bill.amount).toLocaleString('uz-UZ')} UZS</p>
+                  <p className={darkMode ? 'text-xs text-gray-400' : 'text-xs text-gray-600'}>Qoldiq: {Math.round(bill.remainingAmount).toLocaleString('uz-UZ')} UZS</p>
                 </div>
               </div>
               <p className={darkMode ? 'mt-2 text-xs text-gray-400' : 'mt-2 text-xs text-gray-600'}>
-                Holat: {bill.startReading ?? '-'} → {bill.endReading ?? '-'} • Sarf: {bill.consumption.toLocaleString()} • Tarif: {bill.unitPrice.toLocaleString()}
+                Holat: {bill.startReading ?? '-'} → {bill.endReading ?? '-'} • Sarf: {bill.consumption.toLocaleString('uz-UZ')} • Tarif: {bill.unitPrice.toLocaleString('uz-UZ')}
               </p>
             </div>
           ))}

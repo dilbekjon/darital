@@ -752,10 +752,10 @@ export default function AdminInvoicesPage() {
 
                     <div className={`mt-3 pt-3 border-t ${darkMode ? 'border-blue-600/30' : 'border-gray-200'}`}>
                       <p className={`text-base font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                        UZS {getAmount(invoice.amount).toLocaleString()}
+                        UZS {getAmount(invoice.amount).toLocaleString('uz-UZ')}
                       </p>
                       <p className={`text-xs mt-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Bank: {splitStatus.bankPaid.toLocaleString()} / {splitStatus.bankDue.toLocaleString()}
+                        Bank: {splitStatus.bankPaid.toLocaleString('uz-UZ')} / {splitStatus.bankDue.toLocaleString('uz-UZ')}
                       </p>
                       <div className={`mt-1 h-1.5 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                         <div
@@ -764,7 +764,7 @@ export default function AdminInvoicesPage() {
                         />
                       </div>
                       <p className={`text-xs mt-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Naqd: {splitStatus.cashPaid.toLocaleString()} / {splitStatus.cashDue.toLocaleString()}
+                        Naqd: {splitStatus.cashPaid.toLocaleString('uz-UZ')} / {splitStatus.cashDue.toLocaleString('uz-UZ')}
                       </p>
                       <div className={`mt-1 h-1.5 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                         <div
@@ -932,9 +932,9 @@ export default function AdminInvoicesPage() {
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
-                        <div>UZS {getAmount(invoice.amount).toLocaleString()}</div>
+                        <div>UZS {getAmount(invoice.amount).toLocaleString('uz-UZ')}</div>
                         <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          Bank: {splitStatus.bankPaid.toLocaleString()} / {splitStatus.bankDue.toLocaleString()}
+                          Bank: {splitStatus.bankPaid.toLocaleString('uz-UZ')} / {splitStatus.bankDue.toLocaleString('uz-UZ')}
                         </div>
                         <div className={`mt-1 h-2 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                           <div
@@ -943,7 +943,7 @@ export default function AdminInvoicesPage() {
                           />
                         </div>
                         <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          Naqd: {splitStatus.cashPaid.toLocaleString()} / {splitStatus.cashDue.toLocaleString()}
+                          Naqd: {splitStatus.cashPaid.toLocaleString('uz-UZ')} / {splitStatus.cashDue.toLocaleString('uz-UZ')}
                         </div>
                         <div className={`mt-1 h-2 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                           <div
@@ -1120,7 +1120,7 @@ export default function AdminInvoicesPage() {
                     {t.invoiceId}: {qrData.invoiceId}
                   </p>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {t.amount}: UZS {getAmount(qrData.amount).toLocaleString()}
+                    {t.amount}: UZS {getAmount(qrData.amount).toLocaleString('uz-UZ')}
                   </p>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     {t.status}: {qrData.status === 'PENDING' ? t.pending :
@@ -1455,7 +1455,7 @@ export default function AdminInvoicesPage() {
                           {t.unit || 'Unit'}: <span className="font-medium">{invoiceToDelete.contract?.unit?.name || (t.notApplicable || 'Mavjud emas')}</span>
                         </p>
                         <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {t.amount || 'Amount'}: <span className="font-medium">UZS {getAmount(invoiceToDelete.amount).toLocaleString()}</span>
+                          {t.amount || 'Amount'}: <span className="font-medium">UZS {getAmount(invoiceToDelete.amount).toLocaleString('uz-UZ')}</span>
                         </p>
                         <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                           {t.dueDate || 'To\'lov muddati'}: <span className="font-medium">{new Date(invoiceToDelete.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>

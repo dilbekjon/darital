@@ -1022,16 +1022,16 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
         const due = new Date(inv.dueDate);
         const days = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         const amount = inv.amount.toNumber();
-        text += `• ${unitName}: ${amount.toLocaleString()} UZS — ${days < 0 ? (lang === 'ru' ? `просрочено ${Math.abs(days)} дн.` : lang === 'en' ? `overdue ${Math.abs(days)} days` : `muddati o'tgan ${Math.abs(days)} kun`) : (lang === 'ru' ? `осталось ${days} дн.` : lang === 'en' ? `${days} days left` : `${days} kun`)}\n`;
+        text += `• ${unitName}: ${amount.toLocaleString('uz-UZ')} UZS — ${days < 0 ? (lang === 'ru' ? `просрочено ${Math.abs(days)} дн.` : lang === 'en' ? `overdue ${Math.abs(days)} days` : `muddati o'tgan ${Math.abs(days)} kun`) : (lang === 'ru' ? `осталось ${days} дн.` : lang === 'en' ? `${days} days left` : `${days} kun`)}\n`;
       }
     }
 
     text +=
       lang === 'ru'
-        ? `\n💰 Баланс: ${balanceNum.toLocaleString()} UZS`
+        ? `\n💰 Баланс: ${balanceNum.toLocaleString('uz-UZ')} UZS`
         : lang === 'en'
-          ? `\n💰 Balance: ${balanceNum.toLocaleString()} UZS`
-          : `\n💰 Balans: ${balanceNum.toLocaleString()} UZS`;
+          ? `\n💰 Balance: ${balanceNum.toLocaleString('uz-UZ')} UZS`
+          : `\n💰 Balans: ${balanceNum.toLocaleString('uz-UZ')} UZS`;
 
     const texts = this.getMenuTexts(lang);
     await ctx.reply(text, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
@@ -1205,19 +1205,19 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
 
         if (lang === 'ru') {
           deadlinesText += `${status} ${unitName}\n`;
-          deadlinesText += `   Сумма: ${amount.toLocaleString()} UZS\n`;
+          deadlinesText += `   Сумма: ${amount.toLocaleString('uz-UZ')} UZS\n`;
           deadlinesText += daysLeft < 0
             ? `   Просрочено: ${Math.abs(daysLeft)} дн.\n\n`
             : `   Осталось: ${daysLeft} дн.\n\n`;
         } else if (lang === 'en') {
           deadlinesText += `${status} ${unitName}\n`;
-          deadlinesText += `   Amount: ${amount.toLocaleString()} UZS\n`;
+          deadlinesText += `   Amount: ${amount.toLocaleString('uz-UZ')} UZS\n`;
           deadlinesText += daysLeft < 0
             ? `   Overdue: ${Math.abs(daysLeft)} days\n\n`
             : `   Days left: ${daysLeft}\n\n`;
         } else {
           deadlinesText += `${status} ${unitName}\n`;
-          deadlinesText += `   Summa: ${amount.toLocaleString()} UZS\n`;
+          deadlinesText += `   Summa: ${amount.toLocaleString('uz-UZ')} UZS\n`;
           deadlinesText += daysLeft < 0
             ? `   Muddati o'tgan: ${Math.abs(daysLeft)} kun\n\n`
             : `   Qolgan: ${daysLeft} kun\n\n`;
@@ -1297,7 +1297,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       const contract = tenant.contracts.find((c) => c.invoices.some((i) => i.id === inv.id));
       const unitName = contract?.unit?.name || 'N/A';
       const amount = inv.amount.toNumber();
-      const label = `${unitName} — ${amount.toLocaleString()} UZS`;
+      const label = `${unitName} — ${amount.toLocaleString('uz-UZ')} UZS`;
       return [Markup.button.callback(label, `pay_inv_${inv.id}`)];
     });
     rows.push([Markup.button.callback(this.getMenuTexts(lang).back, 'menu_main')]);
@@ -1369,10 +1369,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
           : Number((result as any).amount);
       const payMsg =
         lang === 'ru'
-          ? `💳 Оплатите счёт: ${amount.toLocaleString()} UZS\n\nНажмите кнопку ниже для перехода к оплате (UZUM / Click):`
+          ? `💳 Оплатите счёт: ${amount.toLocaleString('uz-UZ')} UZS\n\nНажмите кнопку ниже для перехода к оплате (UZUM / Click):`
           : lang === 'en'
-            ? `💳 Pay invoice: ${amount.toLocaleString()} UZS\n\nClick the button below to proceed to payment (UZUM / Click):`
-            : `💳 Hisob-faktura: ${amount.toLocaleString()} UZS\n\nTo'lov uchun quyidagi tugmani bosing (UZUM / Click):`;
+            ? `💳 Pay invoice: ${amount.toLocaleString('uz-UZ')} UZS\n\nClick the button below to proceed to payment (UZUM / Click):`
+            : `💳 Hisob-faktura: ${amount.toLocaleString('uz-UZ')} UZS\n\nTo'lov uchun quyidagi tugmani bosing (UZUM / Click):`;
 
       await ctx.reply(payMsg, Markup.inlineKeyboard([[Markup.button.url(lang === 'uz' ? "To'lov sahifasiga o'tish" : lang === 'ru' ? 'Перейти к оплате' : 'Go to payment', checkoutUrl)], [Markup.button.callback(this.getMenuTexts(lang).back, 'menu_main')]]));
     } catch (error: any) {
@@ -1403,10 +1403,10 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       });
 
     const balanceText = lang === 'ru'
-      ? `💰 Ваш баланс:\n\n${(balance?.current.toNumber() || 0).toLocaleString()} UZS`
+      ? `💰 Ваш баланс:\n\n${(balance?.current.toNumber() || 0).toLocaleString('uz-UZ')} UZS`
       : lang === 'en'
-      ? `💰 Your Balance:\n\n${(balance?.current.toNumber() || 0).toLocaleString()} UZS`
-      : `💰 Sizning balansingiz:\n\n${(balance?.current.toNumber() || 0).toLocaleString()} UZS`;
+      ? `💰 Your Balance:\n\n${(balance?.current.toNumber() || 0).toLocaleString('uz-UZ')} UZS`
+      : `💰 Sizning balansingiz:\n\n${(balance?.current.toNumber() || 0).toLocaleString('uz-UZ')} UZS`;
 
     const texts = this.getMenuTexts(lang);
     await ctx.reply(balanceText, Markup.inlineKeyboard([[Markup.button.callback(texts.back, 'menu_main')]]));
@@ -1527,11 +1527,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       const end = new Date(c.endDate).toLocaleDateString();
       const amount = typeof c.amount === 'object' && 'toNumber' in c.amount ? (c.amount as any).toNumber() : Number(c.amount);
       if (lang === 'ru') {
-        text += `• ${unitName}\n  Статус: ${status} | ${start} — ${end}\n  Сумма: ${amount.toLocaleString()} UZS\n\n`;
+        text += `• ${unitName}\n  Статус: ${status} | ${start} — ${end}\n  Сумма: ${amount.toLocaleString('uz-UZ')} UZS\n\n`;
       } else if (lang === 'en') {
-        text += `• ${unitName}\n  Status: ${status} | ${start} — ${end}\n  Amount: ${amount.toLocaleString()} UZS\n\n`;
+        text += `• ${unitName}\n  Status: ${status} | ${start} — ${end}\n  Amount: ${amount.toLocaleString('uz-UZ')} UZS\n\n`;
       } else {
-        text += `• ${unitName}\n  Holat: ${status} | ${start} — ${end}\n  Summa: ${amount.toLocaleString()} UZS\n\n`;
+        text += `• ${unitName}\n  Holat: ${status} | ${start} — ${end}\n  Summa: ${amount.toLocaleString('uz-UZ')} UZS\n\n`;
       }
     }
     const texts = this.getMenuTexts(lang);
@@ -1600,11 +1600,11 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       const status = p.status;
       const unitName = p.unitName || '—';
       if (lang === 'ru') {
-        text += `• ${amount.toLocaleString()} UZS | ${status} | ${date}\n  ${unitName}\n\n`;
+        text += `• ${amount.toLocaleString('uz-UZ')} UZS | ${status} | ${date}\n  ${unitName}\n\n`;
       } else if (lang === 'en') {
-        text += `• ${amount.toLocaleString()} UZS | ${status} | ${date}\n  ${unitName}\n\n`;
+        text += `• ${amount.toLocaleString('uz-UZ')} UZS | ${status} | ${date}\n  ${unitName}\n\n`;
       } else {
-        text += `• ${amount.toLocaleString()} UZS | ${status} | ${date}\n  ${unitName}\n\n`;
+        text += `• ${amount.toLocaleString('uz-UZ')} UZS | ${status} | ${date}\n  ${unitName}\n\n`;
       }
     }
     const texts = this.getMenuTexts(lang);

@@ -33,7 +33,7 @@ const InteractiveChart: React.FC<InteractiveChartProps> = ({
   height = 300,
   showLegend = true,
   onDrillDown,
-  formatValue = (v) => v.toLocaleString(),
+  formatValue = (v) => v.toLocaleString('uz-UZ'),
 }) => {
   const { darkMode } = useTheme();
   const t = useUntypedTranslations();

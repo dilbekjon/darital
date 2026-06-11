@@ -56,7 +56,7 @@ export function RoomSidebar({
           </span>
         </p>
         {room.tenantName && <p><span className="font-medium">Tenant:</span> {room.tenantName}</p>}
-        <p><span className="font-medium">Price:</span> {room.price.toLocaleString()} / month</p>
+        <p><span className="font-medium">Price:</span> {room.price.toLocaleString('uz-UZ')} / month</p>
       </div>
       <div className="p-4 mt-auto space-y-2 border-t border-gray-200 dark:border-gray-700">
         {room.status === 'vacant' || room.status === 'maintenance' ? (

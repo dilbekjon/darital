@@ -108,7 +108,7 @@ const TenantDashboard = () => {
                   ? balanceAmount >= 0 ? 'text-white' : 'text-red-400'
                   : balanceAmount >= 0 ? 'text-green-600' : 'text-red-600'
               }`}>
-                UZS {balanceAmount.toLocaleString()}
+                UZS {balanceAmount.toLocaleString('uz-UZ')}
               </h3>
               <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{t.currentBalance}</p>
             </div>

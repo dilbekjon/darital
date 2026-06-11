@@ -855,36 +855,6 @@ export default function AdminTenantsPage() {
                 </div>
               </div>
 
-              <div className={`glass-section mb-4 rounded-lg p-3 ${darkMode ? 'bg-gray-900/30' : 'bg-gray-50/70'}`}>
-                <p className={`text-sm font-medium mb-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Kommunal xizmatlar</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <label className={`flex items-center gap-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <input
-                      type="checkbox"
-                      checked={formData.utilityElectricityEnabled}
-                      onChange={(e) => setFormData({ ...formData, utilityElectricityEnabled: e.target.checked })}
-                    />
-                    Svet
-                  </label>
-                  <label className={`flex items-center gap-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <input
-                      type="checkbox"
-                      checked={formData.utilityGasEnabled}
-                      onChange={(e) => setFormData({ ...formData, utilityGasEnabled: e.target.checked })}
-                    />
-                    Gaz
-                  </label>
-                  <label className={`flex items-center gap-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <input
-                      type="checkbox"
-                      checked={formData.utilityWaterEnabled}
-                      onChange={(e) => setFormData({ ...formData, utilityWaterEnabled: e.target.checked })}
-                    />
-                    Suv
-                  </label>
-                </div>
-              </div>
-
               {editingTenant && (
                 <div className="glass-section grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4">
                   <div>

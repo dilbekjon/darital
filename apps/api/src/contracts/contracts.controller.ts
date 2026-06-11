@@ -10,6 +10,7 @@ import {
   Query,
   Req,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
   UsePipes,
@@ -21,7 +22,7 @@ import { UpdateContractDto } from './dto/update-contract.dto';
 import { UpdateContractStatusDto } from './dto/update-contract-status.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Updated import path
 import { Permissions } from '../rbac/permissions.decorator'; // New import
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FileFieldsInterceptor } from '@nestjs/platform-express';
 import { MinioService } from '../minio/minio.service';
 import { Express } from 'express';
 import { AuditInterceptor } from '../audit/audit.interceptor';
@@ -58,10 +59,13 @@ export class ContractsController {
 
   @Post()
   @Permissions('contracts.create') // New permissions decorator
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileFieldsInterceptor([
+    { name: 'file', maxCount: 1 },
+    { name: 'aktFile', maxCount: 1 },
+  ]))
   @UsePipes(new ValidationPipe({ whitelist: true }))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Create contract (Admin only) with PDF upload' })
+  @ApiOperation({ summary: 'Create contract (Admin only) with contract PDF + optional Akt PDF upload' })
   @ApiBody({
     schema: {
       type: 'object',
@@ -73,32 +77,44 @@ export class ContractsController {
         amount: { type: 'string', example: '1000.50' },
         bankAmount: { type: 'string', example: '700.50' },
         cashAmount: { type: 'string', example: '300.00' },
-        downPaymentAmount: { type: 'string', example: '5000.00', description: 'Upfront downpayment credited to tenant balance' },
-        downPaymentBankAmount: { type: 'string', example: '3000.00' },
-        downPaymentCashAmount: { type: 'string', example: '2000.00' },
+        utilityElectricityEnabled: { type: 'string', example: 'true' },
+        utilityGasEnabled: { type: 'string', example: 'false' },
+        utilityWaterEnabled: { type: 'string', example: 'false' },
         notes: { type: 'string', description: 'Additional contract notes or description' },
-        file: { type: 'string', format: 'binary' },
+        file: { type: 'string', format: 'binary', description: 'Contract PDF' },
+        aktFile: { type: 'string', format: 'binary', description: 'Optional Akt PDF' },
       },
       required: ['tenantId', 'unitId', 'startDate', 'endDate', 'amount', 'bankAmount', 'cashAmount', 'file'],
     },
   })
-  @ApiResponse({ status: 201, description: 'Contract created and file uploaded' })
+  @ApiResponse({ status: 201, description: 'Contract created and file(s) uploaded' })
   async create(
     @Body() body: any,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFiles() files: { file?: Express.Multer.File[]; aktFile?: Express.Multer.File[] },
   ) {
     const { tenantId, unitId, startDate, endDate, amount, bankAmount, cashAmount, notes,
-      downPaymentAmount, downPaymentBankAmount, downPaymentCashAmount } = body;
+      downPaymentAmount, downPaymentBankAmount, downPaymentCashAmount,
+      utilityElectricityEnabled, utilityGasEnabled, utilityWaterEnabled } = body;
+    const file = files?.file?.[0];
+    const aktFile = files?.aktFile?.[0];
     if (!file) {
       // Let the global filter map this properly
       throw new Error('File is required');
     }
+    // multipart form fields arrive as strings; coerce the utility flags to booleans
+    const toBool = (v: any): boolean | undefined =>
+      v === undefined ? undefined : v === true || v === 'true';
     const bucket = process.env.MINIO_BUCKET || 'contracts';
     const url = await this.minio.uploadFile(file, bucket);
+    const aktUrl = aktFile ? await this.minio.uploadFile(aktFile, bucket) : undefined;
     return this.contractsService.create(
       { tenantId, unitId, startDate, endDate, amount, bankAmount, cashAmount, notes,
-        downPaymentAmount, downPaymentBankAmount, downPaymentCashAmount },
+        downPaymentAmount, downPaymentBankAmount, downPaymentCashAmount,
+        utilityElectricityEnabled: toBool(utilityElectricityEnabled),
+        utilityGasEnabled: toBool(utilityGasEnabled),
+        utilityWaterEnabled: toBool(utilityWaterEnabled) },
       url,
+      aktUrl,
     );
   }
 

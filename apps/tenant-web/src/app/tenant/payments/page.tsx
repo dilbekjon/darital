@@ -228,7 +228,7 @@ export default function TenantPaymentsPage() {
                     <option value="">Invoice tanlang</option>
                     {unpaidInvoices.map((invoice) => (
                       <option key={invoice.id} value={invoice.id}>
-                        {invoice.unitName || 'Xona'} • {new Date(invoice.dueDate).toLocaleDateString('uz-UZ')} • qoldiq {Number(invoice.totalRemaining ?? invoice.amount).toLocaleString()} UZS
+                        {invoice.unitName || 'Xona'} • {new Date(invoice.dueDate).toLocaleDateString('uz-UZ')} • qoldiq {Number(invoice.totalRemaining ?? invoice.amount).toLocaleString('uz-UZ')} UZS
                       </option>
                     ))}
                   </select>
@@ -280,7 +280,7 @@ export default function TenantPaymentsPage() {
 
               {selectedInvoice && (
                 <p className={darkMode ? 'mt-3 text-xs text-slate-400' : 'mt-3 text-xs text-slate-600'}>
-                  Tanlangan invoice qoldig‘i: {Number(selectedInvoice.totalRemaining ?? selectedInvoice.amount).toLocaleString()} UZS
+                  Tanlangan invoice qoldig‘i: {Number(selectedInvoice.totalRemaining ?? selectedInvoice.amount).toLocaleString('uz-UZ')} UZS
                 </p>
               )}
 
@@ -338,7 +338,7 @@ export default function TenantPaymentsPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-semibold">{Number(payment.amount).toLocaleString()} UZS</p>
+                      <p className="text-2xl font-semibold">{Number(payment.amount).toLocaleString('uz-UZ')} UZS</p>
                       <p className={darkMode ? 'text-sm text-slate-400' : 'text-sm text-slate-500'}>
                         {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString('uz-UZ') : new Date(payment.createdAt).toLocaleDateString('uz-UZ')}
                       </p>
@@ -389,7 +389,7 @@ export default function TenantPaymentsPage() {
                       )}
                       {payment.method === 'OFFLINE' && payment.source === 'CASH' && payment.tenantConfirmedAt && (
                         <div className={darkMode ? 'text-xs text-blue-300' : 'text-xs text-blue-700'}>
-                          {payment.tenantConfirmedAmount != null ? `Bergan summa: ${Number(payment.tenantConfirmedAmount).toLocaleString()} UZS` : 'Tenant tasdiqlagan'}
+                          {payment.tenantConfirmedAmount != null ? `Bergan summa: ${Number(payment.tenantConfirmedAmount).toLocaleString('uz-UZ')} UZS` : 'Tenant tasdiqlagan'}
                         </div>
                       )}
                     </div>

@@ -624,7 +624,7 @@ export default function ArchiveManagementPage() {
                           </div>
                           <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                             To'lov muddati: {new Date(invoice.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })} •
-                            {' '}{Number(invoice.amount).toLocaleString()} UZS • {invoice.status === 'PENDING' ? 'Kutilmoqda' : invoice.status === 'PAID' ? 'To\'langan' : invoice.status === 'OVERDUE' ? 'Muddati o\'tgan' : invoice.status}
+                            {' '}{Number(invoice.amount).toLocaleString('uz-UZ')} UZS • {invoice.status === 'PENDING' ? 'Kutilmoqda' : invoice.status === 'PAID' ? 'To\'langan' : invoice.status === 'OVERDUE' ? 'Muddati o\'tgan' : invoice.status}
                           </div>
                           <div className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                             Arxivlangan: {formatDate(invoice.archivedAt)}

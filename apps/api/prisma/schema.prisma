@@ -322,6 +322,7 @@ model Contract {
   startDate   DateTime
   endDate     DateTime
   pdfUrl      String
+  aktPdfUrl   String?         // Optional secondary document (Akt) PDF
   amount      Decimal
   bankAmount  Decimal         @default(0)
   cashAmount  Decimal         @default(0)

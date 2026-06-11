@@ -68,9 +68,9 @@ export default function AdminContractsPage() {
     amount: '',
     bankAmount: '',
     cashAmount: '',
-    downPaymentAmount: '',
-    downPaymentBankAmount: '',
-    downPaymentCashAmount: '',
+    utilityElectricityEnabled: true,
+    utilityGasEnabled: false,
+    utilityWaterEnabled: false,
     notes: '',
     rentType: 'FIXED' as 'FIXED' | 'PER_SQM',
     pricePerSqm: '',
@@ -473,18 +473,20 @@ export default function AdminContractsPage() {
     
     try {
       const formDataToSend = new FormData();
+      // End date is optional: default to 31 December of the current year when left empty
+      const endDateValue = formData.endDate
+        ? new Date(formData.endDate)
+        : new Date(new Date().getFullYear(), 11, 31);
       formDataToSend.append('tenantId', formData.tenantId);
       formDataToSend.append('unitId', formData.unitId);
       formDataToSend.append('startDate', new Date(formData.startDate).toISOString());
-      formDataToSend.append('endDate', new Date(formData.endDate).toISOString());
+      formDataToSend.append('endDate', endDateValue.toISOString());
       formDataToSend.append('amount', formData.amount);
       formDataToSend.append('bankAmount', formData.bankAmount);
       formDataToSend.append('cashAmount', formData.cashAmount);
-      if (formData.downPaymentAmount && parseMoney(formData.downPaymentAmount) > 0) {
-        formDataToSend.append('downPaymentAmount', formData.downPaymentAmount);
-        formDataToSend.append('downPaymentBankAmount', formData.downPaymentBankAmount || '0');
-        formDataToSend.append('downPaymentCashAmount', formData.downPaymentCashAmount || '0');
-      }
+      formDataToSend.append('utilityElectricityEnabled', String(formData.utilityElectricityEnabled));
+      formDataToSend.append('utilityGasEnabled', String(formData.utilityGasEnabled));
+      formDataToSend.append('utilityWaterEnabled', String(formData.utilityWaterEnabled));
       if (formData.notes.trim()) {
         formDataToSend.append('notes', formData.notes.trim());
       }
@@ -517,7 +519,7 @@ export default function AdminContractsPage() {
       setContracts(contractsData);
       
       setIsModalOpen(false);
-      setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', downPaymentAmount: '', downPaymentBankAmount: '', downPaymentCashAmount: '', notes: '', rentType: 'FIXED', pricePerSqm: '' });
+      setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', utilityElectricityEnabled: true, utilityGasEnabled: false, utilityWaterEnabled: false, notes: '', rentType: 'FIXED', pricePerSqm: '' });
       setFile(null);
       setError(null);
     } catch (err) {
@@ -696,10 +698,10 @@ export default function AdminContractsPage() {
                   }`}>
                     <div>
                       <span className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                        UZS {contract.amount.toLocaleString()}<span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>/mo</span>
+                        UZS {contract.amount.toLocaleString('uz-UZ')}<span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>/mo</span>
                       </span>
                       <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Bank: {contract.bankAmount.toLocaleString()} · Naqd: {contract.cashAmount.toLocaleString()}
+                        Bank: {contract.bankAmount.toLocaleString('uz-UZ')} · Naqd: {contract.cashAmount.toLocaleString('uz-UZ')}
                       </p>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
@@ -825,9 +827,9 @@ export default function AdminContractsPage() {
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${
                         darkMode ? 'text-gray-300' : 'text-gray-500'
                       }`}>
-                        <div>UZS {contract.amount.toLocaleString()}<span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>/mo</span></div>
+                        <div>UZS {contract.amount.toLocaleString('uz-UZ')}<span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>/mo</span></div>
                         <div className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                          Bank: {contract.bankAmount.toLocaleString()} | Naqd: {contract.cashAmount.toLocaleString()}
+                          Bank: {contract.bankAmount.toLocaleString('uz-UZ')} | Naqd: {contract.cashAmount.toLocaleString('uz-UZ')}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1352,7 +1354,7 @@ export default function AdminContractsPage() {
                 type="button"
                 onClick={() => {
                   setIsModalOpen(false);
-                  setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', downPaymentAmount: '', downPaymentBankAmount: '', downPaymentCashAmount: '', notes: '', rentType: 'FIXED', pricePerSqm: '' });
+                  setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', utilityElectricityEnabled: true, utilityGasEnabled: false, utilityWaterEnabled: false, notes: '', rentType: 'FIXED', pricePerSqm: '' });
                   setFile(null);
                   setError(null);
                 }}
@@ -1455,7 +1457,7 @@ export default function AdminContractsPage() {
                         : parseFloat(String(unit.price)) || 0;
                     return (
                       <option key={unit.id} value={unit.id}>
-                        {unit.name} - UZS {priceValue.toLocaleString()} 
+                        {unit.name} - UZS {priceValue.toLocaleString('uz-UZ')} 
                         {unit.area && ` - ${unit.area}m²`}
                         {unit.floor && ` - Floor ${unit.floor}`}
                         {` (${unit.status})`}
@@ -1480,7 +1482,7 @@ export default function AdminContractsPage() {
                           <>
                             {selectedUnit?.area && <span className="ml-2">• Area: {selectedUnit.area}m²</span>}
                             {selectedUnit?.floor && <span className="ml-2">• Floor: {selectedUnit.floor}</span>}
-                            <span className="ml-2">• Price: UZS {priceValue.toLocaleString()}</span>
+                            <span className="ml-2">• Price: UZS {priceValue.toLocaleString('uz-UZ')}</span>
                             <span className="ml-2">• Status: {selectedUnit?.status}</span>
                           </>
                         );
@@ -1502,6 +1504,8 @@ export default function AdminContractsPage() {
                     required
                     value={formData.startDate}
                     onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    min="2016-01-01"
+                    max={new Date().toISOString().split('T')[0]}
                     className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
@@ -1509,19 +1513,21 @@ export default function AdminContractsPage() {
                 </div>
                 <div>
                   <label htmlFor="endDate" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    {t.endDate} <span className="text-red-500">*</span>
+                    {t.endDate} <span className="text-gray-400 font-normal">(ixtiyoriy)</span>
                   </label>
                   <input
                     type="date"
                     id="endDate"
-                    required
                     value={formData.endDate}
                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    min={formData.startDate}
+                    min={formData.startDate || '2016-01-01'}
                     className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
                   }`}
                   />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Tanlanmasa, shu yilning 31-dekabriga belgilanadi.
+                  </p>
                 </div>
               </div>
               {formData.startDate && formData.endDate && (
@@ -1609,7 +1615,7 @@ export default function AdminContractsPage() {
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             Xona maydoni: <strong>{area || '—'} m²</strong>
                             {pricePerSqm > 0 && area > 0 && (
-                              <> → Oylik summa: <strong>UZS {(area * pricePerSqm).toLocaleString()}</strong></>
+                              <> → Oylik summa: <strong>UZS {(area * pricePerSqm).toLocaleString('uz-UZ')}</strong></>
                             )}
                           </p>
                         </div>
@@ -1709,74 +1715,35 @@ export default function AdminContractsPage() {
 	                </p>
 	              </div>
 
-              {/* Downpayment / deposit (optional) */}
-              <div>
-                <label htmlFor="downPaymentAmount" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Boshlang‘ich to‘lov / Depozit (UZS) — ixtiyoriy
-                </label>
-                <input
-                  type="number"
-                  id="downPaymentAmount"
-                  min="0"
-                  step="0.01"
-                  value={formData.downPaymentAmount}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setFormData({
-                      ...formData,
-                      downPaymentAmount: v,
-                      downPaymentBankAmount: v,
-                      downPaymentCashAmount: v ? '0' : '',
-                    });
-                  }}
-                  placeholder="Masalan: 5000000"
-                  className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                />
-                {formData.downPaymentAmount && parseMoney(formData.downPaymentAmount) > 0 && (
-                  <div className="mt-3 grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Bank (UZS)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.downPaymentBankAmount}
-                        onChange={(e) => {
-                          const bank = e.target.value;
-                          setFormData({
-                            ...formData,
-                            downPaymentBankAmount: bank,
-                            downPaymentCashAmount: formatMoneyInput(parseMoney(formData.downPaymentAmount) - parseMoney(bank)),
-                          });
-                        }}
-                        className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Naqd (UZS)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.downPaymentCashAmount}
-                        onChange={(e) => {
-                          const cash = e.target.value;
-                          setFormData({
-                            ...formData,
-                            downPaymentCashAmount: cash,
-                            downPaymentBankAmount: formatMoneyInput(parseMoney(formData.downPaymentAmount) - parseMoney(cash)),
-                          });
-                        }}
-                        className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 ${darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                      />
-                    </div>
-                  </div>
-                )}
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Bu summa ijarachi balansiga qo‘shiladi. Har oy ijara avtomatik shu balansdan yechiladi; balans tugaganda manfiy (qarz) bo‘ladi.
-                </p>
+              {/* Utility services for this contract's tenant */}
+              <div className={`rounded-lg p-3 border ${darkMode ? 'bg-gray-900/30 border-blue-600/30' : 'bg-gray-50/70 border-gray-200'}`}>
+                <p className={`text-sm font-semibold mb-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>Kommunal xizmatlar</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label className={`flex items-center gap-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <input
+                      type="checkbox"
+                      checked={formData.utilityElectricityEnabled}
+                      onChange={(e) => setFormData({ ...formData, utilityElectricityEnabled: e.target.checked })}
+                    />
+                    Svet
+                  </label>
+                  <label className={`flex items-center gap-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <input
+                      type="checkbox"
+                      checked={formData.utilityGasEnabled}
+                      onChange={(e) => setFormData({ ...formData, utilityGasEnabled: e.target.checked })}
+                    />
+                    Gaz
+                  </label>
+                  <label className={`flex items-center gap-2 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <input
+                      type="checkbox"
+                      checked={formData.utilityWaterEnabled}
+                      onChange={(e) => setFormData({ ...formData, utilityWaterEnabled: e.target.checked })}
+                    />
+                    Suv
+                  </label>
+                </div>
               </div>
 
               {/* Contract Notes */}
@@ -1831,7 +1798,7 @@ export default function AdminContractsPage() {
                   type="button"
                   onClick={() => {
                     setIsModalOpen(false);
-                    setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', downPaymentAmount: '', downPaymentBankAmount: '', downPaymentCashAmount: '', notes: '', rentType: 'FIXED', pricePerSqm: '' });
+                    setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', utilityElectricityEnabled: true, utilityGasEnabled: false, utilityWaterEnabled: false, notes: '', rentType: 'FIXED', pricePerSqm: '' });
                     setFile(null);
                     setError(null);
                   }}

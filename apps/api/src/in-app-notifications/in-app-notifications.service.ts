@@ -111,7 +111,7 @@ export class InAppNotificationsService {
       tenantId,
       type: 'PAYMENT_DUE',
       title: 'Payment Due',
-      message: `Your payment of ${amount.toLocaleString()} UZS is due on ${dueDate.toLocaleDateString()}`,
+      message: `Your payment of ${amount.toLocaleString('uz-UZ')} UZS is due on ${dueDate.toLocaleDateString()}`,
       data: { invoiceId, amount, dueDate: dueDate.toISOString() },
     });
   }
@@ -121,7 +121,7 @@ export class InAppNotificationsService {
       tenantId,
       type: 'PAYMENT_CONFIRMED',
       title: 'Payment Confirmed',
-      message: `Your payment of ${amount.toLocaleString()} UZS has been confirmed. Thank you!`,
+      message: `Your payment of ${amount.toLocaleString('uz-UZ')} UZS has been confirmed. Thank you!`,
       data: { paymentId, amount },
     });
   }

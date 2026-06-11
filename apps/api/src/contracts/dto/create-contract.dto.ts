@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsNumberString, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsNumberString, IsOptional, IsString } from 'class-validator';
 
 export class CreateContractDto {
   @ApiProperty()
@@ -49,5 +49,21 @@ export class CreateContractDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // Utility services for this contract's tenant (applied to the Tenant record on create)
+  @ApiPropertyOptional({ description: 'Enable electricity utility for the tenant' })
+  @IsOptional()
+  @IsBoolean()
+  utilityElectricityEnabled?: boolean;
+
+  @ApiPropertyOptional({ description: 'Enable gas utility for the tenant' })
+  @IsOptional()
+  @IsBoolean()
+  utilityGasEnabled?: boolean;
+
+  @ApiPropertyOptional({ description: 'Enable water utility for the tenant' })
+  @IsOptional()
+  @IsBoolean()
+  utilityWaterEnabled?: boolean;
 }
 
