@@ -1,0 +1,15 @@
+# Pull-based deploy override: point services at prebuilt GHCR images instead of
+# building on the server. Applied LAST in the deploy command. Used by CI; does
+# not affect the existing build-on-server compose files when not included.
+services:
+  api:
+    image: ${IMAGE_BASE:-ghcr.io/dilbekjon/darital}-api:${IMAGE_TAG:-latest}
+    pull_policy: always
+  admin-web:
+    # ADMIN_IMAGE is set per-environment by the deploy step
+    # (…-admin-prod or …-admin-staging) because the API URL is baked at build time.
+    image: ${ADMIN_IMAGE:-ghcr.io/dilbekjon/darital-admin-staging}:${IMAGE_TAG:-latest}
+    pull_policy: always
+  tenant-web:
+    image: ${IMAGE_BASE:-ghcr.io/dilbekjon/darital}-tenant:${IMAGE_TAG:-latest}
+    pull_policy: always
