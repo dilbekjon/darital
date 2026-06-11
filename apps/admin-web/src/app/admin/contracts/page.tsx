@@ -24,6 +24,7 @@ interface Contract {
   cashAmount: number;
   status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
   pdfUrl: string;
+  aktPdfUrl?: string | null;
   tenant: { fullName: string; email?: string; phone?: string };
   unit: { name: string };
 }
@@ -86,6 +87,7 @@ export default function AdminContractsPage() {
   const [editFile, setEditFile] = useState<File | null>(null);
   const [newStatus, setNewStatus] = useState<'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'>('ACTIVE');
   const [file, setFile] = useState<File | null>(null);
+  const [aktFile, setAktFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [archivingContractId, setArchivingContractId] = useState<string | null>(null);
@@ -491,6 +493,9 @@ export default function AdminContractsPage() {
         formDataToSend.append('notes', formData.notes.trim());
       }
       formDataToSend.append('file', file);
+      if (aktFile) {
+        formDataToSend.append('aktFile', aktFile);
+      }
 
       const token = getToken();
       if (!token) {
@@ -521,6 +526,7 @@ export default function AdminContractsPage() {
       setIsModalOpen(false);
       setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', utilityElectricityEnabled: true, utilityGasEnabled: false, utilityWaterEnabled: false, notes: '', rentType: 'FIXED', pricePerSqm: '' });
       setFile(null);
+                  setAktFile(null);
       setError(null);
     } catch (err) {
       console.error('Failed to create contract:', err);
@@ -929,6 +935,20 @@ export default function AdminContractsPage() {
                 </svg>
                 {t.download || 'Download'}
               </a>
+              {viewingPdfContract.aktPdfUrl && (
+                <a
+                  href={viewingPdfContract.aktPdfUrl}
+                  download={`akt-${viewingPdfContract.id}.pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-emerald-600 text-white hover:bg-emerald-500"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Akt PDF
+                </a>
+              )}
               <button
                 type="button"
                 onClick={() => setViewingPdfContract(null)}
@@ -1356,6 +1376,7 @@ export default function AdminContractsPage() {
                   setIsModalOpen(false);
                   setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', utilityElectricityEnabled: true, utilityGasEnabled: false, utilityWaterEnabled: false, notes: '', rentType: 'FIXED', pricePerSqm: '' });
                   setFile(null);
+                  setAktFile(null);
                   setError(null);
                 }}
                 className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition ${
@@ -1790,6 +1811,29 @@ export default function AdminContractsPage() {
                 )}
               </div>
 
+              {/* Akt PDF File Upload (optional) */}
+              <div>
+                <label htmlFor="aktFile" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Akt PDF File <span className="text-gray-400 font-normal">(ixtiyoriy)</span>
+                </label>
+                <input
+                  type="file"
+                  id="aktFile"
+                  accept="application/pdf"
+                  onChange={(e) => setAktFile(e.target.files?.[0] || null)}
+                  className={`w-full rounded-md border-gray-300 shadow-sm px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    darkMode ? 'bg-black border-blue-600/30 text-white' : 'bg-white border-gray-300 text-gray-900'
+                  }`}
+                />
+                {aktFile && (
+                  <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      <strong>Selected Akt:</strong> {aktFile.name} ({(aktFile.size / 1024).toFixed(2)} KB)
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Form Actions */}
               <div className={`xl:col-span-2 flex justify-end gap-3 pt-4 ${
                 darkMode ? 'border-white/10 bg-slate-950/65' : 'border-slate-200/80 bg-white/70'
@@ -1800,6 +1844,7 @@ export default function AdminContractsPage() {
                     setIsModalOpen(false);
                     setFormData({ tenantId: '', unitId: '', startDate: '', endDate: '', amount: '', bankAmount: '', cashAmount: '', utilityElectricityEnabled: true, utilityGasEnabled: false, utilityWaterEnabled: false, notes: '', rentType: 'FIXED', pricePerSqm: '' });
                     setFile(null);
+                  setAktFile(null);
                     setError(null);
                   }}
                   className="px-6 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition-colors"

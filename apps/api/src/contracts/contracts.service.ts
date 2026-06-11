@@ -59,6 +59,7 @@ export class ContractsService {
       cashAmount: contract.cashAmount.toNumber(),
       status: contract.status,
       pdfUrl: contract.pdfUrl ? this.minioService.transformToPublicUrl(contract.pdfUrl) : contract.pdfUrl,
+      aktPdfUrl: contract.aktPdfUrl ? this.minioService.transformToPublicUrl(contract.aktPdfUrl) : contract.aktPdfUrl,
       notes: contract.notes || null,
       createdAt: contract.createdAt.toISOString(),
       tenant: {
@@ -79,11 +80,14 @@ export class ContractsService {
     });
     if (!contract) throw new NotFoundException('Contract not found');
     
-    // Transform PDF URL to use public URL if available
+    // Transform PDF URL(s) to use public URL if available
     if (contract.pdfUrl) {
       contract.pdfUrl = this.minioService.transformToPublicUrl(contract.pdfUrl);
     }
-    
+    if (contract.aktPdfUrl) {
+      contract.aktPdfUrl = this.minioService.transformToPublicUrl(contract.aktPdfUrl);
+    }
+
     return contract;
   }
 
@@ -110,6 +114,7 @@ export class ContractsService {
       cashAmount: contract.cashAmount.toNumber(),
       status: contract.status,
       pdfUrl: contract.pdfUrl ? this.minioService.transformToPublicUrl(contract.pdfUrl) : contract.pdfUrl,
+      aktPdfUrl: contract.aktPdfUrl ? this.minioService.transformToPublicUrl(contract.aktPdfUrl) : contract.aktPdfUrl,
       notes: contract.notes || null,
       createdAt: contract.createdAt.toISOString(),
       isArchived: contract.isArchived,
@@ -128,7 +133,7 @@ export class ContractsService {
     }));
   }
 
-  async create(dto: CreateContractDto, pdfUrl: string) {
+  async create(dto: CreateContractDto, pdfUrl: string, aktPdfUrl?: string) {
     // Check if unit is already BUSY
     const unit = await this.prisma.unit.findUnique({
       where: { id: dto.unitId },
@@ -167,6 +172,7 @@ export class ContractsService {
         startDate: new Date(dto.startDate),
         endDate: new Date(dto.endDate),
         pdfUrl,
+        aktPdfUrl: aktPdfUrl ?? null,
         amount,
         bankAmount,
         cashAmount,
